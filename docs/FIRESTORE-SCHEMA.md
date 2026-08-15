@@ -67,4 +67,26 @@ This enables **lazy migration** — when a document is read, check `_schemaVersi
 
 ---
 
+## `teamMembers` collection
+
+**Path:** `/teamMembers/{memberId}`
+**Access:** Org-shared (any authenticated user can read; only admins can write)
+
+| Field            | Type             | Required | Description                                                    |
+| ---------------- | ---------------- | -------- | ---------------------------------------------------------------- |
+| `id`             | `string`         | Yes      | Document ID (same as Firestore doc ID)                          |
+| `name`           | `string`         | Yes      | Max 30 characters. Names over 20 characters render as initials on the card |
+| `role`           | `string`         | Yes      | Max 25 characters. Rendered as the card subheading               |
+| `photoUrl`       | `string \| null` | Yes      | External URL to a JPG/PNG (4:5 aspect ratio, <10 MB) — this boilerplate has no Firebase Storage, so there's no upload pipeline yet. `null` shows the default avatar |
+| `blurb`          | `string \| null` | Yes      | Max 200 characters. `null` means the card expands its other fields to fill the space |
+| `order`          | `number`         | Yes      | Display order on the team page (ascending)                       |
+| `createdAt`      | `Timestamp`      | Yes      | When the document was created                                    |
+| `updatedAt`      | `Timestamp`      | Yes      | When the document was last updated                                |
+| `_schemaVersion` | `1`              | Yes      | Schema version for lazy migration                                |
+
+**Creation:** Seeded once via `pnpm --filter frontend run seed:team` (`frontend/scripts/seed-team-members.js`). No in-app create/edit UI in this sprint — edit documents directly in the Firestore console, or re-run the seed script.
+**Deletion:** Hard-delete allowed (curated content, no user-owned data) — just remove the document.
+
+---
+
 <!-- Add new collection schemas below using the /firebase-collection skill -->

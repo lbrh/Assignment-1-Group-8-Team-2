@@ -3,6 +3,20 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --color-brand-50: #eef5f4;
+  --color-brand-100: #d9e9e7;
+  --color-brand-300: #7fb0ad;
+  --color-brand-500: #2f6b6a;
+  --color-brand-600: #275957;
+  --color-brand-700: #1e4a49;
+  --color-brand-900: #14201f;
+
+  --color-surface: #f6f4ef;
+  --color-surface-card: #fdfcfa;
+  --color-ink: #14201f;
+  --color-ink-muted: #4b4f4d;
+  --color-ink-faint: #8a877f;
 }
 
 @theme inline {
@@ -10,6 +24,20 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-900: var(--color-brand-900);
+
+  --color-surface: var(--color-surface);
+  --color-surface-card: var(--color-surface-card);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-ink-faint: var(--color-ink-faint);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +51,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.bg-hero-gradient {
+  background: linear-gradient(135deg, #1c3b2e 0%, #2f5c42 32%, #6b6b3f 58%, #a97a3a 78%, #c98d2e 100%);
 }

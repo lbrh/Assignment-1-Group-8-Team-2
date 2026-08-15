@@ -50,7 +50,7 @@ export function useCollection<T extends DocumentData>(
 
     return () => unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collectionRef])
+  }, [collectionRef.path])
 
   return { data, loading, error }
 }
