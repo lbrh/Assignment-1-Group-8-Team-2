@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-const PROTECTED_ROUTES = ['/dashboard', '/profile', '/settings']
+const PROTECTED_ROUTES = ['/dashboard', '/profile', '/settings', '/team']
 const AUTH_ROUTES = ['/auth/signin', '/auth/signup']
 
 /**
@@ -23,7 +23,7 @@ export function proxy(req: NextRequest) {
   }
 
   if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+    return NextResponse.redirect(new URL('/team', req.url))
   }
 
   return NextResponse.next()

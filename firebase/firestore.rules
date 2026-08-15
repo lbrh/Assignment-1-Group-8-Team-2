@@ -64,6 +64,13 @@ service cloud.firestore {
       allow delete: if false;  // soft-delete only — set deletedAt instead
     }
 
+    // teamMembers/{memberId}
+    // Any signed-in user can read the roster; only admins write to it.
+    match /teamMembers/{memberId} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Add new collection rules above this comment using the /firebase-collection skill.
 
     // ── Default deny ───────────────────────────────────────────────────────

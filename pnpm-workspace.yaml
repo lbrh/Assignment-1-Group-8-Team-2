@@ -8,6 +8,8 @@ overrides:
   # environment-dependent type errors depending on how pnpm hoists the two
   # versions. Force one version everywhere.
   '@types/express': '^5.0.1'
+  # forces any transitive uuid below 11.1.1 up to the patched version
+  'uuid@<11.1.1': '>=11.1.1'
   # next@16.2.12 still bundles its own old postcss internally (separate from
   # the patched one Tailwind/Vite already use) — force it to a patched
   # version too. postcss 8.x is backward-compatible within the major.
