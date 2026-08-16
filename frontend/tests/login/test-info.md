@@ -48,3 +48,24 @@ This test validates the complete user login flow on the deployed Vercel instance
 ```bash
 pnpm --filter frontend exec playwright test tests/login/login.spec.ts
 ```
+
+## Test: Login Edge Cases
+
+**File:** `login-edge-cases.spec.ts`
+
+### What It Does
+
+Covers the failure and access-control paths around login that the happy-path test doesn't:
+
+1. **Invalid credentials** — wrong password shows the "Invalid email or password" toast and stays on `/auth/signin`
+2. **Malformed email** — client-side Zod validation blocks submit with "Please enter a valid email address"
+3. **Empty form** — submitting with no input shows both required-field errors
+4. **Direct URL access while logged out** — `/team`, `/dashboard`, `/profile`, and `/settings` all redirect to `/auth/signin?redirect=<path>` via `proxy.ts`
+
+None of these tests require a valid session — they only assert on validation errors and the unauthenticated redirect behavior.
+
+### Running the test
+
+```bash
+pnpm --filter frontend exec playwright test tests/login/login-edge-cases.spec.ts
+```
