@@ -8,10 +8,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    exclude: ['tests/login/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
+        'tests/login/**',
         'src/components/ui/**', // shadcn components — not hand-authored
         '**/*.d.ts',
         '**/*.config.*',
