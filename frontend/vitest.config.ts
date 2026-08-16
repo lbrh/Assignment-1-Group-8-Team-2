@@ -12,6 +12,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
+        'tests/login/**',
         'src/components/ui/**', // shadcn components — not hand-authored
         '**/*.d.ts',
         '**/*.config.*',
