@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "seed:team": "node scripts/seed-team-members.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
@@ -33,6 +34,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

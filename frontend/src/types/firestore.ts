@@ -33,3 +33,17 @@ export interface Note {
 }
 
 export type CreateUserProfileInput = Omit<UserProfile, 'createdAt' | 'updatedAt'>
+
+export interface TeamMember {
+  id: string
+  name: string
+  role: string
+  photoUrl: string | null
+  blurb: string | null
+  order: number
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  _schemaVersion: 1
+}
+
+export type CreateTeamMemberInput = Omit<TeamMember, 'id' | 'createdAt' | 'updatedAt'>
