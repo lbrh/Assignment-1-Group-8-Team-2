@@ -42,8 +42,8 @@ The flow is the same regardless of which client (web form or direct API call) in
 |---|---|---|
 | **1. Submission** | Client sends an image plus location, timestamp, and source_type, either manually entered or pre-populated by the sending system. | `source_type`, `latitude`/`longitude`, `timestamp` |
 | **2. Validation** | API checks that location and timestamp are present and that coordinates fall within the operating region's bounding box. If either check fails, the submission is rejected immediately, no record is created. | (pre-write check) |
-| **3. Storage write** | On a valid submission, `incident_id` and `image_id` are generated, and the image is written to COS at `/<incident_id>/<source_type>/<timestamp>_<image_id>.<ext>`. `upload_status` moves from `pending` to `stored` or `failed`. | `incident_id`, `image_id`, `storage_path`, `upload_status`, `ingestion_error` |
-| **4. Metadata record created** | A metadata record is written to the metadata store (separate from the image itself), with `assessment_status` starting at `pending_review` and the AI-dependent fields left null. | `assessment_status`, `severity_score` (null), `severity_explanation` (null), `priority_rank` (null) |
+| **3. Metadata record created** | Once validated, `incident_id` and `image_id` are generated and a metadata record is written to the metadata store with `upload_status` set to `pending`, `assessment_status` set to `pending_review`, and the AI-dependent fields left null. This happens before the storage write so there is somewhere for the status to live while the write is in progress. | `incident_id`, `image_id`, `upload_status` (pending), `assessment_status`, `severity_score` (null), `severity_explanation` (null), `priority_rank` (null) |
+| **4. Storage write** | The image is written to COS at `/<incident_id>/<source_type>/<timestamp>_<image_id>.<ext>`. The existing metadata record is then updated: `upload_status` moves to `stored` on success, or `failed` on error with `ingestion_error` populated. | `storage_path`, `upload_status`, `ingestion_error` |
 | **5. AI classification** | The stored image is sent to the vision classifier automatically. Result updates `severity_score`, `severity_explanation`, and `assessment_status`. | `severity_score`, `severity_explanation`, `assessment_status` |
 | **6. Prioritisation** | Once severity is known, `priority_rank` is computed against other open incidents. | `priority_rank` |
 | **7. Consumption** | Map page reads coordinates, `severity_score`, and `assessment_status` for markers. Incident page joins the full record plus `storage_path` and `severity_explanation`. Order page reads `priority_rank`. | all fields, read-only |
@@ -116,13 +116,11 @@ flowchart TD
     D -- invalid --> E[Reject<br/>return error, no record created]
     D -- valid --> F[Generate incident_id UUIDv7<br/>image_id UUIDv4]
 
-    F --> G[Write image to COS<br/>incident_id/source_type/timestamp_image_id.ext]
-    F --> H[Write metadata record<br/>assessment_status = pending_review]
+    F --> H[Create metadata record<br/>upload_status = pending<br/>assessment_status = pending_review<br/>severity_score, severity_explanation, priority_rank = null]
+    H --> G[Write image to COS<br/>incident_id/source_type/timestamp_image_id.ext]
+    G --> I[Update record<br/>upload_status: stored / failed]
 
-    G --> I[upload_status: stored / failed]
-    H --> J[severity_score, severity_explanation,<br/>priority_rank left null]
-
-    J --> K[AI Classification<br/>watsonx.ai]
+    I --> K[AI Classification<br/>watsonx.ai]
     K --> L[severity_score, severity_explanation,<br/>assessment_status updated]
     L --> M[Prioritisation<br/>priority_rank computed]
 
