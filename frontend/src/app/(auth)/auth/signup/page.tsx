@@ -95,7 +95,7 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="displayName" className="text-ink-muted text-sm font-medium">
               Name
