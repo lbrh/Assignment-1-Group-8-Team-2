@@ -29,6 +29,9 @@ export function TeamHeader() {
         <Link href="/dashboard" className="text-ink-muted transition-colors hover:text-ink">
           Dashboard
         </Link>
+        <Link href="/incidents" className="text-ink-muted transition-colors hover:text-ink">
+          Incidents
+        </Link>
         <button
           type="button"
           onClick={handleSignOut}
