@@ -1,85 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
-
-interface MockIncident {
-  id: string
-  title: string
-  severity: 1 | 2 | 3 | 4
-  tag: 'MOD' | 'HIGH' | 'EXT' | 'CAT' | 'REVIEW'
-  timeAgo: string
-  confidence: number | null
-  status: 'AWAITING' | 'REVIEW'
-}
-
-// Static sample data — real incidents come from Firestore once the map/data
-// layer is built. This panel exists to prove the layout and filtering first.
-const MOCK_INCIDENTS: MockIncident[] = [
-  {
-    id: 'INC-0428',
-    title: 'Ridge Rd, 3 km NE of Broadford',
-    severity: 4,
-    tag: 'CAT',
-    timeAgo: '6m ago',
-    confidence: 92,
-    status: 'AWAITING',
-  },
-  {
-    id: 'INC-0431',
-    title: 'Simmons Creek Track',
-    severity: 3,
-    tag: 'EXT',
-    timeAgo: '21m ago',
-    confidence: 88,
-    status: 'AWAITING',
-  },
-  {
-    id: 'INC-0426',
-    title: 'Warrandale Rd culvert',
-    severity: 3,
-    tag: 'EXT',
-    timeAgo: '37m ago',
-    confidence: 71,
-    status: 'AWAITING',
-  },
-  {
-    id: 'INC-0419',
-    title: 'Kinglake NP eastern boundary',
-    severity: 2,
-    tag: 'HIGH',
-    timeAgo: '1h ago',
-    confidence: 90,
-    status: 'AWAITING',
-  },
-  {
-    id: 'INC-0402',
-    title: 'Old Mill Reserve',
-    severity: 1,
-    tag: 'MOD',
-    timeAgo: '1h 28m ago',
-    confidence: 94,
-    status: 'AWAITING',
-  },
-  {
-    id: 'INC-0433',
-    title: 'Unnamed track, Bellbird Gully',
-    severity: 1,
-    tag: 'REVIEW',
-    timeAgo: '2m ago',
-    confidence: 34,
-    status: 'REVIEW',
-  },
-  {
-    id: 'INC-0435',
-    title: 'Broadmeadow fire trail',
-    severity: 1,
-    tag: 'REVIEW',
-    timeAgo: '4m ago',
-    confidence: 41,
-    status: 'REVIEW',
-  },
-]
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { MOCK_INCIDENTS } from '@/features/incidents/data'
+import type { MockIncident } from '@/features/incidents/types'
 
 const SEVERITY_TAG_COLOR: Record<MockIncident['tag'], string> = {
   CAT: 'bg-red-500 text-red-50',
@@ -93,16 +19,37 @@ type Filter = 'all' | 'high' | 'review'
 
 export function ActiveIncidentsPanel() {
   const [filter, setFilter] = useState<Filter>('all')
+  const [incidents, setIncidents] = useState<MockIncident[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const reviewCount = MOCK_INCIDENTS.filter((i) => i.status === 'REVIEW').length
-  const filtered = MOCK_INCIDENTS.filter((incident) => {
+  const reviewCount = (incidents ?? []).filter((i) => i.status === 'REVIEW').length
+  const filtered = (incidents ?? []).filter((incident) => {
     if (filter === 'high') return incident.severity >= 3
     if (filter === 'review') return incident.status === 'REVIEW'
     return true
   })
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIncidents(MOCK_INCIDENTS)
+      setLoading(false)
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-zinc-800 bg-zinc-950">
+      {loading ? (
+        <div className="flex flex-1 items-center justify-center">
+          <LoadingSpinner className="border-zinc-700 border-t-zinc-300" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-red-400">
+          {error}
+        </div>
+      ) : (
+      <>
       <div className="border-b border-zinc-800 p-3">
         <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
           Active incidents
@@ -122,55 +69,64 @@ export function ActiveIncidentsPanel() {
 
       <ul className="flex-1 divide-y divide-zinc-800 overflow-y-auto">
         {filtered.map((incident) => (
-          <li key={incident.id} className="flex items-start gap-3 p-3">
-            <span
-              className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-                SEVERITY_TAG_COLOR[incident.tag],
-              )}
+          <li key={incident.id}>
+            <Link
+              href={`/incidents/${incident.id}`}
+              className="flex items-start gap-3 p-3 transition-colors hover:bg-zinc-900"
             >
-              {incident.status === 'REVIEW' ? '?' : incident.severity}
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    'rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide',
-                    SEVERITY_TAG_COLOR[incident.tag],
-                  )}
-                >
-                  {incident.tag}
-                </span>
-                <p className="truncate text-sm font-medium text-zinc-100">{incident.title}</p>
-              </div>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                {incident.id} · {incident.timeAgo}
-                {incident.confidence !== null && (
-                  <>
-                    {' '}
-                    · conf{' '}
-                    <span className={incident.confidence < 60 ? 'text-amber-400' : 'text-teal-400'}>
-                      {incident.confidence}%
-                    </span>
-                  </>
+              <span
+                className={cn(
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                  SEVERITY_TAG_COLOR[incident.tag],
                 )}
-              </p>
-            </div>
+              >
+                {incident.status === 'REVIEW' ? '?' : incident.severity}
+              </span>
 
-            <span
-              className={cn(
-                'shrink-0 rounded px-2 py-1 text-[10px] font-semibold tracking-wide',
-                incident.status === 'REVIEW'
-                  ? 'bg-teal-500/20 text-teal-300'
-                  : 'bg-zinc-800 text-zinc-400',
-              )}
-            >
-              {incident.status}
-            </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      'rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide',
+                      SEVERITY_TAG_COLOR[incident.tag],
+                    )}
+                  >
+                    {incident.tag}
+                  </span>
+                  <p className="truncate text-sm font-medium text-zinc-100">{incident.title}</p>
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {incident.id} · {incident.timeAgo}
+                  {incident.confidence !== null && (
+                    <>
+                      {' '}
+                      · conf{' '}
+                      <span
+                        className={incident.confidence < 60 ? 'text-amber-400' : 'text-teal-400'}
+                      >
+                        {incident.confidence}%
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <span
+                className={cn(
+                  'shrink-0 rounded px-2 py-1 text-[10px] font-semibold tracking-wide',
+                  incident.status === 'REVIEW'
+                    ? 'bg-teal-500/20 text-teal-300'
+                    : 'bg-zinc-800 text-zinc-400',
+                )}
+              >
+                {incident.status}
+              </span>
+            </Link>
           </li>
         ))}
       </ul>
+      </>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-## IBM Cloud / watsonx.ai Setup (Windows)
+## IBM Cloud / watsonx.ai Setup (macOS)
 
 # Prerequisites:
 Prerequisites and requirements are covered in Development Setup Requirements. This document assumes those are already met and covers the actual steps in order.
@@ -79,25 +79,34 @@ Verify with:
 ibmcloud -v
 ibmcloud login
 
-# 2. Provision watsonx.ai Studio and Runtime
+# 2. Join and switch into the account
 
-Search "watsonx" in the IBM Cloud catalog. Create a watsonx.ai Studio instance and a watsonx.ai Runtime instance.
+Accept the itz-watsonx-event-001 reservation invitation, from the Notifications icon on cloud.ibm.com or the email invite, if you have not already. Then use the account switcher near your profile icon and select itz-watsonx-event-001.
 
-Before treating either as usable, click into it and confirm it opens normally. If it returns an access-denied error mentioning a different account, it is not actually yours, even if the name looks ordinary. This is the Lite plan and reservation issue covered in Development Setup Requirements.
+Once switched, target the correct resource group:
+ibmcloud target -g itz-wxo-6a7a76ec3dae69a2d9ca20
 
-# 3. Create a project
+# 3. Confirm the existing watsonx.ai Studio and Runtime instances are actually yours
 
-Inside Studio, create a new project. Attach a Cloud Object Storage instance for file storage, creating one on the Lite plan if you don't already have one.
+This account already has watsonx.ai Studio-jp, watsonx.ai Studio-ud, and watsonx.ai Runtime-xe provisioned. Don't just click into each and assume it's fine if it opens. Open each resource's Details panel and check the "Created by" field. If it shows your own account, it's genuinely yours. If it shows someone else's, it isn't, even if it opens without an error.
 
-# 4. Create a deployment space
+# 4. Create a project, from the right starting point
 
-Create a deployment space separately from the project. Associate it with your Runtime instance during creation. A space without a linked Runtime instance can exist but cannot run any deployments.
+Studio, Runtime, and the project all need to be in the same region, this is required, not optional.
 
-# 5. Generate an API key
+Don't use the generic project creation page. It can wrongly say your services are in different regions even when they aren't. Instead, go to your Studio instance in the resource list and click its "Launch in" button, which takes you to the correct region-specific page.
 
-Go to Manage, then Access (IAM), then API keys, and create one. Record the project ID, the deployment space ID, the region, and the key itself. The key is shown only once.
+From there, create a new project, attaching the existing Cloud Object Storage instance for file storage.
 
-# 6. Set up local environment variables
+# 5. Create a deployment space
+
+Create it separately from the project, with a distinct name if the project's name is already taken. Set its stage to Development, and associate it with watsonx.ai Runtime-xe. A space without a linked Runtime instance can exist but cannot run any deployments.
+
+# 6. Generate an API key
+
+Go to Manage, then Access (IAM), then API keys, and create one. This may come back tied to a Service ID rather than a personal identity, which is expected in this account. Record the project ID, the deployment space ID, the region, and the key itself. The key is shown only once.
+
+# 7. Set up local environment variables
 
 Add these to your local .env file, which should never be committed:
 
@@ -106,8 +115,9 @@ WATSONX_PROJECT_ID=
 WATSONX_SPACE_ID=
 WATSONX_REGION=
 
-# 7. Verify access
+# 8. Verify access
 ibmcloud login --apikey <your key>
+ibmcloud target -g itz-wxo-6a7a76ec3dae69a2d9ca20
 ibmcloud resource service-instances
 
 (Documentation have had AI reformatting and paraphrase but using fundamental original ideas of my own)

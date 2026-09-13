@@ -6,18 +6,31 @@ import { ImagePlus, X } from 'lucide-react'
 // Geotag/timestamp attachment and submission handling belong to the core workflow step, once one has been chosen and scoped.
 export function PhotoSubmissionArea() {
   const [preview, setPreview] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setPreview(URL.createObjectURL(file))
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    setError('That file isn\'t an image. Choose a JPG, PNG, or similar.')
+    return
   }
+  if (file.size > 10 * 1024 * 1024) {
+    setError('That image is too large. Choose a file under 10 MB.')
+    return
+  }
+
+  setError(null)
+  setPreview(URL.createObjectURL(file))
+}
 
   function handleClear() {
     setPreview(null)
+    setError(null)
     if (inputRef.current) inputRef.current.value = ''
-  }
+}
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
@@ -56,6 +69,12 @@ export function PhotoSubmissionArea() {
           />
         </label>
       )}
+
+  {error && (
+    <p className="mt-2 text-sm text-red-400" role="alert">
+      {error}
+    </p>
+    )}
 
       <button
         type="button"

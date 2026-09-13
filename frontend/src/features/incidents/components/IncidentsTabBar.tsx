@@ -16,9 +16,14 @@ export function IncidentsTabBar() {
 
   return (
     <header className="flex h-14 items-center gap-1 border-b border-zinc-800 bg-zinc-950 px-4 text-zinc-300">
-      <span className="mr-4 text-sm font-semibold tracking-wide text-white uppercase">
-        {process.env.NEXT_PUBLIC_APP_NAME ?? 'Incidents'}
-      </span>
+      <div className="mr-4 flex items-center gap-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-400 font-mono text-sm font-bold text-zinc-950">
+          {(process.env.NEXT_PUBLIC_APP_NAME || 'FORI')[0]}
+        </div>
+        <span className="font-mono text-sm font-bold tracking-wide text-white uppercase">
+          {process.env.NEXT_PUBLIC_APP_NAME || 'FORI'}
+        </span>
+      </div>
 
       <nav className="flex h-full items-center gap-1">
         {TABS.map(({ href, label }) => {

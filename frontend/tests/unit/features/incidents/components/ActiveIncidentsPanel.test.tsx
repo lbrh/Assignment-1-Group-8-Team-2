@@ -4,10 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { ActiveIncidentsPanel } from '@/features/incidents/components/ActiveIncidentsPanel'
 
 describe('ActiveIncidentsPanel', () => {
-  it('shows every sample incident by default', () => {
+  it('shows every sample incident by default', async () => {
     render(<ActiveIncidentsPanel />)
 
-    expect(screen.getByText('Ridge Rd, 3 km NE of Broadford')).toBeInTheDocument()
+    // The panel simulates a real fetch with a short delay, so wait for it
+    // rather than asserting synchronously.
+    expect(await screen.findByText('Ridge Rd, 3 km NE of Broadford')).toBeInTheDocument()
     expect(screen.getByText('Old Mill Reserve')).toBeInTheDocument()
     expect(screen.getByText('Unnamed track, Bellbird Gully')).toBeInTheDocument()
   })
@@ -16,7 +18,7 @@ describe('ActiveIncidentsPanel', () => {
     const user = userEvent.setup()
     render(<ActiveIncidentsPanel />)
 
-    await user.click(screen.getByRole('button', { name: /sev 3–4/i }))
+    await user.click(await screen.findByRole('button', { name: /sev 3–4/i }))
 
     // Severity 3/4 incidents remain
     expect(screen.getByText('Ridge Rd, 3 km NE of Broadford')).toBeInTheDocument()
@@ -31,7 +33,7 @@ describe('ActiveIncidentsPanel', () => {
     const user = userEvent.setup()
     render(<ActiveIncidentsPanel />)
 
-    await user.click(screen.getByRole('button', { name: /review 2/i }))
+    await user.click(await screen.findByRole('button', { name: /review 2/i }))
 
     expect(screen.getByText('Unnamed track, Bellbird Gully')).toBeInTheDocument()
     expect(screen.getByText('Broadmeadow fire trail')).toBeInTheDocument()
@@ -42,7 +44,7 @@ describe('ActiveIncidentsPanel', () => {
     const user = userEvent.setup()
     render(<ActiveIncidentsPanel />)
 
-    await user.click(screen.getByRole('button', { name: /review 2/i }))
+    await user.click(await screen.findByRole('button', { name: /review 2/i }))
     await user.click(screen.getByRole('button', { name: /all 7/i }))
 
     expect(screen.getByText('Ridge Rd, 3 km NE of Broadford')).toBeInTheDocument()
