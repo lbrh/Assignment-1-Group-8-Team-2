@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS images (
     structure_people_proximity TEXT CHECK (structure_people_proximity IN ('no_structure_at_risk', 'infrastructure_in_fire_line', 'extensive_infrastructure_damage_people_in_proximity')),
 
     assessment_status TEXT NOT NULL CHECK (assessment_status IN ('assessed', 'unable_to_assess', 'pending_review')),
+    classification_label TEXT CHECK (classification_label IN ('fire', 'non_fire', 'extinguished', 'uncertain')),
     priority_rank INTEGER,
     upload_status TEXT NOT NULL CHECK (upload_status IN ('pending', 'stored', 'failed')),
     ingestion_error TEXT

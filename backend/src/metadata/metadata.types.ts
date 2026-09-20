@@ -5,6 +5,7 @@
 export type SourceType = 'drone' | 'cctv' | 'citizen' | 'satellite';
 export type UploadStatus = 'pending' | 'stored' | 'failed';
 export type AssessmentStatus = 'assessed' | 'unable_to_assess' | 'pending_review';
+export type ClassificationLabel = 'fire' | 'non_fire' | 'extinguished' | 'uncertain';
 
 export type SmokeDensity = 'none_or_haze' | 'moderate' | 'dense_dark' | 'very_dense_blocking_vision';
 export type FlameVisibility =
@@ -38,6 +39,7 @@ export interface ImageMetadata {
     vegetationImpact: VegetationImpact | null;
     structurePeopleProximity: StructurePeopleProximity | null;
     assessmentStatus: AssessmentStatus;
+    classificationLabel: ClassificationLabel | null;
     priorityRank: number | null;
     uploadStatus: UploadStatus;
     ingestionError: string | null;
