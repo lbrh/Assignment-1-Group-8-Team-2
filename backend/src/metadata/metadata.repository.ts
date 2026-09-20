@@ -26,6 +26,7 @@ const COLUMNS = {
     vegetationImpact: 'vegetation_impact',
     structurePeopleProximity: 'structure_people_proximity',
     assessmentStatus: 'assessment_status',
+    classificationLabel: 'classification_label',
     priorityRank: 'priority_rank',
     uploadStatus: 'upload_status',
     ingestionError: 'ingestion_error',

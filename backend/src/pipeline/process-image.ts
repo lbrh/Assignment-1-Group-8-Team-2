@@ -52,6 +52,7 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
         vegetationImpact: null,
         structurePeopleProximity: null,
         assessmentStatus: 'pending_review',
+        classificationLabel: null,
         priorityRank: null,
         uploadStatus: 'pending',
         ingestionError: null,
