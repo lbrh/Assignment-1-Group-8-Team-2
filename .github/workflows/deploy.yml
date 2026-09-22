@@ -6,7 +6,7 @@ on:
 
 env:
   IBM_CLOUD_REGION: ca-tor
-  ICR_NAMESPACE: 
+  ICR_NAMESPACE: assignment1group8team2
 
 jobs:
   verify:
@@ -44,11 +44,7 @@ jobs:
           ibmcloud cr login
       - name: Build and push
         run: |
-          docker build \
-            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" \
-            -t icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }} ./frontend
+          docker build -t icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }} ./frontend
           docker push icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }}
       - name: Deploy
         run: |
