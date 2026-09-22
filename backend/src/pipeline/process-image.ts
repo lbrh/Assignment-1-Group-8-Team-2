@@ -6,6 +6,7 @@ import { extractExif } from './exif.ts';
 import { validateIngestion } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
 import { requestClassification } from './classification.service.ts';
+import { classifySmokeDensity } from '../ai/indicator-models.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
 import type { IngestionInput, ImageMetadata } from '../metadata/metadata.types.ts';
 
@@ -86,7 +87,7 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
         // response is already on its way avoids the /ingest call blocking on an ML call
         // with no agreed SLA yet. A coordinator can still override the result later
         // regardless of whether this finishes before or after the client sees the response.
-        void classifyAndUpdate(stored);
+        void classifyAndUpdate(stored, file.buffer);
 
         return stored;
     } catch (err) {
@@ -97,18 +98,34 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
     }
 }
 
-async function classifyAndUpdate(record: ImageMetadata): Promise<void> {
+async function classifyAndUpdate(record: ImageMetadata, imageBuffer: Buffer): Promise<void> {
     if (!record.storagePath) return;
-    const result = await requestClassification({
+
+    // External classification service per the interface doc (still a no-op — nothing's
+    // configured at CLASSIFICATION_SERVICE_URL yet).
+    const externalResult = await requestClassification({
         imageId: record.imageId,
         storagePath: record.storagePath,
         sourceType: record.sourceType,
     });
-    if (!result) return; // CLASSIFICATION_SERVICE_URL not configured yet — no-op
+    if (externalResult) {
+        try {
+            await metadataRepository.update(record.imageId, externalResult);
+        } catch (err) {
+            logger.error('failed to write classification result', errorMeta(err));
+        }
+    }
 
-    try {
-        await metadataRepository.update(record.imageId, result);
-    } catch (err) {
-        logger.error('failed to write classification result', errorMeta(err));
+    // Direct per-indicator watsonx.ai Runtime deployments (AI_Framework_and_Technical_Approach.md's
+    // recommended architecture) — only smoke_density is deployed so far, so this can only
+    // fill in that one field. Full severity_score/assessment_status need all four
+    // indicators, which assessSeverity() (assess-severity.ts) computes once they exist.
+    if (process.env.WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID) {
+        try {
+            const smokeDensity = await classifySmokeDensity(imageBuffer);
+            await metadataRepository.update(record.imageId, { smokeDensity: smokeDensity.value });
+        } catch (err) {
+            logger.error('smoke density classification failed', errorMeta(err));
+        }
     }
 }
