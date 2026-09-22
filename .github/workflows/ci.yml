@@ -42,5 +42,7 @@ jobs:
             - run: npm install
             - run: npx tsc --noEmit
             - name: apply schema to test database
+              if: ${{ env.DATABASE_URL != '' }}
               run: npx --yes -p pg psql "$DATABASE_URL" -f src/metadata/schema.sql
             - run: npm test
+              if: ${{ env.DATABASE_URL != '' }}
