@@ -6,7 +6,10 @@ on:
   workflow_dispatch:
 env:
   IBM_CLOUD_REGION: ca-tor
+  IBM_CLOUD_RESOURCE_GROUP: Default
+  ICR_REGISTRY: ca.icr.io
   ICR_NAMESPACE: assignment1group8team2
+  CE_PROJECT: assignment-1-backend
 
 jobs:
   verify:
@@ -47,18 +50,18 @@ jobs:
       - name: IBM Cloud login
         run: |
           curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
-          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "$IBM_CLOUD_REGION"
+          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
           ibmcloud plugin install container-registry code-engine -f
           ibmcloud cr login
       - name: Build and push
         run: |
-          docker build -t icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }} ./frontend
-          docker push icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }}
+          docker build -t $ICR_REGISTRY/$ICR_NAMESPACE/frontend:${{ github.sha }} ./frontend
+          docker push $ICR_REGISTRY/$ICR_NAMESPACE/frontend:${{ github.sha }}
       - name: Deploy
         run: |
-          ibmcloud ce project select --name capstone-project
+          ibmcloud ce project select --name "$CE_PROJECT"
           ibmcloud ce application update --name frontend \
-            --image icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }}
+            --image $ICR_REGISTRY/$ICR_NAMESPACE/frontend:${{ github.sha }}
 
   deploy-backend:
     needs: verify
@@ -68,15 +71,15 @@ jobs:
       - name: IBM Cloud login
         run: |
           curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
-          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "$IBM_CLOUD_REGION"
+          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
           ibmcloud plugin install container-registry code-engine -f
           ibmcloud cr login
       - name: Build and push
         run: |
-          docker build -t icr.io/$ICR_NAMESPACE/backend:${{ github.sha }} ./backend
-          docker push icr.io/$ICR_NAMESPACE/backend:${{ github.sha }}
+          docker build -t $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }} ./backend
+          docker push $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }}
       - name: Deploy
         run: |
-          ibmcloud ce project select --name capstone-project
+          ibmcloud ce project select --name "$CE_PROJECT"
           ibmcloud ce application update --name backend \
-            --image icr.io/$ICR_NAMESPACE/backend:${{ github.sha }}
+            --image $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }}
