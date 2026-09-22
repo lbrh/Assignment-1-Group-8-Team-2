@@ -18,6 +18,7 @@ jobs:
             - run: corepack enable
             - run: pnpm install --frozen-lockfile
             - run: pnpm lint
+            - run: pnpm exec next typegen
             - run: pnpm exec tsc --noEmit
             - run: pnpm build
             - run: pnpm test

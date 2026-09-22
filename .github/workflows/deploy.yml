@@ -18,9 +18,16 @@ jobs:
           node-version: 24-alpine
       - name: backend checks
         working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
+          COS_BUCKET: ${{ secrets.COS_BUCKET }}
+          COS_ACCESS_KEY_ID: ${{ secrets.COS_ACCESS_KEY_ID }}
+          COS_SECRET_ACCESS_KEY: ${{ secrets.COS_SECRET_ACCESS_KEY }}
         run: |
           npm install
           npx tsc --noEmit
+          npx --yes -p pg psql "$DATABASE_URL" -f src/metadata/schema.sql
           npm test
       - name: frontend checks
         working-directory: frontend
@@ -28,6 +35,7 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
           pnpm lint
+          pnpm exec next typegen
           pnpm exec tsc --noEmit
           pnpm build
 
