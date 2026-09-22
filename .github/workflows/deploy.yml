@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     branches: [prod]
-
+  workflow_dispatch:
 env:
   IBM_CLOUD_REGION: ca-tor
   ICR_NAMESPACE: assignment1group8team2
