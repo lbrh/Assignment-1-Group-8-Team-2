@@ -6,9 +6,23 @@ import { extractExif } from './exif.ts';
 import { validateIngestion } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
 import { requestClassification } from './classification.service.ts';
-import { classifySmokeDensity } from '../ai/indicator-models.ts';
+import { classifySmokeDensity, classifyFlameVisibility } from '../ai/indicator-models.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
 import type { IngestionInput, ImageMetadata } from '../metadata/metadata.types.ts';
+
+// Direct per-indicator watsonx.ai Runtime deployments (AI_Framework_and_Technical_Approach.md's
+// recommended architecture). Add an entry here as each indicator's model gets deployed;
+// an unconfigured envVar just skips that indicator, so this stays a no-op field by field
+// until all four exist. Full severity_score/assessment_status need all four indicators,
+// which assessSeverity() (assess-severity.ts) computes once they do.
+const INDICATOR_CLASSIFIERS: {
+    envVar: string;
+    field: 'smokeDensity' | 'flameVisibility';
+    classify: (imageBuffer: Buffer) => Promise<{ value: string; confidence: number }>;
+}[] = [
+    { envVar: 'WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID', field: 'smokeDensity', classify: classifySmokeDensity },
+    { envVar: 'WATSONX_FLAME_VISIBILITY_DEPLOYMENT_ID', field: 'flameVisibility', classify: classifyFlameVisibility },
+];
 
 export interface IngestedFile {
     buffer: Buffer;
@@ -116,16 +130,13 @@ async function classifyAndUpdate(record: ImageMetadata, imageBuffer: Buffer): Pr
         }
     }
 
-    // Direct per-indicator watsonx.ai Runtime deployments (AI_Framework_and_Technical_Approach.md's
-    // recommended architecture) — only smoke_density is deployed so far, so this can only
-    // fill in that one field. Full severity_score/assessment_status need all four
-    // indicators, which assessSeverity() (assess-severity.ts) computes once they exist.
-    if (process.env.WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID) {
+    for (const indicator of INDICATOR_CLASSIFIERS) {
+        if (!process.env[indicator.envVar]) continue;
         try {
-            const smokeDensity = await classifySmokeDensity(imageBuffer);
-            await metadataRepository.update(record.imageId, { smokeDensity: smokeDensity.value });
+            const prediction = await indicator.classify(imageBuffer);
+            await metadataRepository.update(record.imageId, { [indicator.field]: prediction.value });
         } catch (err) {
-            logger.error('smoke density classification failed', errorMeta(err));
+            logger.error(`${indicator.field} classification failed`, errorMeta(err));
         }
     }
 }
