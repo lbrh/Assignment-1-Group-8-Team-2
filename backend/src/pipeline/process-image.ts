@@ -5,6 +5,8 @@ import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { extractExif } from './exif.ts';
 import { validateIngestion } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
+import { requestClassification } from './classification.service.ts';
+import { logger, errorMeta } from '../utils/logger.ts';
 import type { IngestionInput, ImageMetadata } from '../metadata/metadata.types.ts';
 
 export interface IngestedFile {
@@ -77,11 +79,36 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
 
     try {
         await uploadImage(key, file.buffer, file.mimetype);
-        return await metadataRepository.update(imageId, { storagePath: key, uploadStatus: 'stored' });
+        const stored = await metadataRepository.update(imageId, { storagePath: key, uploadStatus: 'stored' });
+
+        // Fire-and-forget: whether ingestion holds the connection open for classification
+        // is an explicitly open question in the interface doc; running it after the
+        // response is already on its way avoids the /ingest call blocking on an ML call
+        // with no agreed SLA yet. A coordinator can still override the result later
+        // regardless of whether this finishes before or after the client sees the response.
+        void classifyAndUpdate(stored);
+
+        return stored;
     } catch (err) {
         return await metadataRepository.update(imageId, {
             uploadStatus: 'failed',
             ingestionError: err instanceof Error ? err.message : String(err),
         });
+    }
+}
+
+async function classifyAndUpdate(record: ImageMetadata): Promise<void> {
+    if (!record.storagePath) return;
+    const result = await requestClassification({
+        imageId: record.imageId,
+        storagePath: record.storagePath,
+        sourceType: record.sourceType,
+    });
+    if (!result) return; // CLASSIFICATION_SERVICE_URL not configured yet — no-op
+
+    try {
+        await metadataRepository.update(record.imageId, result);
+    } catch (err) {
+        logger.error('failed to write classification result', errorMeta(err));
     }
 }

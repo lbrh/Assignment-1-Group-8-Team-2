@@ -12,6 +12,7 @@ const app: Express = express();
 const port = 3000;
 
 app.use(cors);
+app.use(express.json());
 
 // Liveness: process is up, no dependency checks (fast, always 200 while running).
 app.get('/', (req: Request, res: Response) => {
