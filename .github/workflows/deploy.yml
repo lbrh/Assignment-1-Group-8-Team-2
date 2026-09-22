@@ -9,6 +9,7 @@ env:
   IBM_CLOUD_RESOURCE_GROUP: Default
   ICR_REGISTRY: ca.icr.io
   ICR_NAMESPACE: assignment1group8team2
+  CE_PROJECT: assignment-1-backend
 
 jobs:
   verify:
@@ -58,7 +59,7 @@ jobs:
           docker push $ICR_REGISTRY/$ICR_NAMESPACE/frontend:${{ github.sha }}
       - name: Deploy
         run: |
-          ibmcloud ce project select --name capstone-project
+          ibmcloud ce project select --name "$CE_PROJECT"
           ibmcloud ce application update --name frontend \
             --image $ICR_REGISTRY/$ICR_NAMESPACE/frontend:${{ github.sha }}
 
@@ -79,6 +80,6 @@ jobs:
           docker push $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }}
       - name: Deploy
         run: |
-          ibmcloud ce project select --name capstone-project
+          ibmcloud ce project select --name "$CE_PROJECT"
           ibmcloud ce application update --name backend \
             --image $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }}
