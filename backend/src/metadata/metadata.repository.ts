@@ -128,6 +128,44 @@ export async function withIncidentGroupingLock<T>(fn: () => Promise<T>): Promise
     }
 }
 
+export interface BoundingBox {
+    minLat: number;
+    maxLat: number;
+    minLon: number;
+    maxLon: number;
+}
+
+// One row per incident (its most recent image) within a map viewport — per
+// docs/storage/Storage_and_metadata_V2.md section 7, the Map Page reads coordinates,
+// severity_score, and assessment_status for markers.
+export async function findInBoundingBox(bounds: BoundingBox): Promise<ImageMetadata[]> {
+    const { rows } = await pool.query(
+        `SELECT DISTINCT ON (incident_id) *
+         FROM images
+         WHERE latitude BETWEEN $1 AND $2 AND longitude BETWEEN $3 AND $4
+         ORDER BY incident_id, "timestamp" DESC`,
+        [bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon],
+    );
+    return rows.map(fromRow);
+}
+
+// All images for one incident — the Incident Page joins the full record plus
+// storage_path and severity_explanation (V2 doc section 7).
+export async function findByIncidentId(incidentId: string): Promise<ImageMetadata[]> {
+    const { rows } = await pool.query('SELECT * FROM images WHERE incident_id = $1 ORDER BY "timestamp" DESC', [incidentId]);
+    return rows.map(fromRow);
+}
+
+// Dispatch order — the Order Page reads priority_rank (V2 doc section 7). Prioritisation
+// logic itself doesn't exist yet (a separate, not-yet-built phase per the docs), so this
+// is just the sort; priority_rank is null for every row until that logic is built.
+export async function findOrderedByPriority(): Promise<ImageMetadata[]> {
+    const { rows } = await pool.query(
+        `SELECT * FROM images ORDER BY priority_rank ASC NULLS LAST, "timestamp" DESC`,
+    );
+    return rows.map(fromRow);
+}
+
 export interface LatestIncidentImage {
     incidentId: string;
     latitude: number;
