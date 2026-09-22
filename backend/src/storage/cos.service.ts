@@ -1,3 +1,4 @@
+import '../utils/load-env.ts';
 import S3 from 'ibm-cos-sdk/clients/s3.js';
 
 // Naming convention confirmed final in docs/storage/Storage_and_Metadata_Finalisation_Addendum.md:

@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS images (
     classification_label TEXT CHECK (classification_label IN ('fire', 'non_fire', 'extinguished', 'uncertain')),
     priority_rank INTEGER,
     upload_status TEXT NOT NULL CHECK (upload_status IN ('pending', 'stored', 'failed')),
-    ingestion_error TEXT
+    ingestion_error TEXT,
+    content_hash TEXT UNIQUE
 );
 
 -- Map viewport range queries and per-incident prefix fetches (V2 doc section 4/7).

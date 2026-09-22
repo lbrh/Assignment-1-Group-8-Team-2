@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { getSignedUrl } from '../storage/cos.service.ts';
+import { logger, errorMeta } from '../utils/logger.ts';
 
 export const imagesRouter: Router = Router();
 
@@ -21,6 +22,7 @@ imagesRouter.get('/images/:id', async (req: Request<{ id: string }>, res: Respon
         const url = await getSignedUrl(record.storagePath);
         res.json({ url });
     } catch (err) {
+        logger.error('signed url failed', errorMeta(err));
         res.status(500).json({ error: err instanceof Error ? err.message : 'internal error' });
     }
 });

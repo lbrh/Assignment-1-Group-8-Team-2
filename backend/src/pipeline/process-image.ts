@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { newIncidentId, newImageId } from '../utils/ids.ts';
 import { buildObjectKey, uploadImage } from '../storage/cos.service.ts';
 import * as metadataRepository from '../metadata/metadata.repository.ts';
@@ -26,39 +27,53 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
 
     validateIngestion(merged);
 
+    // Exact-duplicate resubmission (same bytes) attaches to nothing new — the addendum's
+    // second dedup check, alongside the spatial/temporal auto-grouping below.
+    const contentHash = createHash('md5').update(file.buffer).digest('hex');
+    const existing = await metadataRepository.findByContentHash(contentHash);
+    if (existing) {
+        return existing;
+    }
+
     const imageId = newImageId();
-    const incidentId =
-        merged.incidentId ??
-        (await findIncidentToAttachTo(merged.latitude, merged.longitude, merged.timestamp)) ??
-        newIncidentId();
     const ext = file.originalname.split('.').pop() || 'jpg';
 
-    await metadataRepository.create({
-        incidentId,
-        imageId,
-        storagePath: null,
-        timestamp: merged.timestamp,
-        sourceType: merged.sourceType,
-        latitude: merged.latitude,
-        longitude: merged.longitude,
-        severityScore: null,
-        severityScoreOverride: null,
-        overriddenBy: null,
-        overriddenAt: null,
-        confidenceScore: null,
-        severityExplanation: null,
-        smokeDensity: null,
-        flameVisibility: null,
-        vegetationImpact: null,
-        structurePeopleProximity: null,
-        assessmentStatus: 'pending_review',
-        classificationLabel: null,
-        priorityRank: null,
-        uploadStatus: 'pending',
-        ingestionError: null,
+    // Locked so two near-simultaneous uploads in the same area/window can't each miss
+    // the other's not-yet-committed row and create two incidents instead of one.
+    const pending = await metadataRepository.withIncidentGroupingLock(async () => {
+        const incidentId =
+            merged.incidentId ??
+            (await findIncidentToAttachTo(merged.latitude, merged.longitude, merged.timestamp)) ??
+            newIncidentId();
+
+        return metadataRepository.create({
+            incidentId,
+            imageId,
+            storagePath: null,
+            timestamp: merged.timestamp,
+            sourceType: merged.sourceType,
+            latitude: merged.latitude,
+            longitude: merged.longitude,
+            severityScore: null,
+            severityScoreOverride: null,
+            overriddenBy: null,
+            overriddenAt: null,
+            confidenceScore: null,
+            severityExplanation: null,
+            smokeDensity: null,
+            flameVisibility: null,
+            vegetationImpact: null,
+            structurePeopleProximity: null,
+            assessmentStatus: 'pending_review',
+            classificationLabel: null,
+            priorityRank: null,
+            uploadStatus: 'pending',
+            ingestionError: null,
+            contentHash,
+        });
     });
 
-    const key = buildObjectKey(incidentId, merged.sourceType, merged.timestamp, imageId, ext);
+    const key = buildObjectKey(pending.incidentId, merged.sourceType, merged.timestamp, imageId, ext);
 
     try {
         await uploadImage(key, file.buffer, file.mimetype);
