@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { assessSeverity, parseSeverityAssessmentInput } from '../pipeline/assess-severity.ts';
 import { ValidationError } from '../pipeline/validate.ts';
+import { logger, errorMeta } from '../utils/logger.ts';
 
 export const incidentsRouter: Router = Router();
 
@@ -22,6 +23,7 @@ incidentsRouter.post('/images/:id/assess', async (req: Request<{ id: string }>, 
             res.status(400).json({ error: err.message });
             return;
         }
+        logger.error('assess failed', errorMeta(err));
         res.status(500).json({ error: 'internal error' });
     }
 });

@@ -2,6 +2,11 @@ import type { IngestionInput } from '../metadata/metadata.types.ts';
 
 const SOURCE_TYPES = new Set(['drone', 'cctv', 'citizen', 'satellite']);
 
+// ponytail: placeholder region (Victoria, AU) — the addendum flags the real operating
+// bounding box as still undecided, pending client input. Swap these four numbers for
+// the confirmed region once given; nothing else here needs to change.
+const REGION_BOUNDS = { minLat: -39.2, maxLat: -33.98, minLon: 140.96, maxLon: 150.03 };
+
 export class ValidationError extends Error {}
 
 export type ValidatedIngestionInput = Required<Pick<IngestionInput, 'sourceType' | 'latitude' | 'longitude' | 'timestamp'>> &
@@ -18,6 +23,14 @@ export function validateIngestion(input: IngestionInput): asserts input is Valid
     }
     if (input.latitude < -90 || input.latitude > 90 || input.longitude < -180 || input.longitude > 180) {
         throw new ValidationError('latitude/longitude out of range');
+    }
+    if (
+        input.latitude < REGION_BOUNDS.minLat ||
+        input.latitude > REGION_BOUNDS.maxLat ||
+        input.longitude < REGION_BOUNDS.minLon ||
+        input.longitude > REGION_BOUNDS.maxLon
+    ) {
+        throw new ValidationError('latitude/longitude outside the operating region');
     }
 
     if (!input.timestamp) {

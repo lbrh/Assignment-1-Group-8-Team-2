@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { upload } from '../middleware/upload.middleware.ts';
 import { processImage, ValidationError } from '../pipeline/index.ts';
+import { logger, errorMeta } from '../utils/logger.ts';
 
 export const ingestionRouter: Router = Router();
 
@@ -31,6 +32,7 @@ ingestionRouter.post('/ingest', upload, async (req: Request, res: Response) => {
             res.status(400).json({ error: err.message });
             return;
         }
+        logger.error('ingest failed', errorMeta(err));
         res.status(500).json({ error: 'internal error' });
     }
 });

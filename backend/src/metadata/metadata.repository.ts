@@ -30,6 +30,7 @@ const COLUMNS = {
     priorityRank: 'priority_rank',
     uploadStatus: 'upload_status',
     ingestionError: 'ingestion_error',
+    contentHash: 'content_hash',
 } as const satisfies Record<keyof ImageMetadata, string>;
 
 function fromRow(row: Record<string, unknown>): ImageMetadata {
@@ -41,17 +42,31 @@ function fromRow(row: Record<string, unknown>): ImageMetadata {
     return record as unknown as ImageMetadata;
 }
 
+function isUniqueViolation(err: unknown): boolean {
+    return typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === '23505';
+}
+
 export async function create(record: ImageMetadata): Promise<ImageMetadata> {
     const fields = Object.keys(COLUMNS) as (keyof ImageMetadata)[];
     const columns = fields.map((field) => COLUMNS[field]);
     const placeholders = fields.map((_, i) => `$${i + 1}`);
     const values = fields.map((field) => record[field]);
 
-    const { rows } = await pool.query(
-        `INSERT INTO images (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
-        values,
-    );
-    return fromRow(rows[0]);
+    try {
+        const { rows } = await pool.query(
+            `INSERT INTO images (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
+            values,
+        );
+        return fromRow(rows[0]);
+    } catch (err) {
+        // Two identical uploads landing at the same instant both pass the pre-insert
+        // findByContentHash check; the UNIQUE constraint is the real guarantee.
+        if (isUniqueViolation(err) && record.contentHash) {
+            const existing = await findByContentHash(record.contentHash);
+            if (existing) return existing;
+        }
+        throw err;
+    }
 }
 
 export async function update(imageId: string, patch: Partial<ImageMetadata>): Promise<ImageMetadata> {
@@ -78,6 +93,39 @@ export async function update(imageId: string, patch: Partial<ImageMetadata>): Pr
 export async function get(imageId: string): Promise<ImageMetadata | undefined> {
     const { rows } = await pool.query('SELECT * FROM images WHERE image_id = $1', [imageId]);
     return rows[0] ? fromRow(rows[0]) : undefined;
+}
+
+export async function findByContentHash(hash: string): Promise<ImageMetadata | undefined> {
+    const { rows } = await pool.query('SELECT * FROM images WHERE content_hash = $1 LIMIT 1', [hash]);
+    return rows[0] ? fromRow(rows[0]) : undefined;
+}
+
+export async function checkDatabaseConnection(): Promise<void> {
+    await pool.query('SELECT 1');
+}
+
+const INCIDENT_GROUPING_LOCK_KEY = 727100;
+
+// ponytail: one global advisory lock serializes the "find nearest incident or create
+// one" decision across concurrent /ingest calls, closing the race where two near-
+// simultaneous uploads in the same area/window each miss the other's uncommitted row
+// and create two incidents instead of one. Global (not per-region) because traffic here
+// is low enough that serializing this one step is unmeasurable; a per-bucket lock would
+// only be worth the added complexity at much higher throughput.
+export async function withIncidentGroupingLock<T>(fn: () => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [INCIDENT_GROUPING_LOCK_KEY]);
+        const result = await fn();
+        await client.query('COMMIT');
+        return result;
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
 }
 
 export interface LatestIncidentImage {

@@ -43,6 +43,7 @@ export interface ImageMetadata {
     priorityRank: number | null;
     uploadStatus: UploadStatus;
     ingestionError: string | null;
+    contentHash: string | null;
 }
 
 export interface IngestionInput {
