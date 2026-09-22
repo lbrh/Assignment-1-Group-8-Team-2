@@ -1,0 +1,78 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  IBM_CLOUD_REGION: ca-tor
+  ICR_NAMESPACE: 
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24-alpine
+      - name: backend checks
+        working-directory: backend
+        run: |
+          npm install
+          npx tsc --noEmit
+          npm test
+      - name: frontend checks
+        working-directory: frontend
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm exec tsc --noEmit
+          pnpm build
+
+  deploy-frontend:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: IBM Cloud login
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "$IBM_CLOUD_REGION"
+          ibmcloud plugin install container-registry code-engine -f
+          ibmcloud cr login
+      - name: Build and push
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" \
+            -t icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }} ./frontend
+          docker push icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }}
+      - name: Deploy
+        run: |
+          ibmcloud ce project select --name capstone-project
+          ibmcloud ce application update --name frontend \
+            --image icr.io/$ICR_NAMESPACE/frontend:${{ github.sha }}
+
+  deploy-backend:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: IBM Cloud login
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "$IBM_CLOUD_REGION"
+          ibmcloud plugin install container-registry code-engine -f
+          ibmcloud cr login
+      - name: Build and push
+        run: |
+          docker build -t icr.io/$ICR_NAMESPACE/backend:${{ github.sha }} ./backend
+          docker push icr.io/$ICR_NAMESPACE/backend:${{ github.sha }}
+      - name: Deploy
+        run: |
+          ibmcloud ce project select --name capstone-project
+          ibmcloud ce application update --name backend \
+            --image icr.io/$ICR_NAMESPACE/backend:${{ github.sha }}
