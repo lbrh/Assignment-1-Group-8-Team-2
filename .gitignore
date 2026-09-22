@@ -41,6 +41,7 @@ Thumbs.db
 *.swo
 
 # Claude Code session data (machine-local, not shared)
+.claude/
 .claude/sessions/
 .claude/checkpoints.log
 
