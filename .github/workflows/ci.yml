@@ -33,5 +33,5 @@ jobs:
               with:
                 node-version: 24
             - run: npm install
-            - run: npm tsc --noEmit
+            - run: npx tsc --noEmit
             - run: npm test
