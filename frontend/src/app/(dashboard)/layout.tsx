@@ -2,13 +2,13 @@
 
 import { useEffect, type ReactNode } from "react";
 import { Header } from "@/components/chrome/Header";
-import { TabBar } from "@/components/chrome/TabBar";
 import { ShortcutPanel } from "@/components/chrome/ShortcutPanel";
 import { SkipLink } from "@/components/chrome/SkipLink";
 import { ToastHost } from "@/components/primitives/ToastHost";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { useClock } from "@/lib/hooks/useClock";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { useTrackLastTabPath } from "@/lib/hooks/useTrackLastTabPath";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const init = useIncidentStore((s) => s.init);
@@ -20,6 +20,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   useClock();
   useKeyboardShortcuts();
+  useTrackLastTabPath();
 
   return (
     <div
@@ -36,7 +37,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     >
       <SkipLink />
       <Header />
-      <TabBar />
       <main
         id="main"
         tabIndex={-1}

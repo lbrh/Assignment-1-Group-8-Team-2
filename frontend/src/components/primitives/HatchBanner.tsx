@@ -14,7 +14,7 @@ export function HatchBanner({
       style={{
         background:
           "repeating-linear-gradient(135deg, var(--acc-07) 0 10px, var(--acc-02) 10px 20px)",
-        borderBottom: "1px dashed var(--accent-border)",
+        borderBottom: "var(--border-w) dashed var(--accent-border)",
         ...style,
       }}
     >

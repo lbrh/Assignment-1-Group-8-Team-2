@@ -26,7 +26,7 @@ export function OverrideSeverityCard({ incident }: { incident: Incident }) {
   return (
     <div
       style={{
-        border: "1px solid var(--border-3)",
+        border: "var(--border-w) solid var(--border-3)",
         background: "var(--map-bg)",
         padding: "15px 18px",
         display: "flex",
@@ -65,7 +65,7 @@ export function OverrideSeverityCard({ incident }: { incident: Incident }) {
                   alignItems: "center",
                   gap: 8,
                   background: active ? "var(--acc-12)" : "var(--panel)",
-                  border: active ? "1px solid var(--accent)" : "1px solid var(--border-2)",
+                  border: active ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-2)",
                   padding: "7px 10px",
                   opacity: pending && pending !== band ? 0.6 : 1,
                 }}

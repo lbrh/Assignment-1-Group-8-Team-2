@@ -13,11 +13,18 @@ export function RankedIncidentRow({ incident }: { incident: Incident }) {
   const router = useRouter();
   const tick = useIncidentStore((s) => s.clockTick);
   const newIncidentId = useIncidentStore((s) => s.newIncidentId);
+  const hovered = useIncidentStore((s) => s.mapHoverId === incident.id);
+  const setMapHoverId = useIncidentStore((s) => s.setMapHoverId);
 
   return (
     <button
       type="button"
       onClick={() => router.push(`/incident/${incident.id}`)}
+      // highlights this incident's marker on the map (and vice versa)
+      onMouseEnter={() => setMapHoverId(incident.id)}
+      onMouseLeave={() => setMapHoverId(null)}
+      onFocus={() => setMapHoverId(incident.id)}
+      onBlur={() => setMapHoverId(null)}
       style={{
         display: "grid",
         gridTemplateColumns: "36px 1fr",
@@ -25,7 +32,13 @@ export function RankedIncidentRow({ incident }: { incident: Incident }) {
         width: "100%",
         padding: "11px 16px",
         borderBottom: "1px solid var(--border-5)",
-        background: incident.id === newIncidentId ? "var(--tint)" : "transparent",
+        background: hovered
+          ? "var(--acc-06)"
+          : incident.id === newIncidentId
+            ? "var(--tint)"
+            : "transparent",
+        boxShadow: hovered ? "inset 3px 0 0 var(--accent)" : "none",
+        transition: "background .12s",
         textAlign: "left",
       }}
     >

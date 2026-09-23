@@ -104,6 +104,21 @@
   --ter-line-2: #1e2c38;
 
   --shadow-color: rgb(0 0 0 / 60%);
+
+  /* Section/card/modal frame width — thicker in light theme, where a 1px pale-grey
+     line reads as barely-there against a white ground. Applied via `var(--border-w)
+     solid var(--border-x)` on container-level boundaries, not on small inline chips. */
+  --border-w: 1px;
+
+  /* Header (always dark ground, see --header-fg/--header-accent below —
+     these read correctly against --bg-header in both themes, unlike the
+     page-level --muted/--fg/--border/--surface-* tokens which flip light
+     in light theme and go unreadable on the header's dark ground). */
+  --header-on-accent: #04191a;
+  --header-muted: #93a8c2;
+  --header-border: rgb(148 163 184 / 22%);
+  --header-surface: rgb(148 163 184 / 14%);
+  --header-ok-fg: #4ade80;
 }
 
 :root[data-theme="light"] {
@@ -132,29 +147,34 @@
   --faint: #7c8a96;
   --faint-2: #a9b6c0;
 
-  --border: #cfd8e0;
-  --border-2: #b7c3cd;
-  --border-3: #c2ccd4;
-  --border-4: #c9d2da;
-  --border-5: #d7dee4;
-  --border-6: #ccd5dc;
-  --border-7: #a9b6c0;
+  /* Thicker frame in light theme — a hairline reads as barely-there on white. */
+  --border-w: 1.5px;
+
+  --border: #b8c3cc;
+  --border-2: #a2b2bf;
+  --border-3: #aab9c4;
+  --border-4: #a7b8c4;
+  --border-5: #c5d0d8;
+  --border-6: #b9c6cf;
+  --border-7: #8c9ca8;
 
   --accent: #0a7268;
   --accent-hi: #065048;
   --accent-deep: #054139;
   --on-accent: #ffffff;
   --on-accent-30: rgb(255 255 255 / 30%);
-  --accent-border: #7fc5bc;
+  --accent-border: #57a89b;
   --accent-fg: #0a7268;
 
   --ok-fg: #136b39;
-  --ok-border: #8fcca6;
+  --ok-border: #5fa77e;
   --conf-high: #136b39;
   --conf-mid: #b45309;
 
   --err-fg: #a8241c;
   --err-fg-2: #8a4a44;
+  --err-bg: #fdf0ee;
+  --err-border: #d68e85;
 
   /* Severity ring colours darken in light theme; fills stay identical to dark */
   --sev1-ring: #7a5300;

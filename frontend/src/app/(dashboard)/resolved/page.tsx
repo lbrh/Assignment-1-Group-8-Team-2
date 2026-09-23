@@ -20,20 +20,6 @@ export default function ResolvedPage() {
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "20px 24px 40px" }}>
-      <button
-        type="button"
-        onClick={() => router.push("/")}
-        style={{
-          font: "600 11px/1 var(--font-plex-mono)",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "var(--accent)",
-          marginBottom: 14,
-        }}
-      >
-        ← Back to map
-      </button>
-
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ font: "600 22px/1.2 var(--font-plex-sans)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--fg)" }}>
@@ -61,7 +47,7 @@ export default function ResolvedPage() {
         </span>
       </div>
 
-      <div style={{ border: "1px solid var(--border)", background: "var(--panel)", marginTop: 18 }}>
+      <div style={{ border: "var(--border-w) solid var(--border)", background: "var(--panel)", marginTop: 18 }}>
         <div
           style={{
             display: "grid",

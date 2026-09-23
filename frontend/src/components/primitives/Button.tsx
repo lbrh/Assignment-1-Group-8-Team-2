@@ -27,17 +27,17 @@ export function Button({ variant = "outline", small = false, style, ...rest }: P
     solid: {
       background: "var(--accent)",
       color: "var(--on-accent)",
-      border: "1px solid var(--accent)",
+      border: "var(--border-w) solid var(--accent)",
     },
     outline: {
       background: "transparent",
       color: "var(--fg-2)",
-      border: "1px solid var(--border-2)",
+      border: "var(--border-w) solid var(--border-2)",
     },
     dashed: {
       background: "transparent",
       color: "var(--accent)",
-      border: "1px dashed var(--accent)",
+      border: "var(--border-w) dashed var(--accent)",
     },
     ghost: {
       background: "transparent",

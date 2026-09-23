@@ -41,7 +41,7 @@ export function RubricExplainer({ band }: { band: SeverityBand }) {
             left: 0,
             width: 220,
             background: "var(--panel)",
-            border: "1px solid var(--border-3)",
+            border: "var(--border-w) solid var(--border-3)",
             padding: 12,
             display: "flex",
             flexDirection: "column",

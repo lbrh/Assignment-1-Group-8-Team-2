@@ -16,7 +16,7 @@ export function Card({ children, dashed = false, tone = "panel", style, classNam
       className={className}
       style={{
         background: bg,
-        border: dashed ? "1px dashed var(--accent-border)" : "1px solid var(--border)",
+        border: dashed ? "var(--border-w) dashed var(--accent-border)" : "var(--border-w) solid var(--border)",
         ...style,
       }}
     >

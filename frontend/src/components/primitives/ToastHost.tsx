@@ -31,7 +31,7 @@ export function ToastHost() {
             position: "relative",
             maxWidth: 460,
             background: "var(--panel)",
-            border: "1px solid var(--border-2)",
+            border: "var(--border-w) solid var(--border-2)",
             borderLeft: `3px solid ${
               toast.severityBand === "not_a_fire" ? "var(--border-7)" : "var(--accent)"
             }`,

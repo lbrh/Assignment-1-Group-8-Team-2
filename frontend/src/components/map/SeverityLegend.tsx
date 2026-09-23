@@ -10,7 +10,7 @@ export function SeverityLegend({ counts }: { counts: Record<SeverityBand, number
         bottom: 12,
         width: 250,
         background: "var(--halo)",
-        border: "1px solid var(--border-3)",
+        border: "var(--border-w) solid var(--border-3)",
       }}
     >
       <div

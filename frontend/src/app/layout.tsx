@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+// Leaflet base styles first so the app's map overrides (styles/map.css) win the cascade.
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({

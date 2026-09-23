@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { reviewQueue } from "@/lib/store/selectors";
 import { relativeTime } from "@/lib/utils/time";
@@ -14,7 +13,6 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 export function ReviewQueueRail() {
-  const router = useRouter();
   const incidents = useIncidentStore((s) => s.incidents);
   const order = useIncidentStore((s) => s.order);
   const selectedId = useIncidentStore((s) => s.reviewSelectedId);
@@ -28,26 +26,36 @@ export function ReviewQueueRail() {
       style={{
         width: 308,
         flex: "none",
-        borderRight: "1px dashed var(--accent-border)",
+        borderRight: "var(--border-w) dashed var(--accent-border)",
         display: "flex",
         flexDirection: "column",
       }}
     >
       <HatchBanner style={{ padding: "14px 16px" }}>
-        <div
-          style={{
-            font: "600 11px/1 var(--font-plex-mono)",
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            color: "var(--accent)",
-          }}
-        >
-          Review queue
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div
+            style={{
+              font: "600 11px/1 var(--font-plex-mono)",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "var(--accent)",
+            }}
+          >
+            Review queue
+          </div>
+          <span
+            style={{
+              font: "700 11px/1 var(--font-plex-mono)",
+              color: "var(--accent)",
+              background: "var(--acc-12)",
+              border: "1px solid var(--accent-border)",
+              padding: "3px 7px",
+            }}
+          >
+            {queue.length}
+          </span>
         </div>
       </HatchBanner>
-      <div style={{ padding: "10px 16px", font: "400 11px/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
-        {queue.length} flagged · held out of the dispatch order
-      </div>
 
       <div style={{ flex: 1, overflow: "auto" }}>
         {queue.map((incident) => {
@@ -117,22 +125,6 @@ export function ReviewQueueRail() {
           );
         })}
       </div>
-
-      <button
-        type="button"
-        onClick={() => router.push("/")}
-        style={{
-          padding: "13px 16px",
-          borderTop: "1px solid var(--border)",
-          font: "600 11px/1 var(--font-plex-mono)",
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          textAlign: "left",
-        }}
-      >
-        ← Back to map
-      </button>
     </div>
   );
 }

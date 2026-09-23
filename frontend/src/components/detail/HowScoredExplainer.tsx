@@ -10,7 +10,7 @@ export function HowScoredExplainer({ incident }: { incident: Incident }) {
   return (
     <div
       style={{
-        border: "1px solid var(--border-3)",
+        border: "var(--border-w) solid var(--border-3)",
         background: "var(--surface)",
         padding: "16px 18px",
         display: "flex",
@@ -67,7 +67,7 @@ export function HowScoredExplainer({ incident }: { incident: Incident }) {
                     gap: 8,
                     padding: "8px 10px",
                     background: active ? "var(--tint)" : "transparent",
-                    border: active ? "1px solid var(--accent)" : "1px solid var(--border-5)",
+                    border: active ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-5)",
                   }}
                 >
                   <span
@@ -101,7 +101,7 @@ function StepTile({ step, title, chip, ok }: { step: number; title: string; chip
   return (
     <div
       style={{
-        border: "1px solid var(--border-3)",
+        border: "var(--border-w) solid var(--border-3)",
         background: "var(--panel)",
         padding: "11px 13px",
         display: "flex",

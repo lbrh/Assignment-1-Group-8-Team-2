@@ -36,7 +36,7 @@ export function NearbyStrip({ currentId }: { currentId: string }) {
               alignItems: "center",
               gap: 8,
               background: "var(--panel)",
-              border: "1px solid var(--border-4)",
+              border: "var(--border-w) solid var(--border-4)",
               padding: "6px 11px",
             }}
           >

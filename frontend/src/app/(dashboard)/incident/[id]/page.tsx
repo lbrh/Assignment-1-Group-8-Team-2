@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { relativeTime } from "@/lib/utils/time";
+import { backLabelForPath } from "@/lib/constants/nav";
 import { SeverityHeader } from "@/components/detail/SeverityHeader";
 import { DetailActionsBar } from "@/components/detail/DetailActionsBar";
 import { OverrideSeverityCard } from "@/components/detail/OverrideSeverityCard";
@@ -25,6 +26,7 @@ export default function IncidentDetailPage() {
   const incident = useIncidentStore((s) => s.incidents[id]);
   const decisionLogs = useIncidentStore((s) => s.decisionLogs[id] ?? EMPTY_LOGS);
   const tick = useIncidentStore((s) => s.clockTick);
+  const lastTabPath = useIncidentStore((s) => s.lastTabPath);
 
   if (!incident) {
     return (
@@ -76,7 +78,7 @@ export default function IncidentDetailPage() {
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "20px 24px 40px" }}>
       <button
         type="button"
-        onClick={() => router.push("/")}
+        onClick={() => router.push(lastTabPath)}
         style={{
           font: "600 11px/1 var(--font-plex-mono)",
           letterSpacing: "0.1em",
@@ -85,10 +87,10 @@ export default function IncidentDetailPage() {
           marginBottom: 14,
         }}
       >
-        ← Back to map
+        ← {backLabelForPath(lastTabPath)}
       </button>
 
-      <div style={{ border: "1px solid var(--border)", background: "var(--panel)" }}>
+      <div style={{ border: "var(--border-w) solid var(--border)", background: "var(--panel)" }}>
         <SeverityHeader incident={incident} />
 
         <div style={{ display: "grid", gridTemplateColumns: "308px 1fr", gap: 22, padding: "0 22px 22px" }}>
@@ -96,7 +98,7 @@ export default function IncidentDetailPage() {
             <div
               style={{
                 height: 186,
-                border: "1px dashed var(--border-4)",
+                border: "var(--border-w) dashed var(--border-4)",
                 background:
                   "repeating-linear-gradient(135deg, var(--surface-2) 0 8px, var(--surface) 8px 16px)",
                 display: "flex",

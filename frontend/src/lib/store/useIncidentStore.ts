@@ -24,6 +24,14 @@ export interface Toast {
 
 export type MapFilter = "all" | "sev34" | "extinguished";
 export type DispatchFilter = "all" | "awaiting" | "live";
+export type ZoomTier = 1 | 2 | 3;
+
+/** Last Leaflet viewport on the Map tab, so returning to it restores where the coordinator was
+ * looking instead of re-fitting to every marker. */
+export interface MapView {
+  center: [number, number];
+  zoom: number;
+}
 
 interface IncidentStoreState {
   incidents: Record<string, Incident>;
@@ -36,12 +44,20 @@ interface IncidentStoreState {
   notesOn: boolean;
   clockTick: number;
   keysOpen: boolean;
-  zoom: 1 | 2 | 3;
+  /** Coarse zoom tier (regional / district / site), derived from the Leaflet zoom level. */
+  zoom: ZoomTier;
+  mapView: MapView | null;
+  /** Incident hovered/focused on either the map or the Active Incidents rail — each side
+   * highlights it so the two stay visually linked. */
+  mapHoverId: string | null;
   mapFilter: MapFilter;
   dispatchFilter: DispatchFilter;
   alertsPanelOpen: boolean;
   reviewSelectedId: string | null;
   newIncidentId: string | null;
+  /** Last top-level tab route visited — lets pages reached by click-through (incident detail)
+   * know which tab to show as active and where "back" should go, instead of assuming Map. */
+  lastTabPath: string;
 
   initialized: boolean;
   loading: boolean;
@@ -51,10 +67,13 @@ interface IncidentStoreState {
   toggleNotes: () => void;
   tickClock: () => void;
   setKeysOpen: (open: boolean) => void;
-  setZoom: (zoom: 1 | 2 | 3) => void;
+  setZoom: (zoom: ZoomTier) => void;
+  setMapView: (view: MapView) => void;
+  setMapHoverId: (id: string | null) => void;
   setMapFilter: (f: MapFilter) => void;
   setDispatchFilter: (f: DispatchFilter) => void;
   setAlertsPanelOpen: (open: boolean) => void;
+  setLastTabPath: (path: string) => void;
   selectReview: (id: string | null) => void;
   dismissToast: (id: string) => void;
 
@@ -131,11 +150,14 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     clockTick: 0,
     keysOpen: false,
     zoom: 2,
+    mapView: null,
+    mapHoverId: null,
     mapFilter: "all",
     dispatchFilter: "all",
     alertsPanelOpen: false,
     reviewSelectedId: null,
     newIncidentId: null,
+    lastTabPath: "/",
 
     initialized: false,
     loading: false,
@@ -210,9 +232,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     tickClock: () => set((s) => ({ clockTick: s.clockTick + 1 })),
     setKeysOpen: (open) => set({ keysOpen: open }),
     setZoom: (zoom) => set({ zoom }),
+    setMapView: (mapView) => set({ mapView }),
+    setMapHoverId: (mapHoverId) => set({ mapHoverId }),
     setMapFilter: (mapFilter) => set({ mapFilter }),
     setDispatchFilter: (dispatchFilter) => set({ dispatchFilter }),
     setAlertsPanelOpen: (alertsPanelOpen) => set({ alertsPanelOpen }),
+    setLastTabPath: (lastTabPath) => set({ lastTabPath }),
     selectReview: (id) => set({ reviewSelectedId: id }),
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 

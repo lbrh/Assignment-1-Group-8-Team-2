@@ -1,20 +1,95 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import L from "leaflet";
+import { useIncidentStore, type ZoomTier } from "@/lib/store/useIncidentStore";
 import {
   extinguishedMarkers,
   legendCounts,
   mapMarkers,
-  reviewQueue,
 } from "@/lib/store/selectors";
-import { projectToPercent, clusterByProximity } from "@/lib/utils/project";
-import { SeverityDot } from "@/components/primitives/SeverityDot";
+import { SEVERITY } from "@/lib/constants/severity";
+import { STAGING_COORDS, distanceKm } from "@/lib/utils/geo";
+import { clusterByProximity } from "@/lib/utils/project";
 import { SeverityLegend } from "@/components/map/SeverityLegend";
+import type { Incident, SeverityBand } from "@/lib/types";
+
+/**
+ * Leaflet is imperative and touches `window` on import, so this module is only ever loaded
+ * client-side (see the `ssr: false` dynamic import in the Map page). Everything the map draws
+ * is derived from the incident store on each change — Leaflet owns the viewport, the store owns
+ * the data — and the store's coarse `zoom` tier / `mapView` are written back from Leaflet's
+ * events so the rest of the UI (legend header, tab-return) stays in step.
+ */
 
 const ZOOM_LABEL = { 1: "REGIONAL · CLUSTERED", 2: "DISTRICT", 3: "SITE · ALL MARKERS" } as const;
-const CLUSTER_THRESHOLD = { 1: 9, 2: 0, 3: 0 } as const; // % canvas distance; 0 disables clustering
+const CLUSTER_THRESHOLD_PX = { 1: 64, 2: 0, 3: 0 } as const; // screen px; 0 disables clustering
+const MIN_ZOOM = 8;
+const MAX_ZOOM = 19;
+const INITIAL_MAX_ZOOM = 12;
+
+const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+function tierFor(leafletZoom: number): ZoomTier {
+  if (leafletZoom <= 10) return 1;
+  if (leafletZoom <= 12) return 2;
+  return 3;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
+function incidentIcon(incident: Incident): L.DivIcon {
+  const meta = SEVERITY[incident.band as SeverityBand];
+  const d = meta.dotDiameter;
+  return L.divIcon({
+    className: "fori-marker",
+    iconSize: [d, d],
+    iconAnchor: [d / 2, d / 2],
+    html:
+      `<div class="fori-pin">` +
+      `<div class="fori-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
+      `border:${meta.ringWidth}px solid ${meta.ringVar};font-size:${meta.numeralFont}px">` +
+      `${incident.band}</div>` +
+      `<span class="fori-label">${escapeHtml(incident.id)}</span>` +
+      `</div>`,
+  });
+}
+
+function clusterIcon(count: number, maxBand: SeverityBand): L.DivIcon {
+  const size = 40 + count * 4;
+  const ring = SEVERITY[maxBand].ringVar;
+  return L.divIcon({
+    className: "fori-marker",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    html:
+      `<div class="fori-cluster" style="border-color:${ring}">` +
+      `<span class="fori-cluster-count" style="color:${ring}">${count}</span>` +
+      `<span class="fori-cluster-caption">SITES</span>` +
+      `</div>`,
+  });
+}
+
+const extinguishedIcon = () =>
+  L.divIcon({
+    className: "fori-marker fori-marker-out",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    html: `<div class="fori-out">OUT</div>`,
+  });
+
+const stagingIcon = () =>
+  L.divIcon({
+    className: "fori-marker fori-marker-staging",
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    html: `<div class="fori-staging"></div><span class="fori-staging-label">STAGING</span>`,
+  });
 
 export function MapCanvas() {
   const router = useRouter();
@@ -22,79 +97,236 @@ export function MapCanvas() {
   const order = useIncidentStore((s) => s.order);
   const zoom = useIncidentStore((s) => s.zoom);
   const setZoom = useIncidentStore((s) => s.setZoom);
+  const setMapView = useIncidentStore((s) => s.setMapView);
   const mapFilter = useIncidentStore((s) => s.mapFilter);
+  const mapHoverId = useIncidentStore((s) => s.mapHoverId);
+  const setMapHoverId = useIncidentStore((s) => s.setMapHoverId);
+  const setAlertsPanelOpen = useIncidentStore((s) => s.setAlertsPanelOpen);
+  const newIncidentId = useIncidentStore((s) => s.newIncidentId);
+  const group = useIncidentStore((s) => s.group);
 
-  const markers = mapMarkers(incidents, order).filter((i) => {
-    if (mapFilter === "sev34") return i.band === 3 || i.band === 4;
-    return true;
-  });
-  const extinguished = mapFilter === "extinguished" ? extinguishedMarkers(incidents, order) : [];
-  const flaggedCount = reviewQueue(incidents, order).length;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerLayerRef = useRef<L.LayerGroup | null>(null);
+  const overlayLayerRef = useRef<L.LayerGroup | null>(null);
+  /** incident id -> the marker currently representing it (its own pin, or its cluster). */
+  const markerByIdRef = useRef<Map<string, L.Marker>>(new Map());
+  const [leafletZoom, setLeafletZoom] = useState<number | null>(null);
+
   const counts = legendCounts(incidents, order);
 
-  const points = markers.map((m) => ({ id: m.id, ...projectToPercent(m.coords.lat, m.coords.lng), incident: m }));
-  const threshold = CLUSTER_THRESHOLD[zoom];
-  const clusters = threshold > 0 ? clusterByProximity(points, threshold) : points.map((p) => [p]);
+  // Map lifecycle: create once, tear down on unmount.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const state = useIncidentStore.getState();
 
-  const scale = 1 + (zoom - 1) * 0.08;
+    const map = L.map(container, {
+      zoomControl: false,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      attributionControl: true,
+    });
+    map.attributionControl.setPrefix(false);
+
+    if (state.mapView) {
+      map.setView(state.mapView.center, state.mapView.zoom);
+    } else {
+      const coords = mapMarkers(state.incidents, state.order).map(
+        (i) => [i.coords.lat, i.coords.lng] as [number, number]
+      );
+      coords.push([STAGING_COORDS.lat, STAGING_COORDS.lng]);
+      map.fitBounds(L.latLngBounds(coords), { padding: [56, 56], maxZoom: INITIAL_MAX_ZOOM });
+    }
+
+    L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: MAX_ZOOM }).addTo(map);
+    overlayLayerRef.current = L.layerGroup().addTo(map);
+    markerLayerRef.current = L.layerGroup().addTo(map);
+
+    L.marker([STAGING_COORDS.lat, STAGING_COORDS.lng], {
+      icon: stagingIcon(),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: -1000,
+    }).addTo(map);
+
+    const syncZoom = () => {
+      setLeafletZoom(map.getZoom());
+      setZoom(tierFor(map.getZoom()));
+    };
+    const syncView = () => {
+      const c = map.getCenter();
+      setMapView({ center: [c.lat, c.lng], zoom: map.getZoom() });
+    };
+    map.on("zoomend", syncZoom);
+    map.on("moveend", syncView);
+    syncZoom();
+    syncView();
+
+    // The canvas is a flex child — keep Leaflet's cached size in step with the layout.
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
+    resizeObserver.observe(container);
+
+    mapRef.current = map;
+    return () => {
+      resizeObserver.disconnect();
+      map.remove();
+      mapRef.current = null;
+      markerLayerRef.current = null;
+      overlayLayerRef.current = null;
+      markerByIdRef.current = new Map();
+      useIncidentStore.getState().setMapHoverId(null);
+    };
+  }, [setZoom, setMapView]);
+
+  // Incident markers: rebuilt from the store whenever the data, filter or zoom level changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = markerLayerRef.current;
+    if (!map || !layer || leafletZoom === null) return;
+
+    layer.clearLayers();
+    const markerById = new Map<string, L.Marker>();
+
+    const markers = mapMarkers(incidents, order).filter((i) => {
+      if (mapFilter === "sev34") return i.band === 3 || i.band === 4;
+      return true;
+    });
+    const points = markers.map((incident) => {
+      const p = map.project([incident.coords.lat, incident.coords.lng], leafletZoom);
+      return { id: incident.id, x: p.x, y: p.y, incident };
+    });
+    const threshold = CLUSTER_THRESHOLD_PX[tierFor(leafletZoom)];
+    const clusters = threshold > 0 ? clusterByProximity(points, threshold) : points.map((p) => [p]);
+
+    const wireHover = (marker: L.Marker, id: string) => {
+      marker.on("mouseover", () => setMapHoverId(id));
+      marker.on("mouseout", () => setMapHoverId(null));
+      const el = marker.getElement();
+      el?.addEventListener("focus", () => setMapHoverId(id));
+      el?.addEventListener("blur", () => setMapHoverId(null));
+    };
+
+    for (const cluster of clusters) {
+      if (cluster.length === 1) {
+        const incident = cluster[0].incident;
+        const label = `${incident.id} · ${incident.place}`;
+        const marker = L.marker([incident.coords.lat, incident.coords.lng], {
+          icon: incidentIcon(incident),
+          title: label,
+          riseOnHover: true,
+          zIndexOffset: (incident.band as number) * 100,
+        })
+          .on("click", () => router.push(`/incident/${incident.id}`))
+          .addTo(layer);
+        marker.getElement()?.setAttribute("aria-label", `${label}, ${SEVERITY[incident.band as SeverityBand].label}`);
+        if (incident.id === newIncidentId) marker.getElement()?.classList.add("is-new");
+        wireHover(marker, incident.id);
+        markerById.set(incident.id, marker);
+        continue;
+      }
+
+      const members = cluster.map((p) => p.incident);
+      const bounds = L.latLngBounds(members.map((i) => [i.coords.lat, i.coords.lng]));
+      const maxBand = Math.max(...members.map((i) => i.band as number)) as SeverityBand;
+      const label = `${members.length} sites in this area · click to expand`;
+      const marker = L.marker(bounds.getCenter(), {
+        icon: clusterIcon(members.length, maxBand),
+        title: label,
+        zIndexOffset: 1000,
+      })
+        .on("click", () =>
+          map.flyToBounds(bounds, {
+            padding: [80, 80],
+            maxZoom: Math.max(map.getZoom() + 2, 11),
+            duration: 0.4,
+          })
+        )
+        .addTo(layer);
+      marker.getElement()?.setAttribute("aria-label", label);
+      for (const incident of members) markerById.set(incident.id, marker);
+    }
+
+    if (mapFilter === "extinguished") {
+      for (const incident of extinguishedMarkers(incidents, order)) {
+        L.marker([incident.coords.lat, incident.coords.lng], {
+          icon: extinguishedIcon(),
+          interactive: false,
+          keyboard: false,
+          zIndexOffset: -500,
+        }).addTo(layer);
+      }
+    }
+
+    markerByIdRef.current = markerById;
+    applyHover(markerById, useIncidentStore.getState().mapHoverId);
+  }, [leafletZoom, incidents, order, mapFilter, newIncidentId, router, setMapHoverId]);
+
+  // Pending grouping suggestion: a dashed ring around its members that opens the proposal card.
+  useEffect(() => {
+    const layer = overlayLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!group || group.state !== "suggested") return;
+
+    // only members already drawn on the map — a ring centred partly on a flagged image would
+    // leak the location the "never drawn on the map" rule is keeping off it
+    const onMap = new Set(mapMarkers(incidents, order).map((i) => i.id));
+    const members = group.memberIds.filter((id) => onMap.has(id)).map((id) => incidents[id]);
+    if (members.length < 2) return;
+    const center = {
+      lat: members.reduce((s, i) => s + i.coords.lat, 0) / members.length,
+      lng: members.reduce((s, i) => s + i.coords.lng, 0) / members.length,
+    };
+    const radiusM = Math.max(...members.map((i) => distanceKm(i.coords, center))) * 1000 + 600;
+
+    L.circle([center.lat, center.lng], {
+      radius: radiusM,
+      className: "fori-group-ring",
+      bubblingMouseEvents: false,
+    })
+      .bindTooltip(`Grouping suggested · ${members.length} images · click to review`, {
+        direction: "top",
+        className: "fori-tooltip",
+      })
+      .on("click", () => setAlertsPanelOpen(true))
+      .addTo(layer);
+  }, [group, incidents, order, setAlertsPanelOpen]);
+
+  // Hover linkage with the Active Incidents rail.
+  useEffect(() => {
+    applyHover(markerByIdRef.current, mapHoverId);
+  }, [mapHoverId]);
+
+  const atMin = leafletZoom !== null && leafletZoom <= MIN_ZOOM;
+  const atMax = leafletZoom !== null && leafletZoom >= MAX_ZOOM;
 
   return (
     <div
       style={{
         position: "relative",
         flex: 1,
+        minWidth: 0,
         background: "var(--map-bg)",
         overflow: "hidden",
+        // keeps Leaflet's internal z-indexes (panes at 400+, controls at 800+) below the
+        // app's fixed toasts / shortcut panel
+        isolation: "isolate",
       }}
     >
-      {/* terrain backdrop: a stylised grid, not real geography — two layers per the redline
-          (fine 48px, coarse 240px), scaled gently with zoom. Large decorative terrain blobs were
-          tried and dropped: at this contrast they read as solid shapes competing with markers
-          rather than texture, so legibility won over decorative fidelity here. */}
       <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          transform: `scale(${scale})`,
-          transition: "transform .25s ease",
-          backgroundImage:
-            "linear-gradient(var(--ter-line) 1px, transparent 1px)," +
-            "linear-gradient(90deg, var(--ter-line) 1px, transparent 1px)," +
-            "linear-gradient(var(--ter-line-2) 1px, transparent 1px)," +
-            "linear-gradient(90deg, var(--ter-line-2) 1px, transparent 1px)",
-          backgroundSize: "48px 48px, 48px 48px, 240px 240px, 240px 240px",
-        }}
+        ref={containerRef}
+        className="fori-map"
+        aria-label="Incident map. Arrow keys pan, plus and minus zoom."
+        style={{ position: "absolute", inset: 0, zIndex: 0 }}
       />
-      <span
-        style={{
-          position: "absolute",
-          left: "8%",
-          top: "44%",
-          font: "500 10px/1 var(--font-plex-mono)",
-          letterSpacing: "0.16em",
-          color: "var(--muted)",
-        }}
-      >
-        HUME FWY
-      </span>
-      <span
-        style={{
-          position: "absolute",
-          left: "62%",
-          top: "18%",
-          font: "500 10px/1 var(--font-plex-mono)",
-          letterSpacing: "0.16em",
-          color: "var(--muted)",
-        }}
-      >
-        KINGLAKE NP
-      </span>
 
       <div
         style={{
           position: "absolute",
           left: 12,
           top: 12,
+          zIndex: 1,
           background: "var(--halo)",
           border: "1px solid var(--border-3)",
           padding: "7px 11px",
@@ -111,189 +343,40 @@ export function MapCanvas() {
         </span>
       </div>
 
-      <div style={{ position: "absolute", right: 12, top: 12, display: "flex", gap: 6 }}>
+      <div style={{ position: "absolute", right: 12, top: 12, zIndex: 1, display: "flex", gap: 6 }}>
         <button
           type="button"
-          onClick={() => setZoom(Math.max(1, zoom - 1) as 1 | 2 | 3)}
+          onClick={() => mapRef.current?.zoomOut()}
+          disabled={atMin}
           aria-label="Zoom out"
-          style={zoomBtnStyle}
+          style={{ ...zoomBtnStyle, opacity: atMin ? 0.4 : 1 }}
         >
           −
         </button>
         <button
           type="button"
-          onClick={() => setZoom(Math.min(3, zoom + 1) as 1 | 2 | 3)}
+          onClick={() => mapRef.current?.zoomIn()}
+          disabled={atMax}
           aria-label="Zoom in"
-          style={zoomBtnStyle}
+          style={{ ...zoomBtnStyle, opacity: atMax ? 0.4 : 1 }}
         >
           +
         </button>
-        <div style={{ ...zoomBtnStyle, cursor: "default", color: "var(--muted)" }}>Z{zoom}</div>
+        <div style={{ ...zoomBtnStyle, cursor: "default", color: "var(--muted)" }}>
+          Z{leafletZoom ?? "–"}
+        </div>
       </div>
 
-      {clusters.map((cluster) => {
-        if (cluster.length === 1) {
-          const point = cluster[0];
-          const incident = point.incident;
-          return (
-            <button
-              key={point.id}
-              type="button"
-              onClick={() => router.push(`/incident/${incident.id}`)}
-              style={{
-                position: "absolute",
-                left: `${point.x}%`,
-                top: `${point.y}%`,
-                transform: "translate(-50%, -50%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 4,
-              }}
-              title={`${incident.id} · ${incident.place}`}
-            >
-              <SeverityDot band={incident.band} halo />
-              <span
-                style={{
-                  font: "500 10px/1 var(--font-plex-mono)",
-                  color: "var(--fg-4)",
-                  background: "var(--halo)",
-                  border: "1px solid var(--border-3)",
-                  padding: "2px 5px",
-                }}
-              >
-                {incident.id}
-              </span>
-            </button>
-          );
-        }
-
-        const cx = cluster.reduce((s, p) => s + p.x, 0) / cluster.length;
-        const cy = cluster.reduce((s, p) => s + p.y, 0) / cluster.length;
-        const maxBand = Math.max(...cluster.map((p) => p.incident.band as number));
-        const ringVar =
-          maxBand === 4
-            ? "var(--sev4-ring)"
-            : maxBand === 3
-              ? "var(--sev3-ring)"
-              : maxBand === 2
-                ? "var(--sev2-ring)"
-                : "var(--sev1-ring)";
-        const size = 40 + cluster.length * 4;
-        return (
-          <button
-            key={cluster.map((p) => p.id).join("-")}
-            type="button"
-            onClick={() => setZoom(Math.min(3, zoom + 1) as 1 | 2 | 3)}
-            title={`${cluster.length} sites in this area · click to expand`}
-            style={{
-              position: "absolute",
-              left: `${cx}%`,
-              top: `${cy}%`,
-              transform: "translate(-50%, -50%)",
-              width: size,
-              height: size,
-              background: "var(--map-bg)",
-              border: `2px solid ${ringVar}`,
-              boxShadow: "0 0 0 4px var(--halo), 0 3px 12px var(--shadow-color)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span style={{ font: "700 17px/1 var(--font-plex-mono)", color: ringVar }}>
-              {cluster.length}
-            </span>
-            <span
-              style={{
-                font: "600 9px/1 var(--font-plex-mono)",
-                letterSpacing: "0.12em",
-                color: "var(--muted)",
-              }}
-            >
-              SITES
-            </span>
-          </button>
-        );
-      })}
-
-      {extinguished.map((incident) => {
-        const p = projectToPercent(incident.coords.lat, incident.coords.lng);
-        return (
-          <div
-            key={incident.id}
-            style={{
-              position: "absolute",
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              transform: "translate(-50%, -50%)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              opacity: 0.45,
-            }}
-          >
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                border: "2px dashed var(--border-7)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                font: "700 9px/1 var(--font-plex-mono)",
-                color: "var(--faint)",
-              }}
-            >
-              OUT
-            </div>
-          </div>
-        );
-      })}
-
       <SeverityLegend counts={counts} />
-
-      {flaggedCount > 0 ? (
-        <button
-          type="button"
-          onClick={() => router.push("/review")}
-          style={{
-            position: "absolute",
-            left: 274,
-            bottom: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "var(--acc-06)",
-            border: "1px dashed var(--accent-border)",
-            padding: "10px 14px",
-            font: "400 11px/1.3 var(--font-plex-mono)",
-            color: "var(--accent-fg)",
-          }}
-        >
-          <span
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              border: "2px dashed var(--accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flex: "none",
-            }}
-          >
-            ?
-          </span>
-          {flaggedCount} flagged · not drawn on the map until reviewed
-          <span style={{ color: "var(--accent)", fontWeight: 600 }}>→</span>
-        </button>
-      ) : null}
     </div>
   );
+}
+
+function applyHover(markerById: Map<string, L.Marker>, hoverId: string | null) {
+  const hovered = hoverId ? markerById.get(hoverId) : undefined;
+  for (const marker of new Set(markerById.values())) {
+    marker.getElement()?.classList.toggle("is-hover", marker === hovered);
+  }
 }
 
 const zoomBtnStyle: CSSProperties = {

@@ -35,7 +35,7 @@ export function ActiveIncidentsRail() {
         flex: "none",
         display: "flex",
         flexDirection: "column",
-        borderLeft: "1px solid var(--border)",
+        borderLeft: "var(--border-w) solid var(--border)",
         background: "var(--panel)",
         overflow: "hidden",
       }}
@@ -72,7 +72,7 @@ export function ActiveIncidentsRail() {
                 padding: "7px 10px",
                 background: mapFilter === f.key ? "var(--accent)" : "transparent",
                 color: mapFilter === f.key ? "var(--on-accent)" : "var(--muted)",
-                border: mapFilter === f.key ? "1px solid var(--accent)" : "1px solid var(--border-2)",
+                border: mapFilter === f.key ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-2)",
               }}
             >
               {f.label}
@@ -89,7 +89,7 @@ export function ActiveIncidentsRail() {
             padding: "9px 11px",
             background: alertsPanelOpen ? "var(--accent)" : "var(--acc-08)",
             color: alertsPanelOpen ? "var(--on-accent)" : "var(--accent)",
-            border: "1px dashed var(--accent-border)",
+            border: "var(--border-w) dashed var(--accent-border)",
           }}
         >
           Alerts & Suggested {group && group.state === "suggested" ? "(1)" : ""}
@@ -127,62 +127,54 @@ export function ActiveIncidentsRail() {
             {ranked.map((incident) => (
               <RankedIncidentRow key={incident.id} incident={incident} />
             ))}
-            {flaggedCount > 0 ? (
-              <button
-                type="button"
-                onClick={() => router.push("/review")}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 16px",
-                  background: "var(--acc-06)",
-                  borderTop: "1px dashed var(--accent-border)",
-                  textAlign: "left",
-                }}
-              >
-                <span
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    border: "2px dashed var(--accent)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    font: "700 9px/1 var(--font-plex-mono)",
-                    color: "var(--accent)",
-                    flex: "none",
-                  }}
-                >
-                  ?
-                </span>
-                <span style={{ font: "400 11px/1.4 var(--font-plex-mono)", color: "var(--accent-fg)" }}>
-                  {flaggedCount} flagged · not drawn on the map until reviewed
-                </span>
-                <span style={{ marginLeft: "auto", color: "var(--accent)" }}>→</span>
-              </button>
-            ) : null}
           </>
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => router.push("/dispatch")}
-        style={{
-          padding: "13px 16px",
-          borderTop: "1px solid var(--border)",
-          font: "600 11px/1 var(--font-plex-mono)",
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: "var(--accent)",
-          textAlign: "left",
-        }}
-      >
-        Open full dispatch order
-      </button>
+      {!alertsPanelOpen && flaggedCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => router.push("/review")}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "13px 16px",
+            background: "var(--acc-06)",
+            borderTop: "var(--border-w) dashed var(--accent-border)",
+            textAlign: "left",
+          }}
+        >
+          <span
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              border: "2px dashed var(--accent)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              font: "700 9px/1 var(--font-plex-mono)",
+              color: "var(--accent)",
+              flex: "none",
+            }}
+          >
+            ?
+          </span>
+          <span
+            style={{
+              font: "600 11px/1 var(--font-plex-mono)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--accent-fg)",
+            }}
+          >
+            {flaggedCount} incidents flagged for manual review
+          </span>
+          <span style={{ marginLeft: "auto", color: "var(--accent)" }}>→</span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -204,7 +196,7 @@ function AlertCard({
     <div
       style={{
         background: "var(--surface)",
-        border: "1px dashed var(--accent-border)",
+        border: "var(--border-w) dashed var(--accent-border)",
         padding: "11px 12px",
         display: "flex",
         flexDirection: "column",
@@ -238,7 +230,7 @@ function AlertCard({
           textTransform: "uppercase",
           color: "var(--accent)",
           background: "var(--acc-08)",
-          border: "1px solid var(--accent-border)",
+          border: "var(--border-w) solid var(--accent-border)",
           padding: "7px 10px",
         }}
       >

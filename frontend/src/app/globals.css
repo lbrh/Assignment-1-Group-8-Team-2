@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
 @import "../styles/animations.css";
+@import "../styles/map.css";
 
 @theme inline {
   --font-sans: var(--font-plex-sans);
@@ -63,4 +64,14 @@ a {
 
 .skip-link:focus {
   top: 12px;
+}
+
+/* Chrome tab links: keyboard shortcuts (←/→, Alt+1-6) move the route without
+   moving DOM focus, so a focus ring would linger on whichever tab was last
+   clicked even after navigating away to a different tab. The active tab's
+   own background/underline already shows current location, so suppress the
+   ring entirely rather than have it point at a stale tab. */
+.chrome-tab:focus,
+.chrome-tab:focus-visible {
+  outline: none;
 }

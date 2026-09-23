@@ -39,7 +39,7 @@ export function MetaList({
   rows: { label: string; value: ReactNode }[];
 }) {
   return (
-    <div style={{ border: "1px solid var(--border-4)", background: "var(--panel)" }}>
+    <div style={{ border: "var(--border-w) solid var(--border-4)", background: "var(--panel)" }}>
       {rows.map((row, i) => (
         <div
           key={row.label}

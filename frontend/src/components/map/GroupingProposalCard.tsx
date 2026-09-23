@@ -38,7 +38,9 @@ export function GroupingProposalCard() {
         style={{
           background: group.state === "suggested" ? "var(--acc-06)" : "var(--tint)",
           border:
-            group.state === "suggested" ? "1px dashed var(--accent-border)" : "1px solid var(--border)",
+            group.state === "suggested"
+              ? "var(--border-w) dashed var(--accent-border)"
+              : "var(--border-w) solid var(--border)",
           padding: "11px 12px",
           display: "flex",
           flexDirection: "column",
@@ -83,7 +85,7 @@ export function GroupingProposalCard() {
                 alignItems: "center",
                 gap: 6,
                 background: "var(--panel)",
-                border: "1px solid var(--border-3)",
+                border: "var(--border-w) solid var(--border-3)",
                 padding: "5px 7px",
               }}
             >

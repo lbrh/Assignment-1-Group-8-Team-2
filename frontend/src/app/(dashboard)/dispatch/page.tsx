@@ -28,20 +28,6 @@ export default function DispatchOrderPage() {
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "20px 24px 40px" }}>
-      <button
-        type="button"
-        onClick={() => router.push("/")}
-        style={{
-          font: "600 11px/1 var(--font-plex-mono)",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "var(--accent)",
-          marginBottom: 14,
-        }}
-      >
-        ← Back to map
-      </button>
-
       <h1
         style={{
           font: "600 22px/1.2 var(--font-plex-sans)",
@@ -69,7 +55,7 @@ export default function DispatchOrderPage() {
               padding: "8px 11px",
               background: dispatchFilter === f.key ? "var(--accent)" : "transparent",
               color: dispatchFilter === f.key ? "var(--on-accent)" : "var(--muted)",
-              border: dispatchFilter === f.key ? "1px solid var(--accent)" : "1px solid var(--border-2)",
+              border: dispatchFilter === f.key ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-2)",
             }}
           >
             {f.label} {f.key === "awaiting" ? `(${awaiting.length})` : f.key === "live" ? `(${live.length})` : ""}
@@ -77,7 +63,7 @@ export default function DispatchOrderPage() {
         ))}
       </div>
 
-      <div style={{ border: "1px solid var(--border)", background: "var(--panel)" }}>
+      <div style={{ border: "var(--border-w) solid var(--border)", background: "var(--panel)" }}>
         {showAwaiting ? (
           <>
             <SectionBar tone="accent" title={`Awaiting dispatch (${awaiting.length})`} note="ranked by severity, then distance from staging" />

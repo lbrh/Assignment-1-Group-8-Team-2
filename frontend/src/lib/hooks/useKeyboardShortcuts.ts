@@ -38,7 +38,9 @@ export function useKeyboardShortcuts() {
         if (ROUTES[idx]) router.push(ROUTES[idx]);
         return;
       }
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      // a focused map uses the arrows to pan (Leaflet's keyboard handler), not to switch tabs
+      const onMap = target?.closest?.(".leaflet-container");
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !onMap) {
         const currentIdx = ROUTES.findIndex((r) => r === pathname);
         const base = currentIdx === -1 ? 0 : currentIdx;
         const nextIdx =
