@@ -25,6 +25,7 @@ ui-debug.log
 frontend/dist/
 backend/lib/
 backend/dist/
+.build/
 
 # Testing
 coverage/
