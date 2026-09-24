@@ -1,0 +1,193 @@
+/*
+ * Design tokens transcribed from the Sprint 2 WK1 developer redline
+ * (docs/archive/sprint-2/week-1/SP2_WK1_Dev_Redline_Annotations.pdf, section "tokens").
+ * Dark is the default palette; light overrides apply under [data-theme="light"].
+ * Do not hardcode hex values in components — read these custom properties instead.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Page / header / map */
+  --bg: #080b0f;
+  --bg-header: #05080b;
+  --map-bg: #0a1016;
+  --halo: #0a1016;
+
+  /* Surfaces */
+  --panel: #0c1219;
+  --surface: #0a0f15;
+  --surface-2: #131c25;
+  --surface-3: #16202a;
+  --surface-4: #121a22;
+  --input-bg: #080d12;
+
+  /* Accent tints */
+  --tint: #101a22;
+  --tint-2: #101b22;
+  --acc-02: rgb(43 217 200 / 2%);
+  --acc-06: rgb(43 217 200 / 6%);
+  --acc-07: rgb(43 217 200 / 7%);
+  --acc-08: rgb(43 217 200 / 8%);
+  --acc-10: rgb(43 217 200 / 10%);
+  --acc-12: rgb(43 217 200 / 12%);
+  --acc-14: rgb(43 217 200 / 14%);
+  --acc-28: rgb(43 217 200 / 28%);
+  --acc-55: rgb(43 217 200 / 55%);
+
+  /* Text */
+  --fg: #e6edf3;
+  --fg-2: #c4d0da;
+  --fg-3: #d5dfe8;
+  --fg-4: #a8b6c2;
+  --muted: #8b9aa8;
+  --faint: #5c6b77;
+  --faint-2: #3d4a56;
+
+  /* Borders */
+  --border: #1f2a35;
+  --border-2: #2c3a48;
+  --border-3: #26333f;
+  --border-4: #22303c;
+  --border-5: #161f28;
+  --border-6: #1b2731;
+  --border-7: #42525f;
+
+  /* Accent */
+  --accent: #2bd9c8;
+  --accent-hi: #7fefe3;
+  --accent-deep: #17a093;
+  --on-accent: #04191a;
+  --on-accent-30: rgb(4 25 26 / 30%);
+  --accent-border: #1d5b57;
+  --accent-fg: #9fe9e0;
+
+  /* Status */
+  --ok-fg: #5fd98c;
+  --ok-border: #1e6b3d;
+  --grn-06: rgb(95 217 140 / 6%);
+  --grn-09: rgb(95 217 140 / 9%);
+  --grn-10: rgb(95 217 140 / 10%);
+  --conf-high: #35c46a;
+  --conf-mid: #f5c842;
+
+  /* Error */
+  --err-fg: #ff8c82;
+  --err-fg-2: #c9a6a1;
+  --err-bg: #1a0c0b;
+  --err-border: #4a1e1a;
+  --hard-stop: #e03127;
+
+  /* Severity bands (fills are identical in both themes) */
+  --sev1-fill: #f5c842;
+  --sev1-text: #1a1405;
+  --sev1-ring: #ffe08a;
+  --sev2-fill: #f58021;
+  --sev2-text: #1a0c02;
+  --sev2-ring: #ffb36b;
+  --sev3-fill: #e03127;
+  --sev3-text: #ffffff;
+  --sev3-ring: #ff8078;
+  --sev4-fill: #7a0f16;
+  --sev4-text: #ffffff;
+  --sev4-ring: #ff4d4d;
+  --sev4-halo-ring: #ff4d4d;
+
+  /* Terrain (map canvas backdrop) */
+  --ter-1: #0e1922;
+  --ter-1-line: #1b2a33;
+  --ter-2: #112028;
+  --ter-2-line: #1e323b;
+  --ter-3: #0d161f;
+  --ter-3-line: #1a2733;
+  --ter-line: #243542;
+  --ter-line-2: #1e2c38;
+
+  --shadow-color: rgb(0 0 0 / 60%);
+
+  /* Section/card/modal frame width — thicker in light theme, where a 1px pale-grey
+     line reads as barely-there against a white ground. Applied via `var(--border-w)
+     solid var(--border-x)` on container-level boundaries, not on small inline chips. */
+  --border-w: 1px;
+
+  /* Header (always dark ground, see --header-fg/--header-accent below —
+     these read correctly against --bg-header in both themes, unlike the
+     page-level --muted/--fg/--border/--surface-* tokens which flip light
+     in light theme and go unreadable on the header's dark ground). */
+  --header-on-accent: #04191a;
+  --header-muted: #93a8c2;
+  --header-border: rgb(148 163 184 / 22%);
+  --header-surface: rgb(148 163 184 / 14%);
+  --header-ok-fg: #4ade80;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #eef1f5;
+  --bg-header: #12243d;
+  --map-bg: #e7ecf1;
+  --halo: #e7ecf1;
+
+  --panel: #ffffff;
+  --surface: #f6f8fa;
+  --surface-2: #e9eef3;
+  --surface-3: #dfe6ed;
+  --surface-4: #e9eef3;
+  --input-bg: #ffffff;
+
+  --tint: #e4eef0;
+  --tint-2: #e4eef0;
+
+  --fg: #0e1720;
+  --fg-2: #2e3c49;
+  --fg-3: #1c2833;
+  --fg-4: #45535f;
+  --muted: #55636f;
+  --faint: #7c8a96;
+  --faint-2: #a9b6c0;
+
+  /* Thicker frame in light theme — a hairline reads as barely-there on white. */
+  --border-w: 1.5px;
+
+  --border: #b8c3cc;
+  --border-2: #a2b2bf;
+  --border-3: #aab9c4;
+  --border-4: #a7b8c4;
+  --border-5: #c5d0d8;
+  --border-6: #b9c6cf;
+  --border-7: #8c9ca8;
+
+  --accent: #0a7268;
+  --accent-hi: #065048;
+  --accent-deep: #054139;
+  --on-accent: #ffffff;
+  --on-accent-30: rgb(255 255 255 / 30%);
+  --accent-border: #57a89b;
+  --accent-fg: #0a7268;
+
+  --ok-fg: #136b39;
+  --ok-border: #5fa77e;
+  --conf-high: #136b39;
+  --conf-mid: #b45309;
+
+  --err-fg: #a8241c;
+  --err-fg-2: #8a4a44;
+  --err-bg: #fdf0ee;
+  --err-border: #d68e85;
+
+  /* Severity ring colours darken in light theme; fills stay identical to dark */
+  --sev1-ring: #7a5300;
+  --sev2-ring: #8a4103;
+  --sev3-ring: #a3231a;
+  --sev4-ring: #6b0d13;
+
+  /* The header is the only region that stays inverted (dark ground) in light theme */
+  --header-fg: #f2f6fa;
+  --header-accent: #3fe0ce;
+}
+
+:root {
+  --header-fg: var(--fg);
+  --header-accent: var(--accent);
+}

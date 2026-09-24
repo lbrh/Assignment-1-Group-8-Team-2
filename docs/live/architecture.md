@@ -53,7 +53,7 @@ Notes:
 - **Operating region** is a placeholder bounding box for Victoria, AU (lat -39.2 to -33.98, lon 140.96 to 150.03) in `validate.ts`.
 - **Fire gate** is not built; every image is scored with `classification_label = fire` (D-22).
 - **Prioritisation** (`priority_rank`) is not computed yet.
-- **External classification service**: `CLASSIFICATION_SERVICE_URL` is an optional hook for the Sprint 1 request/response contract. It's unset, so it does nothing; the direct watsonx deployments replaced it.
+- **External classification service** (the Sprint 1 request/response contract, `CLASSIFICATION_SERVICE_URL`) was never built and its code has been removed; the direct watsonx deployments replaced it.
 
 ## 3. API
 
@@ -89,6 +89,5 @@ Backend environment (Code Engine secret `backend-secrets` in prod, `backend/.env
 | `WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID`, `WATSONX_FLAME_VISIBILITY_DEPLOYMENT_ID`, `WATSONX_VEGETATION_IMPACT_DEPLOYMENT_ID`, `WATSONX_INFRASTRUCTURE_IMPACT_DEPLOYMENT_ID` | One per indicator model. Unset = that indicator is skipped. Swapping a model is just changing the ID. |
 | `ALLOWED_API_KEYS` | `name:key` pairs allowed to call the API |
 | `FRONTEND_ORIGIN` | CORS origin (plain env var on the app, not in the secret) |
-| `CLASSIFICATION_SERVICE_URL` | Optional external service hook, unset |
 
 See [deployment and operations](deployment-and-operations.md) for how these are managed.

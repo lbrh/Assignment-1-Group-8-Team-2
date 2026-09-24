@@ -1,0 +1,47 @@
+/*
+ * The only motion in the build (redline "Geometry, spacing, motion" table):
+ * colour/background transitions .12s, marker pulse on insert, spinner while
+ * processing, progress bar while classifying, toast auto-clear countdown.
+ */
+
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 var(--acc-55);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgb(43 217 200 / 0%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes barSlide {
+  to {
+    background-position: 24px 0;
+  }
+}
+
+@keyframes toastBar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Keyboard-only focus ring; suppressed for mouse/touch focus */
+[tabindex]:focus:not(:focus-visible),
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,26 +1,77 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "../styles/tokens.css";
+@import "../styles/animations.css";
+@import "../styles/map.css";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Square-cornered design system: no rounded panels, cards, chips, buttons or
+   inputs anywhere. The only curves are circles (severity dots, avatars, "?"
+   hint buttons) declared per-component with border-radius: 50%. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+  border-radius: 0;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 100;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 10px 16px;
+  font: 600 11px/1 var(--font-plex-mono), monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: top 0.12s;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Chrome tab links: keyboard shortcuts (←/→, Alt+1-6) move the route without
+   moving DOM focus, so a focus ring would linger on whichever tab was last
+   clicked even after navigating away to a different tab. The active tab's
+   own background/underline already shows current location, so suppress the
+   ring entirely rather than have it point at a stale tab. */
+.chrome-tab:focus,
+.chrome-tab:focus-visible {
+  outline: none;
 }

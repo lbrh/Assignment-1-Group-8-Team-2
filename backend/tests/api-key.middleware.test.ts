@@ -5,7 +5,7 @@ import type { Request, Response } from 'express';
 // The middleware reads ALLOWED_API_KEYS once at import time, so it must be set before
 // the (dynamic) import below rather than via a static import at the top of the file.
 process.env.ALLOWED_API_KEYS = 'frontend:frontend-secret,drone:drone-secret';
-const { requireApiKey } = await import('../src/middleware/api-key.middleware.ts');
+const { requireApiKey, requireCaller } = await import('../src/middleware/api-key.middleware.ts');
 
 function fakeReq(apiKey?: string): Request {
     return { header: (name: string) => (name.toLowerCase() === 'x-api-key' ? apiKey : undefined) } as unknown as Request;
@@ -15,6 +15,7 @@ function fakeRes() {
     const res = {
         statusCode: 0,
         body: undefined as unknown,
+        locals: {} as Record<string, unknown>,
         status(code: number) {
             res.statusCode = code;
             return res;
@@ -64,4 +65,19 @@ test('accepts a different valid caller from the same allowlist', () => {
         nextCalled = true;
     });
     assert.equal(nextCalled, true);
+});
+
+test('requireCaller lets only the named caller through', () => {
+    const run = (key: string) => {
+        const res = fakeRes();
+        let nextCalled = false;
+        requireApiKey(fakeReq(key), res, () => {
+            requireCaller('drone')(fakeReq(key), res, () => {
+                nextCalled = true;
+            });
+        });
+        return { nextCalled, status: res.statusCode };
+    };
+    assert.deepEqual(run('drone-secret'), { nextCalled: true, status: 0 });
+    assert.deepEqual(run('frontend-secret'), { nextCalled: false, status: 403 });
 });
