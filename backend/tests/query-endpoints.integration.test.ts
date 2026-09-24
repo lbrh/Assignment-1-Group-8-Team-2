@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { ingestionRouter } from '../src/routes/ingestion.routes.ts';
 import { incidentsRouter } from '../src/routes/incidents.ts';
 import { deleteImage } from '../src/storage/cos.service.ts';
+import { testImage } from './test-image.ts';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 after(() => pool.end());
@@ -23,9 +24,9 @@ function startServer() {
     });
 }
 
-function ingestForm(bytes: string, latitude: string, longitude: string) {
+async function ingestForm(bytes: string, latitude: string, longitude: string) {
     const form = new FormData();
-    form.append('image', new Blob([Buffer.from(bytes)]), 'photo.jpg');
+    form.append('image', new Blob([await testImage(bytes)]), 'photo.jpg');
     form.append('source_type', 'citizen');
     form.append('latitude', latitude);
     form.append('longitude', longitude);
@@ -44,11 +45,11 @@ test('GET /incidents returns a marker within the given viewport and excludes one
     try {
         const inside = await fetch(`${url}/ingest`, {
             method: 'POST',
-            body: ingestForm(`bbox-inside-${tag}`, '-37.80', '144.90'),
+            body: await ingestForm(`bbox-inside-${tag}`, '-37.80', '144.90'),
         }).then((r) => r.json());
         const outside = await fetch(`${url}/ingest`, {
             method: 'POST',
-            body: ingestForm(`bbox-outside-${tag}`, '-38.50', '145.50'),
+            body: await ingestForm(`bbox-outside-${tag}`, '-38.50', '145.50'),
         }).then((r) => r.json());
 
         const res = await fetch(`${url}/incidents?minLat=-37.9&maxLat=-37.7&minLon=144.8&maxLon=145.0`);
@@ -81,12 +82,12 @@ test('GET /incidents/:id returns every image for that incident', async () => {
     try {
         const first = await fetch(`${url}/ingest`, {
             method: 'POST',
-            body: ingestForm(`incident-detail-a-${tag}`, '-37.82', '144.92'),
+            body: await ingestForm(`incident-detail-a-${tag}`, '-37.82', '144.92'),
         }).then((r) => r.json());
         const second = await fetch(`${url}/ingest`, {
             method: 'POST',
-            body: (() => {
-                const form = ingestForm(`incident-detail-b-${tag}`, '-37.821', '144.921');
+            body: await (async () => {
+                const form = await ingestForm(`incident-detail-b-${tag}`, '-37.821', '144.921');
                 form.set('incident_id', first.incidentId);
                 return form;
             })(),
@@ -122,7 +123,7 @@ test('GET /order returns images sorted with null priority_rank last', async () =
     try {
         const image = await fetch(`${url}/ingest`, {
             method: 'POST',
-            body: ingestForm(`order-test-${tag}`, '-37.83', '144.93'),
+            body: await ingestForm(`order-test-${tag}`, '-37.83', '144.93'),
         }).then((r) => r.json());
 
         const res = await fetch(`${url}/order`);

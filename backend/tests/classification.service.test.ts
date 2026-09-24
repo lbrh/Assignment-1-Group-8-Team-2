@@ -5,7 +5,7 @@ import express from 'express';
 import { requestClassification } from '../src/pipeline/classification.service.ts';
 
 // Stubs "the classification service" per the documented contract
-// (docs/ai-ml/Dataset_Integration_Interface_for_Htet.md), so this test verifies the
+// (docs/archive/sprint-1/ai-ml/Dataset_Integration_Interface_for_Htet.md), so this test verifies the
 // ingestion side of that contract without needing a real watsonx deployment.
 function startStubClassificationService(respond: (body: unknown) => { status: number; body: unknown }) {
     const app = express();

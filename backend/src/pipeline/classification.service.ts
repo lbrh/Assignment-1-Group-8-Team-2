@@ -18,7 +18,7 @@ export type ClassificationResult = Pick<
     | 'infrastructureImpact'
 >;
 
-// Contract per docs/ai-ml/Dataset_Integration_Interface_for_Htet.md: this ingestion API
+// Contract per docs/archive/sprint-1/ai-ml/Dataset_Integration_Interface_for_Htet.md: this ingestion API
 // calls a classification service — proposed to be a custom model deployed into
 // watsonx.ai Runtime, or a thin wrapper in front of it — with a signed URL to the image,
 // and writes its response back onto the metadata record. That service doesn't exist yet

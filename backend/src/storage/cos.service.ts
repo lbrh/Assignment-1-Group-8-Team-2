@@ -1,7 +1,7 @@
 import '../utils/load-env.ts';
 import S3 from 'ibm-cos-sdk/clients/s3.js';
 
-// Naming convention confirmed final in docs/storage/Storage_and_Metadata_Finalisation_Addendum.md:
+// Naming convention per docs/live/metadata-schema.md section 3:
 // /<incident_id>/<source_type>/<timestamp>_<image_id>.<ext>
 export function buildObjectKey(
     incidentId: string,
@@ -16,7 +16,7 @@ export function buildObjectKey(
 
 let client: S3 | undefined;
 
-// HMAC credentials per docs/storage/Storage_and_metadata_V2.md section 5
+// HMAC credentials per docs/live/metadata-schema.md section 3
 // ("IAM, with HMAC credentials generated for S3-compatible SDK access").
 function getClient(): S3 {
     client ??= new S3({

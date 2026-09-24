@@ -3,7 +3,7 @@ import { scoreDeployment } from './watsonx-client.ts';
 import type { IndicatorReadings } from '../pipeline/assess-severity.ts';
 
 // One small ONNX classifier per indicator, each its own watsonx.ai Runtime deployment
-// (docs/ai-ml/AI_Framework_and_Technical_Approach.md). Swapping a model is just pointing
+// (docs/live/ai-models-and-dataset.md). Swapping a model is just pointing
 // its envVar at the new deployment ID; unset means that indicator is skipped.
 //
 // Label order = the model's output order. The training notebooks build it with

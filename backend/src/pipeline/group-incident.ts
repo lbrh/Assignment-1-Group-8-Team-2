@@ -12,8 +12,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
     return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Hybrid auto-grouping rule confirmed in
-// docs/storage/Storage_and_Metadata_Finalisation_Addendum.md: attach to the nearest
+// Hybrid auto-grouping rule (docs/decisions/decision-log.md D-02): attach to the nearest
 // existing incident if its most recent image is within 2km and 6 hours, else the caller
 // starts a new incident. A coordinator confirming/splitting a wrong auto-group is a
 // separate, not-yet-built feature (that's UI, not ingestion).
