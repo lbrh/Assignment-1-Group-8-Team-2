@@ -1,28 +1,20 @@
-import {
-  bandFromSum,
-  CONFIDENCE_THRESHOLD,
-} from "@/lib/constants/severity";
 import { distanceKm } from "@/lib/utils/geo";
 import type {
   ApiIncidentRecord,
+  DispatchState,
   ElementScores,
   FlameVisibility,
   Incident,
+  InfrastructureImpact,
   PipelineFlag,
-  ReviewReason,
   SeverityBand,
   SeverityProvenance,
   SmokeDensity,
-  StructurePeopleProximity,
   VegetationImpact,
 } from "@/lib/types";
 
-/**
- * Enum label -> 1-4 ordinal lookup, per
- * docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md. The wire format carries graded
- * enum values, not raw ints, so this table is what lets the UI reconstruct "scored 9 of 16"
- * style copy. If Aryaveer's sign-off changes the label set, this is the only place to update.
- */
+// 1-4 weights, same tables as backend/src/pipeline/assess-severity.ts. Only used to show the
+// "scored X of 16" breakdown — the band itself always comes from the backend's severityScore.
 const SMOKE_LEVEL: Record<SmokeDensity, number> = {
   none_or_haze: 1,
   moderate: 2,
@@ -38,59 +30,53 @@ const FLAME_LEVEL: Record<FlameVisibility, number> = {
 };
 
 const VEGETATION_LEVEL: Record<VegetationImpact, number> = {
-  none_at_risk: 1,
-  scorching: 2,
-  noticeable_impact: 3,
-  extensive_burnt_area: 4,
+  no_vegetation: 1,
+  sparse_vegetation: 2,
+  moderate_vegetation: 3,
+  dense_vegetation: 4,
 };
 
-/**
- * The proposal doc flags this dimension's label set as a genuine gap: level 1 and level 2 read
- * as the same phrase ("no structure(s)...at risk"), so `no_structure_at_risk` is deliberately
- * ambiguous between bands 1 and 2 pending Aryaveer's sign-off. Until that's resolved, it's
- * treated as level 1 (the more conservative reading) rather than guessed.
- */
-const STRUCTURE_PEOPLE_LEVEL: Record<StructurePeopleProximity, number> = {
-  no_structure_at_risk: 1,
-  infrastructure_in_fire_line: 3,
-  extensive_infrastructure_damage_people_in_proximity: 4,
+const INFRASTRUCTURE_LEVEL: Record<InfrastructureImpact, number> = {
+  no_infrastructure: 1,
+  sparse_infrastructure: 2,
+  moderate_infrastructure: 3,
+  dense_infrastructure: 4,
 };
 
 function elementsFrom(record: ApiIncidentRecord): ElementScores {
+  const smoke = record.smokeDensity ? SMOKE_LEVEL[record.smokeDensity] : null;
+  const flame = record.flameVisibility ? FLAME_LEVEL[record.flameVisibility] : null;
+  // Vegetation is fuel, not fire: backend scores it 0 unless smoke or flame is above level 1.
+  const fire = (smoke ?? 0) > 1 || (flame ?? 0) > 1;
   return {
-    smoke: record.smoke_density ? SMOKE_LEVEL[record.smoke_density] : null,
-    flame: record.flame_visibility ? FLAME_LEVEL[record.flame_visibility] : null,
-    damage: record.vegetation_impact ? VEGETATION_LEVEL[record.vegetation_impact] : null,
-    people: record.structure_people_proximity
-      ? STRUCTURE_PEOPLE_LEVEL[record.structure_people_proximity]
-      : null,
+    smoke,
+    flame,
+    vegetation: record.vegetationImpact ? (fire ? VEGETATION_LEVEL[record.vegetationImpact] : 0) : null,
+    infrastructure: record.infrastructureImpact ? INFRASTRUCTURE_LEVEL[record.infrastructureImpact] : null,
   };
 }
 
 function sumOf(elements: ElementScores): number | null {
-  const { smoke, flame, damage, people } = elements;
-  if (smoke == null || flame == null || damage == null || people == null) return null;
-  return smoke + flame + damage + people;
+  const { smoke, flame, vegetation, infrastructure } = elements;
+  if (smoke == null || flame == null || vegetation == null || infrastructure == null) return null;
+  return smoke + flame + vegetation + infrastructure;
 }
 
 function provenanceOf(record: ApiIncidentRecord): SeverityProvenance {
-  if (record.overridden_by) return "coordinator_override";
+  if (record.overriddenBy) return "coordinator_override";
   // TODO(api): "confirmed by coordinator" vs "assigned manually" both currently collapse to
-  // overridden_by/overridden_at on the wire; the UI distinguishes them via local review state
-  // (see store: confirmedIds vs manuallyAssignedIds) until the schema grows a dedicated field.
-  if (record.severity_score != null) return "ai_classified";
+  // overriddenBy/overriddenAt on the wire; the UI distinguishes them via local review state
+  // until the schema grows a dedicated field.
+  if (record.severityScore != null) return "ai_classified";
   return "none";
 }
 
+// Routing is decided by the backend (0.75 threshold, uncertain label) — the UI only reads it.
 function flagOf(record: ApiIncidentRecord, isDiscarded: boolean): PipelineFlag {
-  if (isDiscarded) return "not_a_fire";
-  if (record.assessment_status === "unable_to_assess") return "flagged_review";
+  if (isDiscarded || record.classificationLabel === "non_fire") return "not_a_fire";
+  // pending_review = not assessed yet; never show that as confirmed (Sprint 2 §1.5 #2).
+  if (record.assessmentStatus !== "assessed") return "flagged_review";
   return "processed";
-}
-
-function reviewReasonOf(record: ApiIncidentRecord): ReviewReason | null {
-  if (record.assessment_status !== "unable_to_assess") return null;
-  return "below_threshold";
 }
 
 export interface NormalizeOptions {
@@ -106,37 +92,36 @@ export function normalizeIncident(
   const elements = elementsFrom(record);
   const sum = sumOf(elements);
   const flag = flagOf(record, Boolean(opts.discarded));
-  const effectiveScore = record.severity_score_override ?? record.severity_score;
-  // A flagged (below-threshold) image never gets an applied band — the indicator sum above is
-  // only the AI's *provisional* read, shown on Manual Review's provisional-tag card but not
-  // used for the map/ranking/status chip until a coordinator confirms, changes or discards it.
+  // A flagged image never gets an applied band — the indicator sum is only the AI's provisional
+  // read, shown on Manual Review but not used for the map/ranking until a coordinator acts.
   const band: SeverityBand | 0 =
-    flag === "flagged_review" ? 0 : effectiveScore ? (effectiveScore as SeverityBand) : sum ? bandFromSum(sum) : 0;
+    flag === "flagged_review" ? 0 : ((record.severityScoreOverride ?? record.severityScore ?? 0) as SeverityBand | 0);
+  const dispatch: DispatchState = record.classificationLabel === "extinguished" ? "extinguished" : "unranked";
 
   return {
-    id: record.incident_id,
-    place: opts.place ?? record.place,
+    id: record.incidentId,
+    // TODO(api): no place name on the wire yet (reverse geocode later) — fall back to coords.
+    place: opts.place ?? `${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`,
     coords: { lat: record.latitude, lng: record.longitude },
     capturedAtIso: record.timestamp,
     distanceKm: distanceKm({ lat: record.latitude, lng: record.longitude }),
-    source: record.source_type,
-    file: record.image_id,
+    source: record.sourceType,
+    file: record.imageId,
 
     elements,
     sum,
     band,
-    confidence: record.confidence_score,
-    explanation: record.severity_explanation,
+    confidence: record.confidenceScore,
+    explanation: record.severityExplanation,
     reasonBullets: [],
     recommendedAction: null,
-    modelVersion: record.model_version ?? null,
 
     provenance: provenanceOf(record),
     flag,
-    dispatch: "unranked",
+    dispatch,
     groupId: null,
 
-    reviewReason: reviewReasonOf(record),
+    reviewReason: flag === "flagged_review" ? "below_threshold" : null,
     reviewReasonNote: null,
 
     dismissedReason: null,
@@ -147,8 +132,4 @@ export function normalizeIncident(
     extinguishedBy: null,
     extinguishedAtIso: null,
   };
-}
-
-export function isBelowThreshold(confidence: number | null): boolean {
-  return confidence == null ? false : confidence < CONFIDENCE_THRESHOLD;
 }

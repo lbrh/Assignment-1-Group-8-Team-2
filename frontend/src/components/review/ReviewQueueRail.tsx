@@ -4,9 +4,10 @@ import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { reviewQueue } from "@/lib/store/selectors";
 import { relativeTime } from "@/lib/utils/time";
 import { HatchBanner } from "@/components/primitives/HatchBanner";
+import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
 const REASON_LABEL: Record<string, string> = {
-  below_threshold: "below 0.75",
+  below_threshold: `≤ ${CONFIDENCE_THRESHOLD}`,
   sent_by_coordinator: "sent by coordinator",
   restored_not_fire: "restored · was not a fire",
   restored_discarded: "restored · was discarded",

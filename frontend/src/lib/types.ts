@@ -1,11 +1,9 @@
 /**
  * Two layers, deliberately kept separate:
  *
- * - `ApiIncidentRecord` mirrors the ingestion/classification contract documented in
- *   docs/storage/Storage_and_metadata_V2.md, docs/storage/Storage_and_Metadata_Finalisation_Addendum.md
- *   and docs/ai-ml/Dataset_Integration_Interface_for_Htet.md. This is the shape a real API
- *   response will actually have.
- * - `Incident` is the UI's view model: camelCase, pre-computed band/sum/status, everything a
+ * - `ApiIncidentRecord` mirrors backend/src/metadata/metadata.types.ts — the shape the real API
+ *   returns.
+ * - `Incident` is the UI's view model: pre-computed band/sum/status, everything a
  *   component needs to render without re-deriving it. `normalizeIncident()` in normalize.ts is
  *   the single seam between the two, so mock data and real API data flow through identical code.
  *
@@ -14,11 +12,14 @@
  * / the store, each marked `// TODO(api)` at the point they'd eventually need a backend field.
  */
 
+// Mirrors backend/src/metadata/metadata.types.ts (the JSON the API actually returns). Keep the two in sync.
 export type SourceType = "drone" | "cctv" | "citizen" | "satellite";
 
 export type AssessmentStatus = "assessed" | "unable_to_assess" | "pending_review";
 
 export type UploadStatus = "pending" | "stored" | "failed";
+
+export type ClassificationLabel = "fire" | "non_fire" | "extinguished" | "uncertain";
 
 export type SmokeDensity =
   | "none_or_haze"
@@ -32,59 +33,49 @@ export type FlameVisibility =
   | "visible_high_flames_and_embers"
   | "large_flame_wall_embers_everywhere";
 
+/** Amount of vegetation (fuel load) in frame, burning or not. */
 export type VegetationImpact =
-  | "none_at_risk"
-  | "scorching"
-  | "noticeable_impact"
-  | "extensive_burnt_area";
+  | "no_vegetation"
+  | "sparse_vegetation"
+  | "moderate_vegetation"
+  | "dense_vegetation";
 
-export type StructurePeopleProximity =
-  | "no_structure_at_risk"
-  | "infrastructure_in_fire_line"
-  | "extensive_infrastructure_damage_people_in_proximity";
+/** Amount of infrastructure in/near the scene, burning or not. */
+export type InfrastructureImpact =
+  | "no_infrastructure"
+  | "sparse_infrastructure"
+  | "moderate_infrastructure"
+  | "dense_infrastructure";
 
-export interface IndicatorReading<TValue extends string> {
-  value: TValue;
-  confidence: number; // 0-1, per-dimension confidence from the classification service
-}
-
-/** Wire shape: docs/storage/Storage_and_metadata_V2.md + Finalisation Addendum. */
+/** Wire shape: backend ImageMetadata (GET /incidents, /incidents/:id, /order). */
 export interface ApiIncidentRecord {
-  incident_id: string;
-  image_id: string;
-  storage_path: string;
+  incidentId: string;
+  imageId: string;
+  storagePath: string | null;
   timestamp: string; // ISO 8601
-  source_type: SourceType;
+  sourceType: SourceType;
   latitude: number;
   longitude: number;
 
-  severity_score: number | null; // 1-4, AI output
-  severity_score_override: number | null; // 1-4, coordinator override, takes effect when present
-  overridden_by: string | null;
-  overridden_at: string | null;
+  severityScore: number | null; // 1-4, AI output, never overwritten
+  severityScoreOverride: number | null; // 1-4, coordinator override, takes effect when present
+  overriddenBy: string | null;
+  overriddenAt: string | null;
 
-  severity_explanation: string | null;
-  confidence_score: number | null; // 0-1, min() across the four indicator confidences
+  confidenceScore: number | null; // 0-1, min() across the four indicator confidences
+  severityExplanation: string | null;
 
-  assessment_status: AssessmentStatus;
-  priority_rank: number | null;
-  upload_status: UploadStatus;
-  ingestion_error: string | null;
+  smokeDensity: SmokeDensity | null;
+  flameVisibility: FlameVisibility | null;
+  vegetationImpact: VegetationImpact | null;
+  infrastructureImpact: InfrastructureImpact | null;
 
-  smoke_density: SmokeDensity | null;
-  flame_visibility: FlameVisibility | null;
-  vegetation_impact: VegetationImpact | null;
-  structure_people_proximity: StructurePeopleProximity | null;
-
-  indicators?: {
-    smoke_density: IndicatorReading<SmokeDensity>;
-    flame_visibility: IndicatorReading<FlameVisibility>;
-    vegetation_impact: IndicatorReading<VegetationImpact>;
-    structure_people_proximity: IndicatorReading<StructurePeopleProximity>;
-  } | null;
-  model_version?: string | null;
-
-  place: string; // human-readable location; not in the storage doc, needed for the UI (reverse geocode later)
+  assessmentStatus: AssessmentStatus;
+  classificationLabel: ClassificationLabel | null;
+  priorityRank: number | null;
+  uploadStatus: UploadStatus;
+  ingestionError: string | null;
+  contentHash: string | null;
 }
 
 export type SeverityBand = 1 | 2 | 3 | 4;
@@ -105,8 +96,8 @@ export type SeverityProvenance =
 export interface ElementScores {
   smoke: number | null;
   flame: number | null;
-  damage: number | null; // vegetation_impact
-  people: number | null; // structure_people_proximity
+  vegetation: number | null; // 0 when no fire present (backend effectiveVegetationWeight)
+  infrastructure: number | null;
 }
 
 export interface DecisionLogEntry {
@@ -150,7 +141,6 @@ export interface Incident {
   explanation: string | null;
   reasonBullets: string[];
   recommendedAction: string | null;
-  modelVersion: string | null;
 
   provenance: SeverityProvenance;
   flag: PipelineFlag;

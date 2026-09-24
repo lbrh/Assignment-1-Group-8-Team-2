@@ -1,5 +1,5 @@
 import type { Incident } from "@/lib/types";
-import { SEVERITY } from "@/lib/constants/severity";
+import { CONFIDENCE_THRESHOLD, SEVERITY, needsManualReview } from "@/lib/constants/severity";
 import { SeverityDot } from "@/components/primitives/SeverityDot";
 import { SeverityChip } from "@/components/primitives/SeverityChip";
 import { StatusFlagChip } from "@/components/primitives/StatusFlagChip";
@@ -47,9 +47,9 @@ export function SeverityHeader({ incident }: { incident: Incident }) {
           confidence={incident.confidence}
           size="lg"
           note={
-            incident.confidence < 0.75
-              ? "below the fixed 0.75 threshold · never auto-classified"
-              : "at or above the fixed 0.75 threshold"
+            needsManualReview(incident.confidence)
+              ? `at or below the ${CONFIDENCE_THRESHOLD} threshold · never auto-classified`
+              : `above the ${CONFIDENCE_THRESHOLD} threshold`
           }
         />
       ) : null}

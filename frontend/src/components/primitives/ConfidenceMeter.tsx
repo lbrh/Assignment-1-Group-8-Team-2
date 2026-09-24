@@ -1,14 +1,14 @@
-import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
+import { needsManualReview } from "@/lib/constants/severity";
 
 export function confidenceColor(confidence: number): string {
   if (confidence >= 0.85) return "var(--conf-high)";
-  if (confidence >= CONFIDENCE_THRESHOLD) return "var(--conf-mid)";
+  if (!needsManualReview(confidence)) return "var(--conf-mid)";
   return "var(--accent)";
 }
 
 export function confidenceLabel(confidence: number): string {
   if (confidence >= 0.85) return "High confidence";
-  if (confidence >= CONFIDENCE_THRESHOLD) return "Moderate confidence";
+  if (!needsManualReview(confidence)) return "Moderate confidence";
   return "Low confidence";
 }
 

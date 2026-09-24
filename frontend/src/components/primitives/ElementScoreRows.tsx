@@ -16,7 +16,8 @@ export function ElementScoreRows({
     <div style={{ display: "flex", flexDirection: "column" }}>
       {KEYS.map((key) => {
         const value = elements[key];
-        const rubric = value ? ELEMENT_RUBRIC[key][value - 1] : "not scored";
+        const rubric =
+          value === 0 ? "not counted, no fire present" : value ? ELEMENT_RUBRIC[key][value - 1] : "not scored";
         return (
           <div
             key={key}

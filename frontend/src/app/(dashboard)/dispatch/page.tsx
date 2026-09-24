@@ -5,6 +5,7 @@ import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { rankedAwaiting, liveDispatched, reviewQueue } from "@/lib/store/selectors";
 import { DispatchRow } from "@/components/dispatch/DispatchRow";
 import { Button } from "@/components/primitives/Button";
+import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
 const FILTERS: { key: "all" | "awaiting" | "live"; label: string }[] = [
   { key: "all", label: "All" },
@@ -105,7 +106,7 @@ export default function DispatchOrderPage() {
           ?
         </span>
         <p style={{ font: "400 12.5px/1.4 var(--font-plex-sans)", color: "var(--muted)", flex: 1 }}>
-          Detections below the 0.75 confidence threshold are held out of the ranking — never
+          Detections at or below the {CONFIDENCE_THRESHOLD} confidence threshold are held out of the ranking — never
           force-classified — until a reviewer confirms, changes or discards them. Not-a-fire
           images go to the Archive; extinguished fires leave this order and are listed under
           Resolved.

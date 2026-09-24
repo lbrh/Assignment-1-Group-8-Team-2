@@ -1,7 +1,14 @@
 import type { SeverityBand } from "@/lib/types";
 
-/** Team-confirmed: applied to the aggregated confidence_score (min() across indicators). */
+/**
+ * Display only — the backend does the routing (assessmentStatus). Mirrors needsManualReview()
+ * in backend/src/pipeline/assess-severity.ts: exactly 0.75 goes to review (Sprint 2 §5).
+ */
 export const CONFIDENCE_THRESHOLD = 0.75;
+
+export function needsManualReview(confidence: number): boolean {
+  return confidence <= CONFIDENCE_THRESHOLD;
+}
 
 /** Addendum's real auto-grouping rule (proposed starting point, tune during Core Build). */
 export const GROUPING_RADIUS_KM = 2;
@@ -83,11 +90,11 @@ export function bandFromSum(sum: number): SeverityBand {
 export const ELEMENT_LABELS = {
   smoke: "Smoke level",
   flame: "Flame visibility",
-  damage: "Damage / impact",
-  people: "People proximity",
+  vegetation: "Vegetation (fuel load)",
+  infrastructure: "Infrastructure nearby",
 } as const;
 
-/** Rubric wording per element per level (1-4), from the BA's severity rubric. */
+/** Wording per element per level (1-4), matching the backend enums (final rubric). */
 export const ELEMENT_RUBRIC: Record<keyof typeof ELEMENT_LABELS, string[]> = {
   smoke: [
     "Visible haze or smoke",
@@ -101,16 +108,16 @@ export const ELEMENT_RUBRIC: Record<keyof typeof ELEMENT_LABELS, string[]> = {
     "Visible high flames and embers",
     "Large flame wall front with embers flying everywhere",
   ],
-  damage: [
-    "No vegetation at risk",
-    "Vegetation scorching",
-    "Noticeable vegetation impact",
-    "Extensive burnt area including vegetation and infrastructure",
+  vegetation: [
+    "No vegetation",
+    "Sparse vegetation",
+    "Moderate vegetation",
+    "Dense vegetation",
   ],
-  people: [
-    "No people in range",
-    "Visible at a distance",
-    "Near the fire, evacuation required",
-    "Direct proximity, immediate help required",
+  infrastructure: [
+    "No infrastructure",
+    "Sparse infrastructure",
+    "Moderate infrastructure",
+    "Dense infrastructure",
   ],
 };

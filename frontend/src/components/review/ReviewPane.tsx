@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Incident, SeverityBand } from "@/lib/types";
-import { SEVERITY, SEVERITY_ORDER, bandFromSum } from "@/lib/constants/severity";
+import { CONFIDENCE_THRESHOLD, SEVERITY, SEVERITY_ORDER, bandFromSum } from "@/lib/constants/severity";
 import { HatchBanner } from "@/components/primitives/HatchBanner";
 import { ConfidenceMeter } from "@/components/primitives/ConfidenceMeter";
 import { MetaList } from "@/components/primitives/MetaField";
@@ -82,7 +82,7 @@ export function ReviewPane({ incident }: { incident: Incident }) {
               <ConfidenceMeter
                 confidence={incident.confidence}
                 size="lg"
-                note="below 0.75 threshold"
+                note={`at or below ${CONFIDENCE_THRESHOLD} threshold`}
               />
             ) : null}
           </div>
@@ -200,7 +200,7 @@ export function ReviewPane({ incident }: { incident: Incident }) {
             <SectionHeading accent>Reason for flagging</SectionHeading>
             <p style={{ font: "400 13.5px/1.55 var(--font-plex-sans)", color: "var(--fg-3)" }}>
               {incident.explanation ??
-                `Confidence ${incident.confidence?.toFixed(2)} is below the fixed 0.75 threshold — this image was held out of the ranking rather than force-classified.`}
+                `Confidence ${incident.confidence?.toFixed(2)} is at or below the fixed ${CONFIDENCE_THRESHOLD} threshold — this image was held out of the ranking rather than force-classified.`}
             </p>
           </div>
 

@@ -13,6 +13,7 @@ import { MetaList } from "@/components/primitives/MetaField";
 import { DecisionLogList } from "@/components/primitives/DecisionLogList";
 import { Card, SectionHeading } from "@/components/primitives/Card";
 import type { DecisionLogEntry } from "@/lib/types";
+import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
 // Stable reference so the Zustand selector below doesn't return a new array every render
 // (a fresh `[]` fallback on every call makes useSyncExternalStore think the snapshot changed
@@ -60,11 +61,11 @@ export default function IncidentDetailPage() {
     `sev=${incident.band || "null"}`,
     `smoke=${incident.elements.smoke ?? "null"}`,
     `flame=${incident.elements.flame ?? "null"}`,
-    `damage=${incident.elements.damage ?? "null"}`,
-    `people=${incident.elements.people ?? "null"}`,
+    `veg=${incident.elements.vegetation ?? "null"}`,
+    `infra=${incident.elements.infrastructure ?? "null"}`,
     `sum=${incident.sum ?? "null"}`,
     `conf=${incident.confidence ?? "null"}`,
-    `thr=0.75`,
+    `thr=${CONFIDENCE_THRESHOLD}`,
     `lat/lng=${incident.coords.lat.toFixed(4)},${incident.coords.lng.toFixed(4)}`,
     `t=${incident.capturedAtIso}`,
     `flag=${incident.flag}`,
@@ -202,7 +203,7 @@ export default function IncidentDetailPage() {
                 ) : null}
                 <span style={{ font: "400 11px/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
                   confidence {incident.confidence?.toFixed(2) ?? "—"} · assessed{" "}
-                  {relativeTime(incident.capturedAtIso, tick)} · model {incident.modelVersion ?? "—"} ·{" "}
+                  {relativeTime(incident.capturedAtIso, tick)} ·{" "}
                   {incident.provenance.replace(/_/g, " ")}
                 </span>
               </Card>

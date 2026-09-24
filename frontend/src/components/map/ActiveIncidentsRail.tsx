@@ -5,6 +5,7 @@ import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { rankedAwaiting, reviewQueue } from "@/lib/store/selectors";
 import { RankedIncidentRow } from "@/components/map/RankedIncidentRow";
 import { GroupingProposalCard } from "@/components/map/GroupingProposalCard";
+import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
 const FILTERS: { key: "all" | "sev34" | "extinguished"; label: string }[] = [
   { key: "all", label: "All" },
@@ -115,7 +116,7 @@ export function ActiveIncidentsRail() {
                 <AlertCard
                   tag="MANUAL REVIEW"
                   timing={`${flaggedCount} waiting`}
-                  body="Detections below the 0.75 confidence threshold need a coordinator's call before they can be dispatched."
+                  body={`Detections at or below the ${CONFIDENCE_THRESHOLD} confidence threshold need a coordinator's call before they can be dispatched.`}
                   cta="Open review queue"
                   onClick={() => router.push("/review")}
                 />

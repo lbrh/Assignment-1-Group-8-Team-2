@@ -77,8 +77,8 @@ export function RubricExplainer({ band }: { band: SeverityBand }) {
             </button>
           </div>
           <p style={{ font: "400 12px/1.4 var(--font-plex-sans)", color: "var(--fg-4)" }}>
-            Sum {meta.sumRange[0]}–{meta.sumRange[1]} of 16 across smoke, flame, damage/impact
-            and people proximity.
+            Sum {meta.sumRange[0]}–{meta.sumRange[1]} of 16 across smoke, flame, vegetation
+            and infrastructure nearby.
           </p>
         </div>
       ) : null}

@@ -5,6 +5,7 @@ import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { reviewQueue } from "@/lib/store/selectors";
 import { ReviewQueueRail } from "@/components/review/ReviewQueueRail";
 import { ReviewPane } from "@/components/review/ReviewPane";
+import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
 export default function ManualReviewPage() {
   const incidents = useIncidentStore((s) => s.incidents);
@@ -38,7 +39,7 @@ export default function ManualReviewPage() {
               Nothing awaiting review
             </span>
             <p style={{ font: "400 13.5px/1.6 var(--font-plex-sans)", color: "var(--muted)" }}>
-              Every current detection cleared the 0.75 confidence threshold. Anything below it
+              Every current detection cleared the {CONFIDENCE_THRESHOLD} confidence threshold. Anything at or below it
               routes here instead of being forced into a severity level.
             </p>
           </div>
