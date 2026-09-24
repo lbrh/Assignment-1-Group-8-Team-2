@@ -6,23 +6,10 @@ import { extractExif } from './exif.ts';
 import { validateIngestion } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
 import { requestClassification } from './classification.service.ts';
-import { classifySmokeDensity, classifyFlameVisibility } from '../ai/indicator-models.ts';
+import { INDICATOR_MODELS, classifyIndicator, isIndicatorConfigured, type Indicator } from '../ai/indicator-models.ts';
+import { assessSeverity, type IndicatorReadings, type IndicatorConfidences } from './assess-severity.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
 import type { IngestionInput, ImageMetadata } from '../metadata/metadata.types.ts';
-
-// Direct per-indicator watsonx.ai Runtime deployments (AI_Framework_and_Technical_Approach.md's
-// recommended architecture). Add an entry here as each indicator's model gets deployed;
-// an unconfigured envVar just skips that indicator, so this stays a no-op field by field
-// until all four exist. Full severity_score/assessment_status need all four indicators,
-// which assessSeverity() (assess-severity.ts) computes once they do.
-const INDICATOR_CLASSIFIERS: {
-    envVar: string;
-    field: 'smokeDensity' | 'flameVisibility';
-    classify: (imageBuffer: Buffer) => Promise<{ value: string; confidence: number }>;
-}[] = [
-    { envVar: 'WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID', field: 'smokeDensity', classify: classifySmokeDensity },
-    { envVar: 'WATSONX_FLAME_VISIBILITY_DEPLOYMENT_ID', field: 'flameVisibility', classify: classifyFlameVisibility },
-];
 
 export interface IngestedFile {
     buffer: Buffer;
@@ -80,7 +67,7 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
             smokeDensity: null,
             flameVisibility: null,
             vegetationImpact: null,
-            structurePeopleProximity: null,
+            infrastructureImpact: null,
             assessmentStatus: 'pending_review',
             classificationLabel: null,
             priorityRank: null,
@@ -130,13 +117,37 @@ async function classifyAndUpdate(record: ImageMetadata, imageBuffer: Buffer): Pr
         }
     }
 
-    for (const indicator of INDICATOR_CLASSIFIERS) {
-        if (!process.env[indicator.envVar]) continue;
-        try {
-            const prediction = await indicator.classify(imageBuffer);
-            await metadataRepository.update(record.imageId, { [indicator.field]: prediction.value });
-        } catch (err) {
-            logger.error(`${indicator.field} classification failed`, errorMeta(err));
+    // Per-indicator watsonx.ai deployments (indicator-models.ts). Each configured one writes
+    // its reading; once all four are in, the rubric score is computed and written too.
+    const indicators = Object.keys(INDICATOR_MODELS) as Indicator[];
+    const readings: Partial<IndicatorReadings> = {};
+    const confidences: Partial<IndicatorConfidences> = {};
+    await Promise.all(
+        indicators.filter(isIndicatorConfigured).map(async (indicator) => {
+            try {
+                const prediction = await classifyIndicator(indicator, imageBuffer);
+                (readings as Record<Indicator, string>)[indicator] = prediction.value;
+                confidences[indicator] = prediction.confidence;
+            } catch (err) {
+                logger.error(`${indicator} classification failed`, errorMeta(err));
+            }
+        }),
+    );
+
+    try {
+        if (indicators.every((indicator) => readings[indicator])) {
+            // ponytail: no fire/non-fire classifier is deployed, so every image is scored as 'fire';
+            // swap in a real classification_label once one exists.
+            const result = assessSeverity({
+                classificationLabel: 'fire',
+                indicators: readings as IndicatorReadings,
+                confidences: confidences as IndicatorConfidences,
+            });
+            await metadataRepository.update(record.imageId, result);
+        } else if (Object.keys(readings).length > 0) {
+            await metadataRepository.update(record.imageId, readings);
         }
+    } catch (err) {
+        logger.error('failed to write indicator results', errorMeta(err));
     }
 }
