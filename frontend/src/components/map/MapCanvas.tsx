@@ -9,6 +9,9 @@ import { SEVERITY } from "@/lib/constants/severity";
 import { STAGING_COORDS, distanceKm } from "@/lib/utils/geo";
 import { clusterByProximity } from "@/lib/utils/project";
 import { SeverityLegend } from "@/components/map/SeverityLegend";
+import { SOURCE_META } from "@/components/primitives/SourceChip";
+import { dataSource } from "@/lib/data-source";
+import { relativeTime } from "@/lib/utils/time";
 import type { Incident, SeverityBand } from "@/lib/types";
 
 /**
@@ -68,6 +71,48 @@ function clusterIcon(count: number, maxBand: SeverityBand): L.DivIcon {
       `<span class="fori-cluster-caption">sites</span>` +
       `</div>`,
   });
+}
+
+const HOVER_DELAY_MS = 350; // long enough that sweeping the cursor across the map doesn't flash cards
+
+function div(className: string, text?: string): HTMLDivElement {
+  const el = document.createElement("div");
+  el.className = className;
+  if (text) el.textContent = text;
+  return el;
+}
+
+/** Hover card for a marker: the field image (already in the browser cache, see preloadImages)
+ * and the basics. Built as DOM rather than an HTML string, so no field needs escaping. */
+function hoverCard(incident: Incident): HTMLElement {
+  const card = div("hover-card");
+  const src = dataSource.getImagePreviewUrl(incident.file, 240);
+  if (src) {
+    const img = document.createElement("img");
+    img.className = "hover-card__img";
+    img.alt = "";
+    img.src = src;
+    img.addEventListener("error", () => img.remove());
+    card.append(img);
+  }
+  const meta = SEVERITY[incident.band as SeverityBand];
+  const severity = div("hover-card__severity");
+  const dot = document.createElement("span");
+  dot.className = "hover-card__dot";
+  dot.style.background = meta.fillVar;
+  dot.style.borderColor = meta.ringVar;
+  severity.append(dot, `${meta.label} · level ${incident.band}`);
+  const status = incident.dispatch === "live" ? "Crew dispatched" : "Awaiting dispatch";
+  const confidence = incident.confidence != null ? ` · conf ${incident.confidence.toFixed(2)}` : "";
+  const body = div("hover-card__body");
+  body.append(
+    div("hover-card__title", incident.place),
+    severity,
+    div("hover-card__meta", `${incident.ref} · ${status}`),
+    div("hover-card__meta", `${relativeTime(incident.capturedAtIso)} · ${SOURCE_META[incident.source].abbr}${confidence}`)
+  );
+  card.append(body);
+  return card;
 }
 
 const extinguishedIcon = () =>
@@ -172,21 +217,49 @@ export function MapCanvas() {
     const threshold = CLUSTER_THRESHOLD_PX[tierFor(leafletZoom)];
     const clusters = threshold > 0 ? clusterByProximity(points, threshold) : points.map((p) => [p]);
 
-    const wireHover = (marker: L.Marker, id: string) => {
-      marker.on("mouseover", () => setMapHoverId(id));
-      marker.on("mouseout", () => setMapHoverId(null));
+    // One hover card at a time, opened after a short pause over (or keyboard focus on) a marker.
+    let cardTimer: ReturnType<typeof setTimeout> | undefined;
+    let card: L.Tooltip | null = null;
+    const hideCard = () => {
+      clearTimeout(cardTimer);
+      card?.remove();
+      card = null;
+    };
+    const showCardSoon = (incident: Incident) => {
+      hideCard();
+      cardTimer = setTimeout(() => {
+        const offset = SEVERITY[incident.band as SeverityBand].dotDiameter / 2 + 6;
+        card = L.tooltip({ direction: "top", offset: [0, -offset], className: "fori-hover-card", opacity: 1 })
+          .setLatLng([incident.coords.lat, incident.coords.lng])
+          .setContent(hoverCard(incident))
+          .addTo(map);
+      }, HOVER_DELAY_MS);
+    };
+
+    const wireHover = (marker: L.Marker, id: string, incident?: Incident) => {
+      const enter = () => {
+        setMapHoverId(id);
+        if (incident) showCardSoon(incident);
+      };
+      const leave = () => {
+        setMapHoverId(null);
+        hideCard();
+      };
+      marker.on("mouseover", enter);
+      marker.on("mouseout", leave);
+      marker.on("click", hideCard);
       const el = marker.getElement();
-      el?.addEventListener("focus", () => setMapHoverId(id));
-      el?.addEventListener("blur", () => setMapHoverId(null));
+      el?.addEventListener("focus", enter);
+      el?.addEventListener("blur", leave);
     };
 
     for (const cluster of clusters) {
       if (cluster.length === 1) {
         const incident = cluster[0].incident;
         const label = `${incident.place} · ${incident.ref}`;
+        // no `title`: the browser's own tooltip would pop up over the hover card
         const marker = L.marker([incident.coords.lat, incident.coords.lng], {
           icon: incidentIcon(incident),
-          title: label,
           riseOnHover: true,
           zIndexOffset: (incident.band as number) * 100,
         })
@@ -194,7 +267,7 @@ export function MapCanvas() {
           .addTo(layer);
         marker.getElement()?.setAttribute("aria-label", `${label}, ${SEVERITY[incident.band as SeverityBand].label}`);
         if (incident.id === newIncidentId) marker.getElement()?.classList.add("is-new");
-        wireHover(marker, incident.id);
+        wireHover(marker, incident.id, incident);
         markerById.set(incident.id, marker);
         continue;
       }
@@ -231,6 +304,7 @@ export function MapCanvas() {
 
     markerByIdRef.current = markerById;
     applyHover(markerById, useIncidentStore.getState().mapHoverId);
+    return hideCard;
   }, [leafletZoom, incidents, order, mapFilter, newIncidentId, router, setMapHoverId]);
 
   // Pending grouping suggestion: a dashed ring around its members that opens the proposal card.

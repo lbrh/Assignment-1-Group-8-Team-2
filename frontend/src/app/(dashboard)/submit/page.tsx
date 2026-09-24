@@ -7,19 +7,9 @@ import { useMock } from "@/lib/data-source";
 import { SOURCE_META } from "@/components/primitives/SourceChip";
 import { Button } from "@/components/primitives/Button";
 import type { SourceType } from "@/lib/types";
+import { EMPTY, MAX_NOTES, toLocalInput, validate, type FieldName, type FormState } from "@/lib/submission";
 
 const SOURCES: SourceType[] = ["citizen", "drone", "satellite", "cctv"];
-
-interface FormState {
-  file: File | null;
-  lat: string;
-  lng: string;
-  ts: string;
-  notes: string;
-  source: SourceType;
-}
-
-const EMPTY: FormState = { file: null, lat: "", lng: "", ts: "", notes: "", source: "citizen" };
 
 export default function SubmitImagePage() {
   const router = useRouter();
@@ -29,23 +19,30 @@ export default function SubmitImagePage() {
   const [error, setError] = useState<string | null>(null);
   const [lastRef, setLastRef] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-
+  // a field shows its problem once it's been left (or on submit), not while it's being typed
+  const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
+  const errors = validate(form, false);
+  const shown = (name: FieldName) => (touched[name] ? errors[name] : undefined);
+  const touch = (name: FieldName) => setTouched((t) => ({ ...t, [name]: true }));
 
   const steps: { label: string; done: boolean; running?: boolean }[] = [
-    { label: "Attach image", done: !!form.file },
-    { label: "Geotag + capture time", done: !!(form.lat && form.lng && form.ts) },
-    { label: "Submission confirmed", done: status === "done" },
+    { label: "Attach image", done: !!form.file && !errors.file },
+    { label: "Geotag + capture time", done: !!(form.lat && form.lng && form.ts) && !errors.lat && !errors.lng && !errors.ts },
     { label: "AI assessment running", done: status === "done", running: status === "processing" },
+    { label: "Submission confirmed", done: status === "done" },
   ];
 
   async function handleSubmit(demoOutcome?: "valid" | "low_confidence" | "not_fire") {
     // Demo buttons (mock only) fill in anything left blank so they always reach the outcome.
     const f = demoOutcome
-      ? { ...form, lat: form.lat || "-37.62", lng: form.lng || "145.31", ts: form.ts || new Date().toISOString() }
+      ? { ...form, lat: form.lat || "-37.62", lng: form.lng || "145.31", ts: form.ts || toLocalInput(new Date()) }
       : form;
-    const problem = validate(f, !!demoOutcome);
-    if (problem) {
-      setError(problem);
+    const problems = validate(f, !!demoOutcome);
+    const first = (Object.keys(problems) as FieldName[])[0];
+    if (first) {
+      setTouched({ file: true, lat: true, lng: true, ts: true, notes: true });
+      setError(null);
+      document.getElementById(`submit-${first}`)?.focus();
       return;
     }
     setError(null);
@@ -77,7 +74,10 @@ export default function SubmitImagePage() {
     }
     navigator.geolocation.getCurrentPosition(
       (pos) =>
-        setForm((f) => ({ ...f, lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) })),
+      {
+        setForm((f) => ({ ...f, lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) }));
+        setTouched((t) => ({ ...t, lat: true, lng: true }));
+      },
       () => setError("Couldn't get the device location. Enter the coordinates manually.")
     );
   }
@@ -244,7 +244,7 @@ export default function SubmitImagePage() {
           </div>
 
           <div style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-            <Field label="Image" required htmlFor="submit-file">
+            <Field label="Image" required htmlFor="submit-file" error={shown("file")}>
               <label
                 htmlFor="submit-file"
                 onDragOver={(e) => {
@@ -257,10 +257,11 @@ export default function SubmitImagePage() {
                   setDragging(false);
                   const file = e.dataTransfer.files[0];
                   if (file) setForm((f) => ({ ...f, file }));
+                  touch("file");
                 }}
                 style={{
                   position: "relative",
-                  border: `1.5px dashed ${dragging || form.file ? "var(--accent)" : "var(--border-2)"}`,
+                  border: `1.5px dashed ${shown("file") ? "var(--err-border)" : dragging || form.file ? "var(--accent)" : "var(--border-2)"}`,
                   borderRadius: "var(--radius-lg)",
                   background: dragging ? "var(--accent-soft)" : form.file ? "var(--grad-pending)" : "var(--surface)",
                   padding: "var(--space-5)",
@@ -280,9 +281,12 @@ export default function SubmitImagePage() {
                   type="file"
                   accept="image/jpeg,image/png"
                   aria-required="true"
+                  aria-invalid={!!shown("file")}
+                  aria-describedby={shown("file") ? "submit-file-error" : undefined}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) setForm((f) => ({ ...f, file }));
+                    touch("file");
                   }}
                   style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                 />
@@ -319,25 +323,31 @@ export default function SubmitImagePage() {
             </Field>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
-              <Field label="Latitude" htmlFor="submit-lat">
+              <Field label="Latitude" htmlFor="submit-lat" error={shown("lat")}>
                 <input
                   id="submit-lat"
                   className="input"
                   inputMode="decimal"
                   autoComplete="off"
                   value={form.lat}
-                  onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value.trim() }))}
+                  onBlur={() => touch("lat")}
+                  aria-invalid={!!shown("lat")}
+                  aria-describedby={shown("lat") ? "submit-lat-error" : undefined}
                   placeholder="-37.6214"
                 />
               </Field>
-              <Field label="Longitude" htmlFor="submit-lng">
+              <Field label="Longitude" htmlFor="submit-lng" error={shown("lng")}>
                 <input
                   id="submit-lng"
                   className="input"
                   inputMode="decimal"
                   autoComplete="off"
                   value={form.lng}
-                  onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value.trim() }))}
+                  onBlur={() => touch("lng")}
+                  aria-invalid={!!shown("lng")}
+                  aria-describedby={shown("lng") ? "submit-lng-error" : undefined}
                   placeholder="145.3087"
                 />
               </Field>
@@ -346,32 +356,41 @@ export default function SubmitImagePage() {
               Use device location
             </button>
 
-            <Field label="Capture time" htmlFor="submit-ts">
+            <Field label="Capture time" hint="Local time" htmlFor="submit-ts" error={shown("ts")}>
               <input
                 id="submit-ts"
+                type="datetime-local"
                 className="input"
-                autoComplete="off"
                 value={form.ts}
+                max={toLocalInput(new Date())}
                 onChange={(e) => setForm((f) => ({ ...f, ts: e.target.value }))}
-                placeholder="2026-09-22 14:02"
+                onBlur={() => touch("ts")}
+                aria-invalid={!!shown("ts")}
+                aria-describedby={shown("ts") ? "submit-ts-error" : undefined}
               />
             </Field>
             <button
               type="button"
               className="btn btn--link"
-              onClick={() => setForm((f) => ({ ...f, ts: new Date().toISOString() }))}
+              onClick={() => {
+                setForm((f) => ({ ...f, ts: toLocalInput(new Date()) }));
+                touch("ts");
+              }}
               style={{ alignSelf: "flex-start", marginTop: -8, fontSize: "var(--text-xs)" }}
             >
               Use current time
             </button>
 
-            <Field label="Notes" hint="Optional" htmlFor="submit-notes">
+            <Field label="Notes" hint={`Optional · ${form.notes.length}/${MAX_NOTES}`} htmlFor="submit-notes" error={shown("notes")}>
               <textarea
                 id="submit-notes"
                 className="input"
                 rows={4}
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                onBlur={() => touch("notes")}
+                aria-invalid={!!shown("notes")}
+                aria-describedby={shown("notes") ? "submit-notes-error" : undefined}
                 placeholder="Observed conditions, access, hazards"
               />
             </Field>
@@ -430,6 +449,7 @@ export default function SubmitImagePage() {
             className="btn btn--quiet"
             onClick={() => {
               setForm(EMPTY);
+              setTouched({});
               setError(null);
               setStatus("idle");
             }}
@@ -463,34 +483,19 @@ export default function SubmitImagePage() {
   );
 }
 
-/** Returns an error message, or null when the form can be sent. Blank geotag/time is allowed:
- * the backend reads it from EXIF and rejects the submission if it's missing there too. */
-function validate(form: FormState, isDemo: boolean): string | null {
-  if (!form.file && !isDemo) return "Attach an image to submit.";
-  if (!form.lat !== !form.lng) return "Enter both latitude and longitude, or leave both blank to use the image's geotag.";
-  if (form.lat) {
-    const lat = Number(form.lat);
-    const lng = Number(form.lng);
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "Latitude must be a number between -90 and 90.";
-    if (!Number.isFinite(lng) || lng < -180 || lng > 180) return "Longitude must be a number between -180 and 180.";
-  }
-  if (form.ts && Number.isNaN(new Date(form.ts).getTime())) {
-    return "Capture time isn't a valid date. Use the format 2026-09-22 14:02.";
-  }
-  return null;
-}
-
 function Field({
   label,
   hint,
   required,
   htmlFor,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
   required?: boolean;
   htmlFor: string;
+  error?: string;
   children: ReactNode;
 }) {
   return (
@@ -501,6 +506,11 @@ function Field({
         {hint ? <span style={{ color: "var(--muted)", fontWeight: 400 }}>{hint}</span> : null}
       </label>
       {children}
+      {error ? (
+        <span id={`${htmlFor}-error`} role="alert" style={{ font: "500 var(--text-xs)/1.4 var(--font-plex-sans)", color: "var(--err-fg)" }}>
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { ARCHIVED_REASON, normalizeIncident } from "@/lib/normalize";
+import { OPERATING_REGION } from "@/lib/utils/geo";
 import { bandFromSum } from "@/lib/constants/severity";
 import type {
   ApiIncidentRecord,
@@ -18,9 +19,7 @@ import type { SubmitImagePayload } from "../mock/mockApi";
  */
 const BASE = "/api/backend";
 
-// Operating region, same box the backend validates ingestion against (backend/src/pipeline/validate.ts).
 // ponytail: one fetch for the whole region; switch to per-viewport queries if incident volume grows.
-const REGION = { minLat: -39.2, maxLat: -33.98, minLon: 140.96, maxLon: 150.03 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { cache: "no-store", ...init });
@@ -30,7 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function listIncidents(): Promise<Incident[]> {
-  const query = new URLSearchParams(Object.entries(REGION).map(([k, v]) => [k, String(v)]));
+  const query = new URLSearchParams(Object.entries(OPERATING_REGION).map(([k, v]) => [k, String(v)]));
   const records = await request<ApiIncidentRecord[]>(`/incidents?${query}`);
   return records.map((r) => normalizeIncident(r));
 }

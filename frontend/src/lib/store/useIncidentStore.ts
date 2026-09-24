@@ -6,6 +6,7 @@ import type { SubmitImagePayload } from "@/lib/data-source";
 import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
 import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
 import { ARCHIVED_REASON } from "@/lib/normalize";
+import { preloadImages } from "@/lib/utils/preload";
 import type {
   DecisionLogEntry,
   DispatchState,
@@ -243,8 +244,13 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         order.push(incident.id);
       }
       if (!useMock) {
-        // TODO(api): decision log, grouping and dispatch state have no backend endpoint yet.
+        // TODO(api): grouping has no backend endpoint yet.
         set({ incidents, order, initialized: true, loading: false });
+        // thumbnails first (list, map hover cards), then the larger previews (incident, review)
+        preloadImages([
+          ...list.map((i) => dataSource.getImagePreviewUrl(i.file, 240)),
+          ...list.map((i) => dataSource.getImagePreviewUrl(i.file, 800)),
+        ]);
         return;
       }
       const decisionLogs: Record<string, DecisionLogEntry[]> = {};

@@ -158,6 +158,65 @@
   border-top-color: var(--accent-border);
 }
 
+/* ---- marker hover card (MapCanvas hoverCard) ---- */
+
+.fori-hover-card.leaflet-tooltip {
+  width: 240px;
+  padding: 0;
+  overflow: hidden;
+  white-space: normal;
+  background: var(--panel);
+  color: var(--fg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+}
+
+.fori-hover-card.leaflet-tooltip-top::before {
+  border-top-color: var(--panel);
+}
+
+.hover-card__img {
+  display: block;
+  width: 100%;
+  height: 135px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.hover-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+}
+
+.hover-card__title {
+  font: 600 var(--text-sm) / 1.3 var(--font-plex-sans), sans-serif;
+  color: var(--fg);
+}
+
+.hover-card__severity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 var(--text-xs) / 1.3 var(--font-plex-sans), sans-serif;
+  color: var(--fg-2);
+}
+
+.hover-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex: none;
+}
+
+.hover-card__meta {
+  font: 400 var(--text-2xs) / 1.4 var(--font-plex-mono), monospace;
+  color: var(--muted);
+}
+
 /* ---- incidents list beside the map: resizable, shows more as it widens ---- */
 
 .rail-resizer {
@@ -230,13 +289,13 @@
   overflow: hidden;
 }
 
-@container rail (min-width: 520px) {
+@container rail (min-width: 480px) {
   .rail-row__detail {
     display: flex;
   }
 }
 
-@container rail (min-width: 720px) {
+@container rail (min-width: 600px) {
   .rail-row:has(.rail-row__thumb) {
     grid-template-columns: 128px 32px minmax(0, 1fr);
   }

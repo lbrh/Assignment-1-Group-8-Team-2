@@ -1,3 +1,7 @@
+/** Operating region: the same box the backend validates ingestion against
+ * (backend/src/pipeline/validate.ts). Keep the two in sync. */
+export const OPERATING_REGION = { minLat: -39.2, maxLat: -33.98, minLon: 140.96, maxLon: 150.03 };
+
 /** Fixed staging ground used as the distance reference for ranking (demo-only placeholder). */
 export const STAGING_COORDS = { lat: -37.65, lng: 145.25 };
 
