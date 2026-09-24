@@ -5,7 +5,6 @@ import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { extractExif } from './exif.ts';
 import { validateIngestion } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
-import { requestClassification } from './classification.service.ts';
 import { INDICATOR_MODELS, classifyIndicator, isIndicatorConfigured, type Indicator } from '../ai/indicator-models.ts';
 import { assessSeverity, type IndicatorReadings, type IndicatorConfidences } from './assess-severity.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
@@ -101,21 +100,6 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
 
 async function classifyAndUpdate(record: ImageMetadata, imageBuffer: Buffer): Promise<void> {
     if (!record.storagePath) return;
-
-    // External classification service per the interface doc (still a no-op — nothing's
-    // configured at CLASSIFICATION_SERVICE_URL yet).
-    const externalResult = await requestClassification({
-        imageId: record.imageId,
-        storagePath: record.storagePath,
-        sourceType: record.sourceType,
-    });
-    if (externalResult) {
-        try {
-            await metadataRepository.update(record.imageId, externalResult);
-        } catch (err) {
-            logger.error('failed to write classification result', errorMeta(err));
-        }
-    }
 
     // Per-indicator watsonx.ai deployments (indicator-models.ts). Each configured one writes
     // its reading; once all four are in, the rubric score is computed and written too.

@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { assessSeverity, parseSeverityAssessmentInput } from '../pipeline/assess-severity.ts';
 import { ValidationError } from '../pipeline/validate.ts';
+import { requireCaller } from '../middleware/api-key.middleware.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
 
 export const incidentsRouter: Router = Router();
@@ -40,7 +41,8 @@ incidentsRouter.get('/order', async (req: Request, res: Response) => {
     res.json(ordered);
 });
 
-incidentsRouter.post('/images/:id/assess', async (req: Request<{ id: string }>, res: Response) => {
+// Writes severity results, so only the "classifier" caller may use it — never the frontend.
+incidentsRouter.post('/images/:id/assess', requireCaller('classifier'), async (req: Request<{ id: string }>, res: Response) => {
     const existing = await metadataRepository.get(req.params.id);
     if (!existing) {
         res.status(404).json({ error: 'image not found' });

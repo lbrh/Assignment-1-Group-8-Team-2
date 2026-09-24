@@ -24,5 +24,18 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction): 
         res.status(401).json({ error: 'unauthorized' });
         return;
     }
+    res.locals.caller = caller;
     next();
+}
+
+// Per-route scope on top of requireApiKey: a valid key only proves who the caller is, this
+// decides what they may do — e.g. only the classifier may write severity results.
+export function requireCaller(...callers: string[]) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        if (!callers.includes(res.locals.caller)) {
+            res.status(403).json({ error: 'forbidden' });
+            return;
+        }
+        next();
+    };
 }

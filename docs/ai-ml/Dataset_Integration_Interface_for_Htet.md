@@ -3,6 +3,10 @@
 **Status:** DRAFT, needs Htet's confirmation since it defines the boundary between the ingestion API (Dev 1, Htet) and the classification component (Dev 2, Liam)
 **Depends on:** AI_Framework_and_Technical_Approach.md, Storage_and_Metadata_Finalisation_Addendum.md, docs/Storage and metadata V2.md
 
+> **Superseded (24 Sep 2026).** The separate classification service proposed below was never built, and the backend code for calling it (`requestClassification()`, `CLASSIFICATION_SERVICE_URL`) has been removed. Instead, the backend calls the four per-indicator watsonx.ai deployments directly (`backend/src/ai/indicator-models.ts`, configured by the `WATSONX_*_DEPLOYMENT_ID` env vars) and does the aggregation itself in `backend/src/pipeline/assess-severity.ts`: rubric sum to severity 1 to 4, `confidence_score` as the minimum of the four indicator confidences, the 0.75 threshold (at or below routes to Manual Review), and the explanation text. Classification runs asynchronously after the image is stored, and a failed call leaves the image `pending_review`.
+>
+> Still accurate from this document: the minimum-confidence rule and the pending_review fallback. No longer accurate: the signed URL request (image bytes go to watsonx.ai directly), and the threshold living in the classification service's own configuration (it is now backend code, so changing it needs a backend deploy). Kept as a record of the original design decision.
+
 ### Why this needs Htet's confirmation
 
 The ingestion API (Htet's) and the classification service (this document's recommendation, deployed into the watsonx.ai Runtime space Htet already provisioned) are two separate pieces of work that only function together if the contract between them is agreed before either side builds against assumptions. This document proposes that contract.
