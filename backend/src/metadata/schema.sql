@@ -55,6 +55,9 @@ ALTER TABLE images ADD COLUMN IF NOT EXISTS classification_label_override TEXT;
 ALTER TABLE images DROP CONSTRAINT IF EXISTS images_classification_label_override_check;
 ALTER TABLE images ADD CONSTRAINT images_classification_label_override_check CHECK (classification_label_override IN ('fire', 'non_fire', 'extinguished', 'uncertain'));
 
+-- Human place name for the image's coordinates (reverse geocoded after ingest). Re-runnable.
+ALTER TABLE images ADD COLUMN IF NOT EXISTS place_name TEXT;
+
 -- Dispatch state is per incident, not per image. No row = not yet acted on.
 CREATE TABLE IF NOT EXISTS incident_dispatch (
     incident_id UUID PRIMARY KEY,

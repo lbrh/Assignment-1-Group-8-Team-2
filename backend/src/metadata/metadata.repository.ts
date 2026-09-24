@@ -38,6 +38,7 @@ const COLUMNS = {
     uploadStatus: 'upload_status',
     ingestionError: 'ingestion_error',
     contentHash: 'content_hash',
+    placeName: 'place_name',
 } as const satisfies Record<keyof ImageMetadata, string>;
 
 function fromRow(row: Record<string, unknown>): ImageMetadata {

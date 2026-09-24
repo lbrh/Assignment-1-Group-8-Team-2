@@ -74,7 +74,7 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
           {incident.place}
         </span>
         <span className="data" style={{ font: "400 var(--text-2xs)/1.3 var(--font-plex-mono)", color: "var(--muted)" }}>
-          {incident.id} · {incident.coords.lat.toFixed(2)}, {incident.coords.lng.toFixed(2)} · {SOURCE_META[incident.source].abbr}
+          {incident.ref} · {incident.coords.lat.toFixed(2)}, {incident.coords.lng.toFixed(2)} · {SOURCE_META[incident.source].abbr}
         </span>
         <span className="caption" style={{ fontSize: 12 }}>
           Captured {relativeTime(incident.capturedAtIso, tick)}

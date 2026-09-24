@@ -73,7 +73,7 @@ export function ReviewQueueRail() {
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-                    {incident.id}
+                    {incident.ref}
                   </span>
                   <span className="data" style={{ font: "700 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--accent)" }}>
                     {incident.confidence?.toFixed(2)}

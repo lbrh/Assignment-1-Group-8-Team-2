@@ -42,6 +42,7 @@ interface Shot {
 
 interface Scenario {
     name: string;
+    place: string; // what Nominatim returns for lat/lon (see src/pipeline/place-name.ts), fixed here so runs match
     lat: number;
     lon: number;
     shots: Shot[]; // coordinator actions below apply to the newest shot, as in the UI
@@ -63,7 +64,7 @@ const OCT1 = '2026-10-01';
 const SCENARIOS: Scenario[] = [
     // ---- Active, Thursday 1 October ----
     {
-        name: 'kinglake', lat: -37.52, lon: 145.35, // three sources, one incident
+        name: 'kinglake', place: 'Kinglake', lat: -37.52, lon: 145.35, // three sources, one incident
         shots: [
             { file: 'flamevision_024688.png', source: 'drone', at: `${OCT1}T07:48`, confidence: 0.88, readings: r('dense_dark', 'visible_high_flames_and_embers', 'dense_vegetation', 'no_infrastructure') },
             { file: 'dfire_016578.jpg', source: 'citizen', at: `${OCT1}T08:05`, confidence: 0.86, readings: r('very_dense_blocking_vision', 'visible_high_flames_and_embers', 'dense_vegetation', 'moderate_infrastructure') },
@@ -71,100 +72,100 @@ const SCENARIOS: Scenario[] = [
         ],
     },
     {
-        name: 'dandenong-ranges', lat: -37.857, lon: 145.366,
+        name: 'dandenong-ranges', place: 'Olinda', lat: -37.857, lon: 145.366,
         shots: [{ file: 'dfire_015452.jpg', source: 'cctv', at: `${OCT1}T06:52`, confidence: 0.93, readings: r('very_dense_blocking_vision', 'large_flame_wall_embers_everywhere', 'dense_vegetation', 'sparse_infrastructure') }],
         dispatch: [['live', `${OCT1}T07:10`]],
     },
     {
-        name: 'grampians', lat: -37.137, lon: 142.519,
+        name: 'grampians', place: 'Halls Gap', lat: -37.137, lon: 142.519,
         shots: [{ file: 'flamevision_030889.jpg', source: 'drone', at: `${OCT1}T09:14`, confidence: 0.88, readings: r('dense_dark', 'visible_high_flames_and_embers', 'dense_vegetation', 'moderate_infrastructure') }],
     },
     {
-        name: 'macedon-ranges', lat: -37.398, lon: 144.585,
+        name: 'macedon-ranges', place: 'Mount Macedon', lat: -37.398, lon: 144.585,
         shots: [{ file: 'dfire_019817.jpg', source: 'citizen', at: `${OCT1}T10:02`, confidence: 0.84, readings: r('dense_dark', 'visible_high_flames_and_embers', 'dense_vegetation', 'no_infrastructure') }],
         dispatch: [['live', `${OCT1}T10:20`]],
     },
     {
-        name: 'otway-ranges', lat: -38.68, lon: 143.39, // AI said High; coordinator raised it
+        name: 'otway-ranges', place: 'Lavers Hill', lat: -38.68, lon: 143.39, // AI said High; coordinator raised it
         shots: [{ file: 'flamevision_032080.jpg', source: 'drone', at: `${OCT1}T11:36`, confidence: 0.81, readings: r('dense_dark', 'visible_high_flames_and_embers', 'sparse_vegetation', 'sparse_infrastructure') }],
         override: { level: 3, at: `${OCT1}T11:50` },
     },
     {
-        name: 'mount-buller', lat: -37.146, lon: 146.438, // low confidence, confirmed from review
+        name: 'mount-buller', place: 'Mt Buller Village', lat: -37.146, lon: 146.438, // low confidence, confirmed from review
         shots: [{ file: 'flamevision_034016.jpg', source: 'drone', at: `${OCT1}T10:41`, confidence: 0.72, readings: r('dense_dark', 'visible_high_flames_and_embers', 'dense_vegetation', 'no_infrastructure') }],
         confirm: `${OCT1}T11:05`,
     },
     {
-        name: 'bright', lat: -36.728, lon: 146.962,
+        name: 'bright', place: 'Bright', lat: -36.728, lon: 146.962,
         shots: [{ file: 'flamevision_025921.png', source: 'drone', at: `${OCT1}T12:18`, confidence: 0.89, readings: r('dense_dark', 'some_flame', 'moderate_vegetation', 'sparse_infrastructure') }],
     },
     {
-        name: 'lake-eildon', lat: -37.232, lon: 145.915,
+        name: 'lake-eildon', place: 'Eildon', lat: -37.232, lon: 145.915,
         shots: [{ file: 'dfire_004176.jpg', source: 'cctv', at: `${OCT1}T08:40`, confidence: 0.87, readings: r('very_dense_blocking_vision', 'no_visible_flame', 'dense_vegetation', 'no_infrastructure') }],
     },
     {
-        name: 'whipstick', lat: -36.635, lon: 144.27,
+        name: 'whipstick', place: 'Whipstick', lat: -36.635, lon: 144.27,
         shots: [{ file: 'dfire_003771.jpg', source: 'citizen', at: `${OCT1}T13:05`, confidence: 0.83, readings: r('moderate', 'some_flame', 'dense_vegetation', 'sparse_infrastructure') }],
     },
     {
-        name: 'arthurs-seat', lat: -38.357, lon: 144.952,
+        name: 'arthurs-seat', place: 'Arthurs Seat', lat: -38.357, lon: 144.952,
         shots: [{ file: 'dfire_017092.jpg', source: 'citizen', at: `${OCT1}T14:22`, confidence: 0.9, readings: r('moderate', 'no_visible_flame', 'sparse_vegetation', 'no_infrastructure') }],
     },
     {
-        name: 'wyperfeld', lat: -35.6, lon: 142.0,
+        name: 'wyperfeld', place: 'Yaapeet', lat: -35.6, lon: 142.0,
         shots: [{ file: 'dfire_015857.jpg', source: 'citizen', at: `${OCT1}T12:47`, confidence: 0.85, readings: r('moderate', 'no_visible_flame', 'sparse_vegetation', 'sparse_infrastructure') }],
     },
     // ---- Manual review queue (confidence at or below 0.75), 1 October ----
     {
-        name: 'warburton', lat: -37.754, lon: 145.69,
+        name: 'warburton', place: 'Warburton', lat: -37.754, lon: 145.69,
         shots: [{ file: 'dfire_007664.jpg', source: 'cctv', at: `${OCT1}T05:40`, confidence: 0.58, readings: r('none_or_haze', 'some_flame', 'no_vegetation', 'sparse_infrastructure') }],
     },
     {
-        name: 'walhalla', lat: -37.941, lon: 146.45,
+        name: 'walhalla', place: 'Walhalla', lat: -37.941, lon: 146.45,
         shots: [{ file: 'dfire_004132.jpg', source: 'citizen', at: `${OCT1}T14:48`, confidence: 0.71, readings: r('very_dense_blocking_vision', 'no_visible_flame', 'dense_vegetation', 'sparse_infrastructure') }],
     },
     {
-        name: 'healesville', lat: -37.654, lon: 145.517,
+        name: 'healesville', place: 'Healesville', lat: -37.654, lon: 145.517,
         shots: [{ file: 'flamevision_024757.png', source: 'drone', at: `${OCT1}T15:10`, confidence: 0.66, readings: r('dense_dark', 'visible_high_flames_and_embers', 'sparse_vegetation', 'no_infrastructure') }],
     },
     {
-        name: 'lake-mountain', lat: -37.49, lon: 145.88,
+        name: 'lake-mountain', place: 'Marysville', lat: -37.49, lon: 145.88,
         shots: [{ file: 'dfire_017525.jpg', source: 'citizen', at: `${OCT1}T15:32`, confidence: 0.69, readings: r('very_dense_blocking_vision', 'no_visible_flame', 'dense_vegetation', 'sparse_infrastructure') }],
     },
     // ---- Resolved (extinguished), before 1 October ----
     {
-        name: 'anglesea', lat: -38.405, lon: 144.185,
+        name: 'anglesea', place: 'Anglesea', lat: -38.405, lon: 144.185,
         shots: [{ file: 'dfire_014945.jpg', source: 'cctv', at: '2026-09-28T16:20', confidence: 0.9, readings: r('very_dense_blocking_vision', 'large_flame_wall_embers_everywhere', 'dense_vegetation', 'no_infrastructure') }],
         dispatch: [['live', '2026-09-28T16:35'], ['extinguished', '2026-09-29T09:10']],
     },
     {
-        name: 'beechworth', lat: -36.358, lon: 146.687,
+        name: 'beechworth', place: 'Beechworth', lat: -36.358, lon: 146.687,
         shots: [{ file: 'dfire_017755.jpg', source: 'citizen', at: '2026-09-29T11:45', confidence: 0.86, readings: r('dense_dark', 'visible_high_flames_and_embers', 'sparse_vegetation', 'sparse_infrastructure') }],
         dispatch: [['live', '2026-09-29T12:00'], ['extinguished', '2026-09-29T15:30']],
     },
     {
-        name: 'daylesford', lat: -37.341, lon: 144.142,
+        name: 'daylesford', place: 'Daylesford', lat: -37.341, lon: 144.142,
         shots: [{ file: 'dfire_003553.jpg', source: 'citizen', at: '2026-09-30T10:15', confidence: 0.88, readings: r('moderate', 'some_flame', 'moderate_vegetation', 'sparse_infrastructure') }],
         dispatch: [['live', '2026-09-30T10:25'], ['extinguished', '2026-09-30T13:40']],
     },
     // ---- Archive: an extinguished fire filed away, and images discarded as not a fire ----
     {
-        name: 'lorne', lat: -38.54, lon: 143.97,
+        name: 'lorne', place: 'Lorne', lat: -38.54, lon: 143.97,
         shots: [{ file: 'flamevision_023011.png', source: 'drone', at: '2026-09-25T13:20', confidence: 0.87, readings: r('moderate', 'some_flame', 'moderate_vegetation', 'moderate_infrastructure') }],
         dispatch: [['live', '2026-09-25T13:35'], ['extinguished', '2026-09-25T18:10'], ['archived', '2026-09-27T09:00']],
     },
     {
-        name: 'ararat', lat: -37.284, lon: 142.927, // storm cloud read as smoke
+        name: 'ararat', place: 'Ararat', lat: -37.284, lon: 142.927, // storm cloud read as smoke
         shots: [{ file: 'dfire_012144.jpg', source: 'cctv', at: '2026-09-26T17:05', confidence: 0.61, readings: r('dense_dark', 'no_visible_flame', 'no_vegetation', 'sparse_infrastructure') }],
         discard: '2026-09-26T17:20',
     },
     {
-        name: 'mansfield', lat: -37.052, lon: 146.083, // lightning
+        name: 'mansfield', place: 'Mansfield', lat: -37.052, lon: 146.083, // lightning
         shots: [{ file: 'dfire_002426.jpg', source: 'cctv', at: '2026-09-27T19:40', confidence: 0.55, readings: r('none_or_haze', 'no_visible_flame', 'no_vegetation', 'sparse_infrastructure') }],
         discard: '2026-09-27T19:52',
     },
     {
-        name: 'orbost', lat: -37.702, lon: 148.457, // sunlight and haze through a window
+        name: 'orbost', place: 'Orbost', lat: -37.702, lon: 148.457, // sunlight and haze through a window
         shots: [{ file: 'dfire_010558.jpg', source: 'citizen', at: '2026-09-29T07:30', confidence: 0.64, readings: r('dense_dark', 'no_visible_flame', 'no_vegetation', 'sparse_infrastructure') }],
         discard: '2026-09-29T07:41',
     },
@@ -233,6 +234,7 @@ function build() {
                 upload_status: 'stored',
                 ingestion_error: null,
                 content_hash: createHash('md5').update(bytes).digest('hex'),
+                place_name: s.place,
             };
         });
 
@@ -301,6 +303,7 @@ console.table(
         const latest = rows.reduce((a, b) => (String(a.timestamp) > String(b.timestamp) ? a : b));
         return {
             incident: s.name,
+            place: s.place,
             when: s.shots.map((shot) => shot.at).sort().at(-1)!.replace('T', ' '),
             images: rows.length,
             ai: latest.severity_score,

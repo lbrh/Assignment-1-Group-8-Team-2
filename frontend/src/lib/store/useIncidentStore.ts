@@ -191,7 +191,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
   function undoTo(id: string, prev: Incident, note: string) {
     return () => {
       const current = snapshot(id);
-      return optimistic(current, `Undo failed · ${id}`, prev, async () => {
+      return optimistic(current, `Undo failed · ${prev.ref}`, prev, async () => {
         await dataSource.undo(prev, current);
         return {};
       }, note);
@@ -329,12 +329,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const band = prev.sum ? bandFromSum(prev.sum) : prev.band;
       return optimistic(
         prev,
-        `Couldn't confirm · ${id}`,
+        `Couldn't confirm · ${prev.ref}`,
         { flag: "processed", provenance: "ai_confirmed_by_coordinator", band, dispatch: "awaiting" },
         () => dataSource.confirmReview(prev),
         `AI provisional tag confirmed: ${bandLabel(band)}, scored ${prev.sum ?? "–"} of 16`,
         {
-          title: `AI tag confirmed · ${id}`,
+          title: `AI tag confirmed · ${prev.ref}`,
           body: "Promoted to an active incident with the provisional score applied.",
           severityBand: band,
           cta: "undo",
@@ -347,13 +347,13 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't assign severity · ${id}`,
+        `Couldn't assign severity · ${prev.ref}`,
         { flag: "processed", provenance: "coordinator_assigned", band: level, dispatch: "awaiting" },
         () => dataSource.changeReview(prev, level),
         `Severity assigned manually: ${bandLabel(level)}` +
           (prev.sum ? `. AI had provisionally read ${bandLabel(bandFromSum(prev.sum))}` : ". No AI tag had been applied"),
         {
-          title: `Severity assigned manually · ${id}`,
+          title: `Severity assigned manually · ${prev.ref}`,
           body: "Now on the dispatch order, labelled as coordinator-assigned.",
           severityBand: level,
           cta: "undo",
@@ -371,7 +371,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       set({ reviewSelectedId: remainingFlagged[0] ?? null });
       return optimistic(
         prev,
-        `Couldn't discard · ${id}`,
+        `Couldn't discard · ${prev.ref}`,
         {
           flag: "not_a_fire",
           dismissedReason: "Discarded by reviewer — no fire present in the image.",
@@ -381,7 +381,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         () => dataSource.discardReview(prev),
         "Discarded as not a fire. No fire present in the image.",
         {
-          title: `Discarded as not a fire · ${id}`,
+          title: `Discarded as not a fire · ${prev.ref}`,
           body: "Off the map and the dispatch order, retrievable in the Archive.",
           severityBand: "not_a_fire",
           cta: "undo",
@@ -394,12 +394,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't override severity · ${id}`,
+        `Couldn't override severity · ${prev.ref}`,
         { band: level, provenance: "coordinator_override" },
         () => dataSource.overrideSeverity(prev, level),
         `Severity changed from ${bandLabel(prev.band)} to ${bandLabel(level)}`,
         {
-          title: `Severity overridden · ${id}`,
+          title: `Severity overridden · ${prev.ref}`,
           body: "Applied and logged as a coordinator decision. The ranking has been recalculated.",
           severityBand: level,
           cta: "undo",
@@ -412,13 +412,13 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't dispatch · ${id}`,
+        `Couldn't dispatch · ${prev.ref}`,
         { dispatch: "live", flag: "processed" },
         () => dataSource.dispatchCrew(prev),
-        `Crew dispatched to ${id}. Tanker 12 en route.`,
+        `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
         {
-          title: `Crew dispatched · ${id}`,
-          body: `Crew dispatched to ${id}. Tanker 12 en route.`,
+          title: `Crew dispatched · ${prev.ref}`,
+          body: `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
           severityBand: prev.band,
           cta: "dismiss",
         }
@@ -429,12 +429,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't cancel dispatch · ${id}`,
+        `Couldn't cancel dispatch · ${prev.ref}`,
         { dispatch: "awaiting" },
         () => dataSource.cancelDispatch(prev),
         "Dispatch cancelled. Crew stood down, back on the ranked queue.",
         {
-          title: `Dispatch cancelled · ${id}`,
+          title: `Dispatch cancelled · ${prev.ref}`,
           body: "Crew stood down. Back on the ranked dispatch queue.",
           severityBand: prev.band,
           cta: "dismiss",
@@ -446,7 +446,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't mark extinguished · ${id}`,
+        `Couldn't mark extinguished · ${prev.ref}`,
         {
           dispatch: "extinguished",
           extinguishedNote: "Crew reported the fire out",
@@ -456,7 +456,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         () => dataSource.markExtinguished(prev),
         "Marked extinguished. Crew reported the fire out.",
         {
-          title: `Marked extinguished · ${id}`,
+          title: `Marked extinguished · ${prev.ref}`,
           body: "Crew reported the fire out. Moved to Resolved.",
           severityBand: prev.band,
           cta: "undo",
@@ -469,12 +469,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't reopen · ${id}`,
+        `Couldn't reopen · ${prev.ref}`,
         { dispatch: "live", extinguishedNote: null, extinguishedBy: null, extinguishedAtIso: null },
         () => dataSource.reopenIncident(prev),
         "Reopened. Back on the dispatch order under Live",
         {
-          title: `Reopened · ${id}`,
+          title: `Reopened · ${prev.ref}`,
           body: "Back on the dispatch order under Live / Dispatched.",
           severityBand: prev.band,
           cta: "undo",
@@ -488,12 +488,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       set({ reviewSelectedId: id });
       return optimistic(
         prev,
-        `Couldn't send to review · ${id}`,
+        `Couldn't send to review · ${prev.ref}`,
         { flag: "flagged_review", band: 0, dispatch: "unranked", reviewReason: "sent_by_coordinator" },
         () => dataSource.sendToManualReview(prev),
         "Sent to manual review by coordinator. AI tag withdrawn.",
         {
-          title: `Sent for a human check · ${id}`,
+          title: `Sent for a human check · ${prev.ref}`,
           body: "Withdrawn from the map and the dispatch order until reviewed.",
           severityBand: 0,
           cta: "undo",
@@ -506,7 +506,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const prev = snapshot(id);
       return optimistic(
         prev,
-        `Couldn't archive · ${id}`,
+        `Couldn't archive · ${prev.ref}`,
         {
           dispatch: "archived",
           dismissedReason: ARCHIVED_REASON,
@@ -516,7 +516,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         () => dataSource.archiveIncident(prev),
         "Archived. Extinguished fire filed away",
         {
-          title: `Archived · ${id}`,
+          title: `Archived · ${prev.ref}`,
           body: "Moved from Resolved to the Archive. Restore it from there if needed.",
           severityBand: prev.band,
           cta: "undo",
@@ -531,12 +531,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       if (prev.dispatch === "archived") {
         return optimistic(
           prev,
-          `Couldn't restore · ${id}`,
+          `Couldn't restore · ${prev.ref}`,
           { dispatch: "extinguished", dismissedReason: null, dismissedBy: null, dismissedAtIso: null },
           () => dataSource.markExtinguished(prev),
           "Restored from the archive to Resolved",
           {
-            title: `Restored to Resolved · ${id}`,
+            title: `Restored to Resolved · ${prev.ref}`,
             body: "Back on the Resolved list as an extinguished fire.",
             severityBand: prev.band,
             cta: "dismiss",
@@ -546,7 +546,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       set({ reviewSelectedId: id });
       return optimistic(
         prev,
-        `Couldn't restore · ${id}`,
+        `Couldn't restore · ${prev.ref}`,
         {
           flag: "flagged_review",
           dispatch: "unranked",
@@ -558,7 +558,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         () => dataSource.restoreFromArchive(prev),
         "Restored from the archive to manual review",
         {
-          title: `Restored for re-check · ${id}`,
+          title: `Restored for re-check · ${prev.ref}`,
           body: "Back in the manual review queue with its provisional tag intact.",
           severityBand: 0,
           cta: "dismiss",

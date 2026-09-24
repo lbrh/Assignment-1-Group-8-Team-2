@@ -50,7 +50,7 @@ function incidentIcon(incident: Incident): L.DivIcon {
       `<div class="fori-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
       `border:${meta.ringWidth}px solid ${meta.ringVar};font-size:${meta.numeralFont}px">` +
       `${incident.band}</div>` +
-      `<span class="fori-label">${escapeHtml(incident.id)}</span>` +
+      `<span class="fori-label">${escapeHtml(incident.place)}</span>` +
       `</div>`,
   });
 }
@@ -183,7 +183,7 @@ export function MapCanvas() {
     for (const cluster of clusters) {
       if (cluster.length === 1) {
         const incident = cluster[0].incident;
-        const label = `${incident.id} · ${incident.place}`;
+        const label = `${incident.place} · ${incident.ref}`;
         const marker = L.marker([incident.coords.lat, incident.coords.lng], {
           icon: incidentIcon(incident),
           title: label,

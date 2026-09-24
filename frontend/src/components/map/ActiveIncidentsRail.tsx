@@ -35,6 +35,9 @@ export function ActiveIncidentsRail({ width }: { width: number }) {
       className="incident-rail"
       style={{
         width,
+        // a width saved on a wider window never squeezes the map below 320px here
+        maxWidth: "calc(100% - 320px)",
+        minWidth: 320,
         flex: "none",
         display: "flex",
         flexDirection: "column",

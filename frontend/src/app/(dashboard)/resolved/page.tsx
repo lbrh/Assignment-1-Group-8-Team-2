@@ -10,7 +10,8 @@ import { Button } from "@/components/primitives/Button";
 import { PageHeader } from "@/components/chrome/PageHeader";
 import { formatClock } from "@/lib/utils/time";
 
-const GRID = "minmax(100px, auto) minmax(180px, 1.3fr) 150px 96px minmax(220px, 1.6fr) minmax(140px, 1fr) 184px";
+// one grid for the whole table (rows are subgrids, see .data-table), so columns line up
+const GRID = "auto minmax(160px, 1.2fr) auto auto minmax(180px, 1.5fr) minmax(140px, 1fr) auto";
 
 export default function ResolvedPage() {
   const incidents = useIncidentStore((s) => s.incidents);
@@ -29,8 +30,8 @@ export default function ResolvedPage() {
         statTone="ok"
       />
 
-      <div className="card" role="table" aria-label="Resolved incidents" style={{ marginTop: "var(--space-5)", overflow: "hidden" }}>
-        <div role="row" className="caption" style={headRow}>
+      <div className="card data-table" role="table" aria-label="Resolved incidents" style={{ marginTop: "var(--space-5)", gridTemplateColumns: GRID }}>
+        <div role="row" className="caption data-table__row data-table__head">
           <span role="columnheader">Incident</span>
           <span role="columnheader">Location</span>
           <span role="columnheader">Peak severity</span>
@@ -41,20 +42,20 @@ export default function ResolvedPage() {
         </div>
 
         {list.length === 0 ? (
-          <p className="caption" style={{ padding: "var(--space-7) var(--space-5)", fontSize: "var(--text-sm)" }}>
+          <p className="caption" style={{ gridColumn: "1 / -1", padding: "var(--space-7) var(--space-5)", fontSize: "var(--text-sm)" }}>
             Nothing resolved yet. Dispatch a crew, then mark the incident extinguished from the
             dispatch order or its detail screen when the crew reports it out.
           </p>
         ) : (
           list.map((incident) => (
-            <div key={incident.id} role="row" style={bodyRow}>
+            <div key={incident.id} role="row" className="data-table__row">
               <div role="cell">
                 <Link
                   href={`/incident/${incident.id}`}
                   className="btn btn--link data"
                   style={{ fontFamily: "var(--font-plex-mono)", fontSize: "var(--text-xs)" }}
                 >
-                  {incident.id}
+                  {incident.ref}
                 </Link>
               </div>
               <div role="cell" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -94,21 +95,3 @@ export default function ResolvedPage() {
     </div>
   );
 }
-
-const headRow = {
-  display: "grid",
-  gridTemplateColumns: GRID,
-  gap: "var(--space-4)",
-  padding: "10px var(--space-5)",
-  background: "var(--surface)",
-  borderBottom: "1px solid var(--border)",
-} as const;
-
-const bodyRow = {
-  display: "grid",
-  gridTemplateColumns: GRID,
-  gap: "var(--space-4)",
-  padding: "var(--space-4) var(--space-5)",
-  borderBottom: "1px solid var(--border)",
-  alignItems: "center",
-} as const;

@@ -149,6 +149,28 @@
   transform: none;
 }
 
+/* List tables (Archive, Resolved): the table is the grid and each row a subgrid, so every row
+   shares one set of column widths however long its content; narrow screens scroll sideways. */
+.data-table {
+  display: grid;
+  column-gap: var(--space-4);
+  overflow-x: auto;
+}
+
+.data-table__row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table__head {
+  padding-block: 10px;
+  background: var(--surface);
+}
+
 /* Skeleton placeholder while incident data loads (RouteSkeleton.tsx). A soft highlight sweeps
    across; the reduced-motion rule in animations.css leaves it as a still block. */
 .skel {

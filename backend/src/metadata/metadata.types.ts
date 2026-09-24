@@ -45,6 +45,8 @@ export interface ImageMetadata {
     uploadStatus: UploadStatus;
     ingestionError: string | null;
     contentHash: string | null;
+    // Locality at the image's coordinates ("Kinglake"), looked up after ingest; null until then.
+    placeName: string | null;
 }
 
 // Read shape for the incident queries: an image plus its incident's dispatch state

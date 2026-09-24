@@ -5,6 +5,7 @@ import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { extractExif } from './exif.ts';
 import { validateIngestion, assertReadableImage } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
+import { lookUpPlaceName } from './place-name.ts';
 import { INDICATOR_MODELS, classifyIndicator, isIndicatorConfigured, type Indicator } from '../ai/indicator-models.ts';
 import { assessSeverity, type IndicatorReadings, type IndicatorConfidences } from './assess-severity.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
@@ -76,6 +77,7 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
             uploadStatus: 'pending',
             ingestionError: null,
             contentHash,
+            placeName: null,
         });
     });
 
@@ -91,6 +93,7 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
         // with no agreed SLA yet. A coordinator can still override the result later
         // regardless of whether this finishes before or after the client sees the response.
         void classifyAndUpdate(stored, file.buffer);
+        void nameAndUpdate(stored);
 
         return stored;
     } catch (err) {
@@ -98,6 +101,17 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
             uploadStatus: 'failed',
             ingestionError: err instanceof Error ? err.message : String(err),
         });
+    }
+}
+
+// Same fire-and-forget reasoning: a place name is nice to have, never worth delaying ingest for.
+async function nameAndUpdate(record: ImageMetadata): Promise<void> {
+    const placeName = await lookUpPlaceName(record.latitude, record.longitude);
+    if (!placeName) return;
+    try {
+        await metadataRepository.update(record.imageId, { placeName });
+    } catch (err) {
+        logger.error('failed to write place name', errorMeta(err));
     }
 }
 

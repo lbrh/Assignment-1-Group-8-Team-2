@@ -32,7 +32,7 @@ export function SeverityHeader({ incident }: { incident: Incident }) {
       <SeverityDot band={band} size={64} halo />
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1, minWidth: 240 }}>
         <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-          {incident.id} · {incident.place}
+          {incident.ref} · {incident.place}
         </span>
         <h1
           style={{

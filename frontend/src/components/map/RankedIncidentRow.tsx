@@ -80,7 +80,7 @@ export function RankedIncidentRow({ incident }: { incident: Incident }) {
             color: "var(--muted)",
           }}
         >
-          <span className="rail-row__id">{incident.id}</span>
+          <span className="rail-row__id">{incident.ref}</span>
           <span aria-hidden>·</span>
           <span style={{ flex: "none" }}>{relativeTime(incident.capturedAtIso, tick)}</span>
           <span aria-hidden>·</span>

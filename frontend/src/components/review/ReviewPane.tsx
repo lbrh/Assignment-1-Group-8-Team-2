@@ -78,7 +78,7 @@ export function ReviewPane({incident}: { incident: Incident }) {
                     </div>
                     <span className="data"
                           style={{font: "600 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--muted)"}}>
-            {incident.id}
+            {incident.ref}
           </span>
                 </div>
             </HatchBanner>

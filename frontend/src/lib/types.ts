@@ -77,6 +77,8 @@ export interface ApiIncidentRecord {
   uploadStatus: UploadStatus;
   ingestionError: string | null;
   contentHash: string | null;
+  /** Locality at the coordinates ("Kinglake"), reverse geocoded after ingest; null until then. */
+  placeName?: string | null;
   /** Incident reads only (GET /incidents, /incidents/:id, /order); null = no coordinator dispatch yet. */
   dispatchState?: BackendDispatchState | null;
   /** Who set the current dispatch state, and when (incident reads only). */
@@ -145,6 +147,8 @@ export interface IncidentGroup {
 /** UI view model — what every component actually consumes. */
 export interface Incident {
   id: string;
+  /** Short display reference ("INC-K7Q2MX") derived from `id`; `id` stays the real key. */
+  ref: string;
   place: string;
   coords: { lat: number; lng: number };
   capturedAtIso: string;

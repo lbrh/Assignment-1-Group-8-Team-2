@@ -1,4 +1,5 @@
 import { distanceKm } from "@/lib/utils/geo";
+import { incidentRef } from "@/lib/utils/ref";
 import type {
   ApiIncidentRecord,
   DispatchState,
@@ -116,8 +117,9 @@ export function normalizeIncident(
 
   return {
     id: record.incidentId,
-    // TODO(api): no place name on the wire yet (reverse geocode later) — fall back to coords.
-    place: opts.place ?? `${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`,
+    ref: incidentRef(record.incidentId),
+    // coordinates only until the backend's reverse geocode has filled in the place name
+    place: opts.place ?? record.placeName ?? `${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`,
     coords: { lat: record.latitude, lng: record.longitude },
     capturedAtIso: record.timestamp,
     distanceKm: distanceKm({ lat: record.latitude, lng: record.longitude }),

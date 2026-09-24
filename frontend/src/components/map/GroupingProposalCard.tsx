@@ -62,7 +62,7 @@ export function GroupingProposalCard() {
             style={{ gap: 8, paddingLeft: 10, paddingRight: 6 }}
           >
             <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)" }}>
-              {m.id}
+              {m.ref}
             </span>
             <SeverityChip band={m.band} short />
           </button>
