@@ -1,5 +1,5 @@
 import { normalizeIncident } from "@/lib/normalize";
-import type { ApiIncidentRecord, Incident, SeverityBand, SourceType } from "@/lib/types";
+import type { ApiIncidentRecord, DecisionLogEntry, Incident, SeverityBand, SourceType } from "@/lib/types";
 import { seedDecisionLog, seedGroup, seedOverlay, seedRecords } from "./seed";
 
 const LATENCY_MS = 350;
@@ -121,12 +121,12 @@ export async function submitImage(payload: SubmitImagePayload): Promise<{
   return delay({ ref, record: base }, 900);
 }
 
-export async function confirmReview(_id: string): Promise<Partial<Incident>> {
+export async function confirmReview(_incident: Incident): Promise<Partial<Incident>> {
   return delay({ flag: "processed", provenance: "ai_confirmed_by_coordinator" });
 }
 
 export async function changeReview(
-  _id: string,
+  _incident: Incident,
   level: SeverityBand
 ): Promise<Partial<Incident>> {
   return delay({
@@ -138,7 +138,7 @@ export async function changeReview(
   });
 }
 
-export async function discardReview(_id: string): Promise<Partial<Incident>> {
+export async function discardReview(_incident: Incident): Promise<Partial<Incident>> {
   return delay({
     flag: "not_a_fire",
     dismissedReason: "Discarded by reviewer — no fire present in the image.",
@@ -148,21 +148,21 @@ export async function discardReview(_id: string): Promise<Partial<Incident>> {
 }
 
 export async function overrideSeverity(
-  _id: string,
+  _incident: Incident,
   level: SeverityBand
 ): Promise<Partial<Incident>> {
   return delay({ band: level, provenance: "coordinator_override" });
 }
 
-export async function dispatchCrew(_id: string): Promise<Partial<Incident>> {
+export async function dispatchCrew(_incident: Incident): Promise<Partial<Incident>> {
   return delay({ dispatch: "live", flag: "processed" });
 }
 
-export async function cancelDispatch(_id: string): Promise<Partial<Incident>> {
+export async function cancelDispatch(_incident: Incident): Promise<Partial<Incident>> {
   return delay({ dispatch: "awaiting" });
 }
 
-export async function markExtinguished(_id: string): Promise<Partial<Incident>> {
+export async function markExtinguished(_incident: Incident): Promise<Partial<Incident>> {
   return delay({
     dispatch: "extinguished",
     extinguishedNote: "Crew reported the fire out",
@@ -171,11 +171,11 @@ export async function markExtinguished(_id: string): Promise<Partial<Incident>> 
   });
 }
 
-export async function reopenIncident(_id: string): Promise<Partial<Incident>> {
+export async function reopenIncident(_incident: Incident): Promise<Partial<Incident>> {
   return delay({ dispatch: "live", extinguishedNote: null, extinguishedBy: null, extinguishedAtIso: null });
 }
 
-export async function sendToManualReview(_id: string): Promise<Partial<Incident>> {
+export async function sendToManualReview(_incident: Incident): Promise<Partial<Incident>> {
   return delay({
     flag: "flagged_review",
     band: 0,
@@ -184,7 +184,7 @@ export async function sendToManualReview(_id: string): Promise<Partial<Incident>
   });
 }
 
-export async function restoreFromArchive(_id: string): Promise<Partial<Incident>> {
+export async function restoreFromArchive(_incident: Incident): Promise<Partial<Incident>> {
   return delay({
     flag: "flagged_review",
     dispatch: "unranked",
@@ -193,6 +193,14 @@ export async function restoreFromArchive(_id: string): Promise<Partial<Incident>
     dismissedBy: null,
     dismissedAtIso: null,
   });
+}
+
+/** Mock state lives only in the store, so undo is just the store restoring its snapshot. */
+export async function undo(_prev: Incident, _current: Incident): Promise<void> {}
+
+/** null = keep the store's local log (mock has no server-side log). */
+export async function getDecisionLog(_incidentId: string): Promise<DecisionLogEntry[] | null> {
+  return null;
 }
 
 export type GroupAction = "confirmed" | "kept_separate";
