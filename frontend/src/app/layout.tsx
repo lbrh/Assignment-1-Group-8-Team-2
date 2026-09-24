@@ -18,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fori | Bushfire situational awareness",
+  title: "EMBERA | Bushfire situational awareness",
   description:
     "AI-assisted bushfire severity classification and dispatch coordination.",
 };
