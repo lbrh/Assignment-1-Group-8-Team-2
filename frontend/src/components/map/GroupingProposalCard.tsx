@@ -70,12 +70,12 @@ export function GroupingProposalCard() {
       </div>
       <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
         {group.state !== "confirmed" ? (
-          <Button variant="primary" small onClick={confirmGrouping}>
+          <Button variant="primary" small ack onClick={confirmGrouping}>
             Confirm as one incident
           </Button>
         ) : null}
         {group.state !== "kept_separate" ? (
-          <Button variant="secondary" small onClick={keepGroupSeparate}>
+          <Button variant="secondary" small ack onClick={keepGroupSeparate}>
             {group.state === "confirmed" ? "Split into separate incidents" : "Keep separate"}
           </Button>
         ) : null}

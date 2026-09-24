@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import type { Incident, SeverityBand } from "@/lib/types";
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/constants/severity";
 import { RubricExplainer } from "@/components/primitives/RubricExplainer";
 import { SectionHeading } from "@/components/primitives/Card";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import { useAck } from "@/components/primitives/Button";
 
 export function OverrideSeverityCard({ incident }: { incident: Incident }) {
   const overrideSeverity = useIncidentStore((s) => s.overrideSeverity);
-  const [pending, setPending] = useState<SeverityBand | null>(null);
+  const [ackedBand, ackBand] = useAck<SeverityBand>();
 
   const stateNote =
     incident.provenance === "coordinator_override"
@@ -18,10 +18,9 @@ export function OverrideSeverityCard({ incident }: { incident: Incident }) {
         ? `Currently AI level ${incident.band}.`
         : "No severity applied yet.";
 
-  async function apply(level: SeverityBand) {
-    setPending(level);
-    await overrideSeverity(incident.id, level);
-    setPending(null);
+  function apply(level: SeverityBand) {
+    ackBand(level);
+    overrideSeverity(incident.id, level);
   }
 
   return (
@@ -35,14 +34,14 @@ export function OverrideSeverityCard({ incident }: { incident: Incident }) {
             <div key={band} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
                 type="button"
-                className="sev-option"
+                className={ackedBand === band ? "sev-option ack" : "sev-option"}
                 aria-pressed={incident.band === band}
-                disabled={pending !== null}
                 onClick={() => apply(band)}
-                style={{ opacity: pending && pending !== band ? 0.6 : undefined }}
               >
-                <span className="sev-option__dot" style={{ background: meta.fillVar, borderColor: meta.ringVar }} />
-                {meta.label}
+                <span className="ack__label">
+                  <span className="sev-option__dot" style={{ background: meta.fillVar, borderColor: meta.ringVar }} />
+                  {meta.label}
+                </span>
               </button>
               <RubricExplainer band={band} />
             </div>

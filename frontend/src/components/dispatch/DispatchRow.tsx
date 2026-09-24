@@ -99,11 +99,11 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
       </span>
       <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ justifySelf: "end" }}>
         {isLive ? (
-          <Button variant="secondary" small onClick={() => markExtinguished(incident.id)}>
+          <Button variant="secondary" small ack onClick={() => markExtinguished(incident.id)}>
             Mark extinguished
           </Button>
         ) : (
-          <Button variant={isNext ? "primary" : "secondary"} small onClick={() => dispatchCrew(incident.id)}>
+          <Button variant={isNext ? "primary" : "secondary"} small ack onClick={() => dispatchCrew(incident.id)}>
             Dispatch crew
           </Button>
         )}

@@ -83,14 +83,6 @@ const extinguishedIcon = () =>
     html: `<div class="fori-out">Out</div>`,
   });
 
-const stagingIcon = () =>
-  L.divIcon({
-    className: "fori-marker fori-marker-staging",
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    html: `<div class="fori-staging"></div><span class="fori-staging-label">Staging</span>`,
-  });
-
 export function MapCanvas() {
   const router = useRouter();
   const incidents = useIncidentStore((s) => s.incidents);
@@ -135,20 +127,14 @@ export function MapCanvas() {
       const coords = mapMarkers(state.incidents, state.order).map(
         (i) => [i.coords.lat, i.coords.lng] as [number, number]
       );
-      coords.push([STAGING_COORDS.lat, STAGING_COORDS.lng]);
+      // nothing to frame yet: centre on the staging ground rather than an empty (invalid) bounds
+      if (coords.length === 0) coords.push([STAGING_COORDS.lat, STAGING_COORDS.lng]);
       map.fitBounds(L.latLngBounds(coords), { padding: [56, 56], maxZoom: INITIAL_MAX_ZOOM });
     }
 
     L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: MAX_ZOOM }).addTo(map);
     overlayLayerRef.current = L.layerGroup().addTo(map);
     markerLayerRef.current = L.layerGroup().addTo(map);
-
-    L.marker([STAGING_COORDS.lat, STAGING_COORDS.lng], {
-      icon: stagingIcon(),
-      interactive: false,
-      keyboard: false,
-      zIndexOffset: -1000,
-    }).addTo(map);
 
     const syncZoom = () => {
       setLeafletZoom(map.getZoom());

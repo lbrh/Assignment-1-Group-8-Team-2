@@ -18,22 +18,27 @@ export function DetailActionsBar({ incident }: { incident: Incident }) {
 
   return (
     <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-      {!isLive && !isExtinguished ? (
-        <Button variant="primary" onClick={() => dispatchCrew(incident.id)} disabled={incident.band === 0}>
-          Dispatch crew
+      {/* one slot for both labels, so the button that was clicked shows its ✓ and then the next step */}
+      {!isExtinguished ? (
+        <Button
+          variant="primary"
+          ack
+          disabled={!isLive && incident.band === 0}
+          onClick={() => (isLive ? markExtinguished(incident.id) : dispatchCrew(incident.id))}
+        >
+          {isLive ? "Mark extinguished" : "Dispatch crew"}
         </Button>
       ) : null}
       {isLive ? (
-        <>
-          <Button variant="primary" onClick={() => markExtinguished(incident.id)}>
-            Mark extinguished
-          </Button>
-          <Button variant="secondary" onClick={() => cancelDispatch(incident.id)}>
-            Cancel dispatch
-          </Button>
-        </>
+        <Button variant="secondary" ack onClick={() => cancelDispatch(incident.id)}>
+          Cancel dispatch
+        </Button>
       ) : null}
-      <Button variant="secondary" onClick={() => (isFlagged ? router.push("/review") : sendToManualReview(incident.id))}>
+      <Button
+        variant="secondary"
+        ack={!isFlagged}
+        onClick={() => (isFlagged ? router.push("/review") : sendToManualReview(incident.id))}
+      >
         {isFlagged ? "Open in manual review" : "Send to manual review"}
       </Button>
       <Button variant="secondary" onClick={() => router.push("/dispatch")}>

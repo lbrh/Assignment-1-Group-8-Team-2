@@ -79,7 +79,7 @@ export default function ResolvedPage() {
                 {incident.extinguishedBy ?? "–"}
               </span>
               <div role="cell" style={{ justifySelf: "end" }}>
-                <Button variant="pending" small onClick={() => reopenIncident(incident.id)}>
+                <Button variant="pending" small ack onClick={() => reopenIncident(incident.id)}>
                   Reopen
                 </Button>
               </div>

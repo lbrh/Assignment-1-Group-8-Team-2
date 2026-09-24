@@ -56,6 +56,15 @@ a:focus:not(:focus-visible) {
   outline-offset: 2px;
 }
 
+@keyframes skelShimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -149,6 +149,40 @@
   transform: none;
 }
 
+/* Skeleton placeholder while incident data loads (RouteSkeleton.tsx). A soft highlight sweeps
+   across; the reduced-motion rule in animations.css leaves it as a still block. */
+.skel {
+  display: block;
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-2) 30%, var(--surface) 50%, var(--surface-2) 70%);
+  background-size: 300% 100%;
+  animation: skelShimmer 1.4s ease-in-out infinite;
+}
+
+/* Brief ✓ after an optimistic action (useAck in Button.tsx). The label keeps its place in the
+   layout, just hidden, so the button doesn't resize; the ✓ sits centred on top of it. */
+.ack__label {
+  display: contents;
+}
+
+.ack {
+  position: relative;
+}
+
+.ack > .ack__label {
+  visibility: hidden;
+}
+
+.ack::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
 /* Square icon-only control (zoom, close, help). */
 .icon-btn {
   width: 32px;

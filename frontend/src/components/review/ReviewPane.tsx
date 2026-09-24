@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, type ReactNode} from "react";
+import type {ReactNode} from "react";
 import {useRouter} from "next/navigation";
 import type {Incident, SeverityBand} from "@/lib/types";
 import {CONFIDENCE_THRESHOLD, SEVERITY, SEVERITY_ORDER, bandFromSum} from "@/lib/constants/severity";
@@ -9,7 +9,7 @@ import {ConfidenceMeter} from "@/components/primitives/ConfidenceMeter";
 import {MetaList} from "@/components/primitives/MetaField";
 import {ElementScoreRows} from "@/components/primitives/ElementScoreRows";
 import {RubricExplainer} from "@/components/primitives/RubricExplainer";
-import {Button} from "@/components/primitives/Button";
+import {Button, useAck} from "@/components/primitives/Button";
 import {SectionHeading} from "@/components/primitives/Card";
 import {useIncidentStore} from "@/lib/store/useIncidentStore";
 import {formatClock, relativeTime} from "@/lib/utils/time";
@@ -28,16 +28,10 @@ export function ReviewPane({incident}: { incident: Incident }) {
     const changeReview = useIncidentStore((s) => s.changeReview);
     const discardReview = useIncidentStore((s) => s.discardReview);
     const tick = useIncidentStore((s) => s.clockTick);
-    const [busy, setBusy] = useState<string | null>(null);
+    const [ackedBand, ackBand] = useAck<SeverityBand>();
 
     const provisionalBand = incident.sum ? bandFromSum(incident.sum) : null;
     const headline = HEADLINE[incident.reviewReason ?? "below_threshold"];
-
-    async function run(action: string, fn: () => Promise<void>) {
-        setBusy(action);
-        await fn();
-        setBusy(null);
-    }
 
     return (
         <div style={{flex: 1, overflow: "auto", display: "flex", flexDirection: "column"}}>
@@ -200,8 +194,9 @@ export function ReviewPane({incident}: { incident: Incident }) {
                         >
                             <Button
                                 variant="primary"
-                                disabled={!provisionalBand || busy !== null}
-                                onClick={() => run("confirm", () => confirmReview(incident.id))}
+                                ack
+                                disabled={!provisionalBand}
+                                onClick={() => confirmReview(incident.id)}
                             >
                                 {provisionalBand ? `Confirm ${SEVERITY[provisionalBand].label}, level ${provisionalBand}` : "Confirm"}
                             </Button>
@@ -214,15 +209,19 @@ export function ReviewPane({incident}: { incident: Incident }) {
                                     <div key={band} style={{display: "flex", alignItems: "center", gap: 6}}>
                                         <button
                                             type="button"
-                                            className="sev-option"
-                                            disabled={busy !== null}
-                                            onClick={() => run("change", () => changeReview(incident.id, band))}
+                                            className={ackedBand === band ? "sev-option ack" : "sev-option"}
+                                            onClick={() => {
+                                                ackBand(band);
+                                                changeReview(incident.id, band);
+                                            }}
                                         >
-                                            <span className="sev-option__dot" style={{
-                                                background: SEVERITY[band].fillVar,
-                                                borderColor: SEVERITY[band].ringVar
-                                            }}/>
-                                            {SEVERITY[band].label}
+                                            <span className="ack__label">
+                                                <span className="sev-option__dot" style={{
+                                                    background: SEVERITY[band].fillVar,
+                                                    borderColor: SEVERITY[band].ringVar
+                                                }}/>
+                                                {SEVERITY[band].label}
+                                            </span>
                                         </button>
                                         <RubricExplainer band={band}/>
                                     </div>
@@ -234,8 +233,7 @@ export function ReviewPane({incident}: { incident: Incident }) {
                             label="Discard as not a fire"
                             description="Removes it from the map and the dispatch order. The image stays retrievable in the Archive."
                         >
-                            <Button variant="secondary" disabled={busy !== null}
-                                    onClick={() => run("discard", () => discardReview(incident.id))}>
+                            <Button variant="secondary" ack onClick={() => discardReview(incident.id)}>
                                 Discard as not a fire
                             </Button>
                         </DecisionBlock>

@@ -73,7 +73,7 @@ export default function ArchivePage() {
                 </span>
               </div>
               <div role="cell" style={{ justifySelf: "end" }}>
-                <Button variant="pending" small onClick={() => restoreFromArchive(incident.id)}>
+                <Button variant="pending" small ack onClick={() => restoreFromArchive(incident.id)}>
                   Restore
                 </Button>
               </div>

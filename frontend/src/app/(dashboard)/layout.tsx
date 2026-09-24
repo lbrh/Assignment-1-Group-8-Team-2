@@ -5,6 +5,7 @@ import { Header } from "@/components/chrome/Header";
 import { ShortcutPanel } from "@/components/chrome/ShortcutPanel";
 import { SkipLink } from "@/components/chrome/SkipLink";
 import { ToastHost } from "@/components/primitives/ToastHost";
+import { RouteSkeleton } from "@/components/primitives/RouteSkeleton";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { useClock } from "@/lib/hooks/useClock";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
@@ -44,22 +45,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         tabIndex={-1}
         style={{ flex: 1, overflow: "auto", outline: "none" }}
       >
-        {initialized ? (
-          children
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              font: "500 var(--text-sm)/1 var(--font-plex-sans)",
-              color: "var(--muted)",
-            }}
-          >
-            Loading incident data…
-          </div>
-        )}
+        {initialized ? children : <RouteSkeleton />}
       </main>
       <ShortcutPanel />
       <ToastHost />
