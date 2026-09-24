@@ -1,0 +1,48 @@
+name: CI
+
+on:
+    pull_request:
+        branches: [main]
+
+jobs:
+    frontend-ci:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: frontend
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with: 
+                node-version: 24
+            - run: corepack enable
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm lint
+            - run: pnpm exec next typegen
+            - run: pnpm exec tsc --noEmit
+            - run: pnpm build
+            - run: pnpm test
+            
+    backend-ci:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: backend
+        env:
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
+            COS_BUCKET: ${{ secrets.COS_BUCKET }}
+            COS_ACCESS_KEY_ID: ${{ secrets.COS_ACCESS_KEY_ID }}
+            COS_SECRET_ACCESS_KEY: ${{ secrets.COS_SECRET_ACCESS_KEY }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+               node-version: 24
+            - run: npm install
+            - run: npx tsc --noEmit
+            - name: apply schema to test database
+              if: ${{ env.DATABASE_URL != '' }}
+              run: npx --yes -p pg psql "$DATABASE_URL" -f src/metadata/schema.sql
+            - run: npm test
+              if: ${{ env.DATABASE_URL != '' }}

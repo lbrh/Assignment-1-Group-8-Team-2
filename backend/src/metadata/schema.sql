@@ -1,0 +1,51 @@
+-- Agreed metadata schema per docs/storage/Storage_and_metadata_V2.md section 2,
+-- extended by Storage_and_Metadata_Finalisation_Addendum.md and
+-- docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md. One row per image/video object.
+-- Final rubric: smoke, flame, amount of vegetation (fuel load) and amount of infrastructure nearby
+-- (priority: fires near towns outrank fires in the middle of nowhere), people proximity dropped.
+
+CREATE TABLE IF NOT EXISTS images (
+    image_id UUID PRIMARY KEY,
+    incident_id UUID NOT NULL,
+    storage_path TEXT,
+    "timestamp" TIMESTAMPTZ NOT NULL,
+    source_type TEXT NOT NULL CHECK (source_type IN ('drone', 'cctv', 'citizen', 'satellite')),
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+
+    severity_score INTEGER,
+    severity_score_override INTEGER,
+    overridden_by TEXT,
+    overridden_at TIMESTAMPTZ,
+    confidence_score DOUBLE PRECISION,
+    severity_explanation TEXT,
+
+    smoke_density TEXT CHECK (smoke_density IN ('none_or_haze', 'moderate', 'dense_dark', 'very_dense_blocking_vision')),
+    flame_visibility TEXT CHECK (flame_visibility IN ('no_visible_flame', 'some_flame', 'visible_high_flames_and_embers', 'large_flame_wall_embers_everywhere')),
+    vegetation_impact TEXT CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation')),
+    infrastructure_impact TEXT CHECK (infrastructure_impact IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure')),
+
+    assessment_status TEXT NOT NULL CHECK (assessment_status IN ('assessed', 'unable_to_assess', 'pending_review')),
+    classification_label TEXT CHECK (classification_label IN ('fire', 'non_fire', 'extinguished', 'uncertain')),
+    priority_rank INTEGER,
+    upload_status TEXT NOT NULL CHECK (upload_status IN ('pending', 'stored', 'failed')),
+    ingestion_error TEXT,
+    content_hash TEXT UNIQUE
+);
+
+-- Map viewport range queries and per-incident prefix fetches (V2 doc section 4/7).
+CREATE INDEX IF NOT EXISTS images_incident_id_idx ON images (incident_id);
+CREATE INDEX IF NOT EXISTS images_lat_lon_idx ON images (latitude, longitude);
+CREATE INDEX IF NOT EXISTS images_priority_rank_idx ON images (priority_rank);
+
+-- Migrate databases created before the final rubric: people proximity replaced by
+-- infrastructure_impact, vegetation_impact redefined as amount of vegetation. Re-runnable.
+-- Old vegetation values measured damage, not amount, so they can't be mapped and are cleared.
+ALTER TABLE images DROP COLUMN IF EXISTS structure_people_proximity;
+ALTER TABLE images ADD COLUMN IF NOT EXISTS infrastructure_impact TEXT;
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_infrastructure_impact_check;
+UPDATE images SET infrastructure_impact = NULL WHERE infrastructure_impact NOT IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure');
+ALTER TABLE images ADD CONSTRAINT images_infrastructure_impact_check CHECK (infrastructure_impact IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure'));
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_vegetation_impact_check;
+UPDATE images SET vegetation_impact = NULL WHERE vegetation_impact NOT IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation');
+ALTER TABLE images ADD CONSTRAINT images_vegetation_impact_check CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation'));
