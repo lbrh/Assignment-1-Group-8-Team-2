@@ -6,8 +6,10 @@ import type { NextRequest } from "next/server";
  * forwarded — POST /images/:id/assess (the classifier's write hook) is deliberately not exposed.
  */
 const ALLOWED: Record<string, RegExp> = {
-  GET: /^(incidents|incidents\/[^/]+|order|images\/[^/]+)$/,
+  GET: /^(incidents|incidents\/[^/]+|incidents\/[^/]+\/decisions|order|images\/[^/]+)$/,
   POST: /^ingest$/,
+  PATCH: /^images\/[^/]+\/decision$/,
+  PUT: /^incidents\/[^/]+\/dispatch$/,
 };
 
 async function forward(req: NextRequest, path: string[]): Promise<Response> {
@@ -32,7 +34,7 @@ async function forward(req: NextRequest, path: string[]): Promise<Response> {
     upstream = await fetch(`${BACKEND_URL.replace(/\/+$/, "")}/${joined}${req.nextUrl.search}`, {
       method: req.method,
       headers,
-      body: req.method === "POST" ? req.body : undefined,
+      body: req.method === "GET" ? undefined : req.body,
       // @ts-expect-error -- required by Node's fetch when streaming a request body
       duplex: "half",
       cache: "no-store",
@@ -53,5 +55,13 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
+  return forward(req, (await params).path);
+}
+
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  return forward(req, (await params).path);
+}
+
+export async function PUT(req: NextRequest, { params }: Ctx) {
   return forward(req, (await params).path);
 }

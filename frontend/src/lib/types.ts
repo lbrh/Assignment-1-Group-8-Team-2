@@ -72,10 +72,24 @@ export interface ApiIncidentRecord {
 
   assessmentStatus: AssessmentStatus;
   classificationLabel: ClassificationLabel | null;
+  classificationLabelOverride: ClassificationLabel | null; // coordinator's call; AI label never overwritten
   priorityRank: number | null;
   uploadStatus: UploadStatus;
   ingestionError: string | null;
   contentHash: string | null;
+  /** Incident reads only (GET /incidents, /incidents/:id, /order); null = no coordinator dispatch yet. */
+  dispatchState?: BackendDispatchState | null;
+}
+
+export type BackendDispatchState = "awaiting" | "live" | "extinguished";
+
+/** The coordinator-editable values as the backend currently holds them — what Undo sends back. */
+export interface BackendReviewState {
+  imageId: string;
+  severityScoreOverride: number | null;
+  classificationLabelOverride: ClassificationLabel | null;
+  assessmentStatus: AssessmentStatus;
+  dispatchState: BackendDispatchState | null;
 }
 
 export type SeverityBand = 1 | 2 | 3 | 4;
@@ -157,4 +171,7 @@ export interface Incident {
   extinguishedNote: string | null;
   extinguishedBy: string | null;
   extinguishedAtIso: string | null;
+
+  /** Server-side values of the coordinator-editable fields, sent back by Undo (real API). */
+  backend: BackendReviewState;
 }

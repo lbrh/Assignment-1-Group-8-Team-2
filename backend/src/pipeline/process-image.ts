@@ -69,6 +69,7 @@ export async function processImage(input: IngestionInput, file: IngestedFile): P
             infrastructureImpact: null,
             assessmentStatus: 'pending_review',
             classificationLabel: null,
+            classificationLabelOverride: null,
             priorityRank: null,
             uploadStatus: 'pending',
             ingestionError: null,
