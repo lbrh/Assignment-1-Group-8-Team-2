@@ -86,6 +86,7 @@ export async function submitImage(payload: SubmitImagePayload): Promise<{
     vegetationImpact: null,
     infrastructureImpact: null,
     classificationLabel: null,
+    classificationLabelOverride: null,
     contentHash: null,
   };
 
