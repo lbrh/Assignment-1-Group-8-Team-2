@@ -1,14 +1,14 @@
 FROM node:25-alpine AS deps
 WORKDIR /app
-# Node 25 images no longer bundle corepack, so install it first
-RUN npm install -g corepack && corepack enable
+# Node 25 images no longer bundle corepack (and its yarn shim clashes with the image's yarn), so install pnpm directly
+RUN npm install -g pnpm@12
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM node:25-alpine AS builder
 WORKDIR /app
-# Node 25 images no longer bundle corepack, so install it first
-RUN npm install -g corepack && corepack enable
+# Node 25 images no longer bundle corepack (and its yarn shim clashes with the image's yarn), so install pnpm directly
+RUN npm install -g pnpm@12
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
