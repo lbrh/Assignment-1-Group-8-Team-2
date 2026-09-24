@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { dataSource, getSeedDecisionLog, getSeedGroup } from "@/lib/data-source";
+import { dataSource, getSeedDecisionLog, getSeedGroup, useMock } from "@/lib/data-source";
 import type { SubmitImagePayload } from "@/lib/data-source";
 import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
 import type {
@@ -165,12 +165,29 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     init: async () => {
       if (get().initialized || get().loading) return;
       set({ loading: true });
-      const list = await dataSource.listIncidents();
+      let list: Incident[];
+      try {
+        list = await dataSource.listIncidents();
+      } catch (err) {
+        set({ initialized: true, loading: false });
+        pushToast({
+          title: "Couldn't load incidents",
+          body: err instanceof Error ? err.message : "The incident service is unreachable.",
+          severityBand: 0,
+          cta: "none",
+        });
+        return;
+      }
       const incidents: Record<string, Incident> = {};
       const order: string[] = [];
       for (const incident of list) {
         incidents[incident.id] = incident;
         order.push(incident.id);
+      }
+      if (!useMock) {
+        // TODO(api): decision log, grouping and dispatch state have no backend endpoint yet.
+        set({ incidents, order, initialized: true, loading: false });
+        return;
       }
       const decisionLogs: Record<string, DecisionLogEntry[]> = {};
       for (const entry of getSeedDecisionLog()) {

@@ -96,7 +96,10 @@ export function normalizeIncident(
   // read, shown on Manual Review but not used for the map/ranking until a coordinator acts.
   const band: SeverityBand | 0 =
     flag === "flagged_review" ? 0 : ((record.severityScoreOverride ?? record.severityScore ?? 0) as SeverityBand | 0);
-  const dispatch: DispatchState = record.classificationLabel === "extinguished" ? "extinguished" : "unranked";
+  // A confirmed fire enters the dispatch order (Sprint 2 §1.3). TODO(api): live/dispatched has no
+  // backend field yet, so everything confirmed starts as awaiting.
+  const dispatch: DispatchState =
+    record.classificationLabel === "extinguished" ? "extinguished" : flag === "processed" && band > 0 ? "awaiting" : "unranked";
 
   return {
     id: record.incidentId,

@@ -1,33 +1,59 @@
+import { normalizeIncident } from "@/lib/normalize";
+import type { ApiIncidentRecord, Incident } from "@/lib/types";
+import type { SubmitImagePayload } from "../mock/mockApi";
+
 /**
- * Real API implementation — same function signatures as mock/mockApi.ts, so switching
- * NEXT_PUBLIC_USE_MOCK_API to "false" is the only change components/store ever need.
- * Fill these in once the ingestion API (docs/storage/Storage_and_metadata_V2.md) and the
- * coordinator-workflow endpoints (decision log, dispatch, review actions — see the plan's
- * "schema gap" list) exist.
+ * Real API implementation — same signatures as mock/mockApi.ts. Calls go through the Next.js
+ * proxy at /api/backend (src/app/api/backend/[...path]/route.ts), which adds the API key
+ * server-side. The coordinator-workflow calls below listIncidents/getIncident/submitImage have no
+ * backend endpoint yet and still throw.
  */
+const BASE = "/api/backend";
 
-function notImplemented(name: string): never {
-  throw new Error(
-    `real data-source not wired up yet: ${name}(). Set NEXT_PUBLIC_USE_MOCK_API=true, or implement this against the real API.`
-  );
+// Operating region, same box the backend validates ingestion against (backend/src/pipeline/validate.ts).
+// ponytail: one fetch for the whole region; switch to per-viewport queries if incident volume grows.
+const REGION = { minLat: -39.2, maxLat: -33.98, minLon: 140.96, maxLon: 150.03 };
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { cache: "no-store", ...init });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error ?? `${res.status} ${res.statusText}`);
+  return body as T;
 }
 
-export async function listIncidents(): ReturnType<
-  typeof import("../mock/mockApi").listIncidents
-> {
-  return notImplemented("listIncidents");
+export async function listIncidents(): Promise<Incident[]> {
+  const query = new URLSearchParams(Object.entries(REGION).map(([k, v]) => [k, String(v)]));
+  const records = await request<ApiIncidentRecord[]>(`/incidents?${query}`);
+  return records.map((r) => normalizeIncident(r));
 }
 
-export async function getIncident(
-  ..._args: Parameters<typeof import("../mock/mockApi").getIncident>
-): ReturnType<typeof import("../mock/mockApi").getIncident> {
-  return notImplemented("getIncident");
+export async function getIncident(id: string): Promise<Incident | null> {
+  try {
+    // every image at the incident, most recent first — the newest one represents the incident
+    const images = await request<ApiIncidentRecord[]>(`/incidents/${encodeURIComponent(id)}`);
+    return images[0] ? normalizeIncident(images[0]) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function submitImage(
-  ..._args: Parameters<typeof import("../mock/mockApi").submitImage>
-): ReturnType<typeof import("../mock/mockApi").submitImage> {
-  return notImplemented("submitImage");
+  payload: SubmitImagePayload
+): Promise<{ ref: string; record: ApiIncidentRecord }> {
+  if (!payload.file) throw new Error("An image file is required.");
+  const form = new FormData();
+  form.append("image", payload.file);
+  form.append("source_type", payload.sourceType);
+  // omitted fields fall back to the image's EXIF on the backend
+  if (payload.latitude != null) form.append("latitude", String(payload.latitude));
+  if (payload.longitude != null) form.append("longitude", String(payload.longitude));
+  if (payload.timestamp) form.append("timestamp", payload.timestamp);
+  const record = await request<ApiIncidentRecord>("/ingest", { method: "POST", body: form });
+  return { ref: record.imageId, record };
+}
+
+function notImplemented(name: string): never {
+  throw new Error(`No backend endpoint for ${name}() yet.`);
 }
 
 export async function confirmReview(

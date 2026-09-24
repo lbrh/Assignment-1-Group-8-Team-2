@@ -9,7 +9,13 @@ const MAX_REQUESTS = 30;
 const hits = new Map<string, number[]>();
 
 export function rateLimit(req: Request, res: Response, next: NextFunction): void {
-    const key = req.header('x-api-key') ?? req.ip ?? 'unknown';
+    // Per caller *and* client: the frontend proxies every user through one api key, so keying on
+    // the key alone would give the whole site a single shared budget. The proxy passes the user's
+    // IP as the first x-forwarded-for entry. Only keyed (trusted) callers get here, so a caller
+    // spoofing that header can only split its own budget, not anyone else's.
+    const caller = res.locals?.caller ?? req.header('x-api-key') ?? 'anonymous';
+    const client = req.header('x-forwarded-for')?.split(',')[0].trim() || req.ip || 'unknown';
+    const key = `${caller}:${client}`;
     const now = Date.now();
     const recent = (hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
     if (recent.length >= MAX_REQUESTS) {

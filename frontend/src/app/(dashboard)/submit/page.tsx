@@ -3,6 +3,7 @@
 import { useState, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import { useMock } from "@/lib/data-source";
 import { SOURCE_META } from "@/components/primitives/SourceChip";
 import { Button } from "@/components/primitives/Button";
 import type { SourceType } from "@/lib/types";
@@ -10,7 +11,7 @@ import type { SourceType } from "@/lib/types";
 const SOURCES: SourceType[] = ["citizen", "drone", "satellite", "cctv"];
 
 interface FormState {
-  fileName: string;
+  file: File | null;
   lat: string;
   lng: string;
   ts: string;
@@ -18,7 +19,7 @@ interface FormState {
   source: SourceType;
 }
 
-const EMPTY: FormState = { fileName: "", lat: "", lng: "", ts: "", notes: "", source: "citizen" };
+const EMPTY: FormState = { file: null, lat: "", lng: "", ts: "", notes: "", source: "citizen" };
 
 export default function SubmitImagePage() {
   const router = useRouter();
@@ -28,35 +29,56 @@ export default function SubmitImagePage() {
   const [error, setError] = useState<string | null>(null);
   const [lastRef, setLastRef] = useState<string | null>(null);
 
-  const isValid = form.fileName && form.lat && form.lng && form.ts;
 
   const steps: { label: string; done: boolean; running?: boolean }[] = [
-    { label: "Attach image", done: !!form.fileName },
+    { label: "Attach image", done: !!form.file },
     { label: "Geotag + capture time", done: !!(form.lat && form.lng && form.ts) },
     { label: "Submission confirmed", done: status === "done" },
     { label: "AI assessment running", done: status === "done", running: status === "processing" },
   ];
 
   async function handleSubmit(demoOutcome?: "valid" | "low_confidence" | "not_fire") {
-    if (!demoOutcome && !isValid) {
-      setError("Geotag and capture time are required — enter manually or use device location.");
+    // Demo buttons (mock only) fill in anything left blank so they always reach the outcome.
+    const f = demoOutcome
+      ? { ...form, lat: form.lat || "-37.62", lng: form.lng || "145.31", ts: form.ts || new Date().toISOString() }
+      : form;
+    const problem = validate(f, !!demoOutcome);
+    if (problem) {
+      setError(problem);
       return;
     }
     setError(null);
     setStatus("processing");
-    const payload = {
-      fileName: form.fileName || "IMG_demo.jpg",
-      latitude: parseFloat(form.lat) || -37.62,
-      longitude: parseFloat(form.lng) || 145.31,
-      timestamp: form.ts || new Date().toISOString(),
-      sourceType: form.source,
-      notes: form.notes,
-      demoOutcome,
-    };
-    const result = await submitImage(payload);
-    setLastRef(result.ref);
-    setStatus("done");
-    setTimeout(() => router.push(`/incident/${result.incidentId}`), 900);
+    try {
+      const result = await submitImage({
+        file: f.file ?? undefined,
+        fileName: f.file?.name ?? "IMG_demo.jpg",
+        latitude: f.lat ? Number(f.lat) : undefined,
+        longitude: f.lng ? Number(f.lng) : undefined,
+        timestamp: f.ts ? new Date(f.ts).toISOString() : undefined,
+        sourceType: f.source,
+        notes: f.notes,
+        demoOutcome,
+      });
+      setLastRef(result.ref);
+      setStatus("done");
+      setTimeout(() => router.push(`/incident/${result.incidentId}`), 900);
+    } catch (err) {
+      setStatus("idle");
+      setError(err instanceof Error ? err.message : "Submission failed.");
+    }
+  }
+
+  function fillDeviceLocation() {
+    if (!navigator.geolocation) {
+      setError("This browser can't share its location — enter coordinates manually.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        setForm((f) => ({ ...f, lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) })),
+      () => setError("Couldn't get the device location — enter coordinates manually.")
+    );
   }
 
   return (
@@ -77,7 +99,7 @@ export default function SubmitImagePage() {
         </h1>
         <p style={{ font: "400 13px/1.4 var(--font-plex-sans)", color: "var(--muted)" }}>
           Every image runs the fire / not-fire check first, then severity scoring. Geotag and
-          capture time are required.
+          capture time are required — left blank, they&apos;re read from the image&apos;s EXIF.
         </p>
       </div>
 
@@ -198,10 +220,14 @@ export default function SubmitImagePage() {
           </div>
 
           <div style={{ flex: 1, minWidth: 0, padding: 18, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
-            <Field label="Image">
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, fileName: f.fileName || "IMG_4900.jpg" }))}
+            <Field label="Image" required>
+              <label
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file) setForm((f) => ({ ...f, file }));
+                }}
                 style={{
                   border: "var(--border-w) dashed var(--border-4)",
                   background: "var(--surface)",
@@ -213,18 +239,28 @@ export default function SubmitImagePage() {
                   gap: 8,
                   width: "100%",
                   height: 130,
+                  cursor: "pointer",
                 }}
               >
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setForm((f) => ({ ...f, file }));
+                  }}
+                  style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+                />
                 <div style={{ width: 30, height: 24, border: "1px solid var(--border-7)" }} />
                 <span style={{ font: "600 13.5px/1 var(--font-plex-sans)", color: "var(--fg-2)" }}>
-                  {form.fileName || "Choose an image or drag it here"}
+                  {form.file?.name || "Choose an image or drag it here"}
                 </span>
                 <span style={{ font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>JPEG or PNG · max 15 MB</span>
-              </button>
+              </label>
             </Field>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="Latitude" required>
+              <Field label="Latitude">
                 <input
                   value={form.lat}
                   onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value }))}
@@ -232,7 +268,7 @@ export default function SubmitImagePage() {
                   style={inputStyle}
                 />
               </Field>
-              <Field label="Longitude" required>
+              <Field label="Longitude">
                 <input
                   value={form.lng}
                   onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value }))}
@@ -243,13 +279,13 @@ export default function SubmitImagePage() {
             </div>
             <button
               type="button"
-              onClick={() => setForm((f) => ({ ...f, lat: "-37.6214", lng: "145.3087" }))}
+              onClick={fillDeviceLocation}
               style={{ alignSelf: "flex-start", marginTop: -6, font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent)" }}
             >
               Use device location
             </button>
 
-            <Field label="Capture time" required>
+            <Field label="Capture time">
               <input
                 value={form.ts}
                 onChange={(e) => setForm((f) => ({ ...f, ts: e.target.value }))}
@@ -292,7 +328,7 @@ export default function SubmitImagePage() {
             Clear
           </button>
           <span style={{ marginLeft: "auto", font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-            {status === "done" && lastRef ? `confirmed · ref ${lastRef}` : "3 required fields"}
+            {status === "done" && lastRef ? `confirmed · ref ${lastRef}` : "image required"}
           </span>
         </div>
 
@@ -311,6 +347,7 @@ export default function SubmitImagePage() {
         ) : null}
       </div>
 
+      {useMock ? (
       <div style={{ flex: "none", display: "flex", gap: 10, flexWrap: "wrap" }}>
         <DemoButton label="Demo: missing geotag" onClick={() => {
           setForm((f) => ({ ...f, lat: "", lng: "" }));
@@ -320,8 +357,26 @@ export default function SubmitImagePage() {
         <DemoButton label="Demo: low-confidence result" onClick={() => handleSubmit("low_confidence")} />
         <DemoButton label="Demo: not-a-fire result" onClick={() => handleSubmit("not_fire")} />
       </div>
+      ) : null}
     </div>
   );
+}
+
+/** Returns an error message, or null when the form can be sent. Blank geotag/time is allowed —
+ * the backend reads it from EXIF and rejects the submission if it's missing there too. */
+function validate(form: FormState, isDemo: boolean): string | null {
+  if (!form.file && !isDemo) return "Attach an image to submit.";
+  if (!form.lat !== !form.lng) return "Enter both latitude and longitude, or leave both blank to use the image's geotag.";
+  if (form.lat) {
+    const lat = Number(form.lat);
+    const lng = Number(form.lng);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "Latitude must be a number between -90 and 90.";
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) return "Longitude must be a number between -180 and 180.";
+  }
+  if (form.ts && Number.isNaN(new Date(form.ts).getTime())) {
+    return "Capture time isn't a valid date — use e.g. 2026-09-22 14:02.";
+  }
+  return null;
 }
 
 function Field({

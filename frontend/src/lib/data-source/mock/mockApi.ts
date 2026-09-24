@@ -32,10 +32,12 @@ export async function getIncident(id: string): Promise<Incident | null> {
 }
 
 export interface SubmitImagePayload {
+  file?: File;
   fileName: string;
-  latitude: number;
-  longitude: number;
-  timestamp: string;
+  /** Omitted = backend reads it from the image's EXIF. */
+  latitude?: number;
+  longitude?: number;
+  timestamp?: string;
   sourceType: SourceType;
   notes?: string;
   /** Demo-only hook so the four "Demo:" buttons on Submit can force a specific outcome. */
@@ -48,18 +50,22 @@ export async function submitImage(payload: SubmitImagePayload): Promise<{
   ref: string;
   record: ApiIncidentRecord;
 }> {
-  const ref = `SUB-${submitCounter++}`;
-  const id = `INC-04${30 + Math.floor(Math.random() * 60)}`;
+  // The mock can't read EXIF, so it rejects missing fields the way the backend would without it.
+  const { latitude, longitude, timestamp } = payload;
+  if (latitude == null || longitude == null) throw new Error("latitude and longitude are required");
+  if (!timestamp) throw new Error("timestamp is required");
+  const ref = `SUB-${submitCounter}`;
+  const id = `INC-${submitCounter++}`; // counter, not random — can't collide with seed IDs
 
   const outcome = payload.demoOutcome ?? "valid";
   const base: ApiIncidentRecord = {
     incidentId: id,
     imageId: payload.fileName,
-    storagePath: `/${id}/${payload.sourceType}/${payload.timestamp}_${payload.fileName}`,
-    timestamp: payload.timestamp,
+    storagePath: `/${id}/${payload.sourceType}/${timestamp}_${payload.fileName}`,
+    timestamp,
     sourceType: payload.sourceType,
-    latitude: payload.latitude,
-    longitude: payload.longitude,
+    latitude,
+    longitude,
     severityScore: null,
     severityScoreOverride: null,
     overriddenBy: null,

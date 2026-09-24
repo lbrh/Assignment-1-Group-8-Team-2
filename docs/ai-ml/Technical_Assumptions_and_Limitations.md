@@ -35,5 +35,5 @@
 
 ### Integration assumptions
 
-- The proposed ingestion-to-classification interface (Dataset_Integration_Interface_for_Htet.md) assumes the classification service can fetch images via signed URL rather than receiving image bytes inline, consistent with the existing security design, but not yet confirmed with Htet.
-- Whether the call between ingestion and classification is synchronous or asynchronous is not yet decided, and materially affects both sides' error handling, flagged as an open item for Htet rather than assumed in either direction here.
+- ~~The proposed ingestion-to-classification interface (Dataset_Integration_Interface_for_Htet.md) assumes the classification service can fetch images via signed URL rather than receiving image bytes inline, consistent with the existing security design, but not yet confirmed with Htet.~~ **No longer applies (24 Sep 2026):** the separate classification service was dropped. The backend sends image bytes directly to the per-indicator watsonx.ai deployments, see the superseded note in Dataset_Integration_Interface_for_Htet.md.
+- ~~Whether the call between ingestion and classification is synchronous or asynchronous is not yet decided, and materially affects both sides' error handling, flagged as an open item for Htet rather than assumed in either direction here.~~ **Resolved (24 Sep 2026):** asynchronous. `POST /ingest` returns once the image is stored, then classification runs in the background. A failed classification leaves the image `pending_review` rather than failing the submission.
