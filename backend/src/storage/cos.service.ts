@@ -35,12 +35,37 @@ export async function uploadImage(key: string, body: Buffer, contentType: string
     await getClient().putObject({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }).promise();
 }
 
+export async function downloadImage(key: string): Promise<Buffer> {
+    const bucket = process.env.COS_BUCKET;
+    if (!bucket) {
+        throw new Error('COS_BUCKET is not configured');
+    }
+    const object = await getClient().getObject({ Bucket: bucket, Key: key }).promise();
+    return object.Body as Buffer;
+}
+
 export async function deleteImage(key: string): Promise<void> {
     const bucket = process.env.COS_BUCKET;
     if (!bucket) {
         throw new Error('COS_BUCKET is not configured');
     }
     await getClient().deleteObject({ Bucket: bucket, Key: key }).promise();
+}
+
+// Every object key in the bucket, following continuation tokens past the 1000-key page limit.
+export async function listObjectKeys(): Promise<string[]> {
+    const bucket = process.env.COS_BUCKET;
+    if (!bucket) {
+        throw new Error('COS_BUCKET is not configured');
+    }
+    const keys: string[] = [];
+    let ContinuationToken: string | undefined;
+    do {
+        const page = await getClient().listObjectsV2({ Bucket: bucket, ContinuationToken }).promise();
+        keys.push(...(page.Contents ?? []).map((object) => object.Key!));
+        ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (ContinuationToken);
+    return keys;
 }
 
 // Time-limited signed read URL for the Map/Incident/Order pages (V2 doc section 5):

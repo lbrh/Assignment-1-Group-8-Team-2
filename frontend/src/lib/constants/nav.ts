@@ -5,8 +5,8 @@ export const TABS = [
   { href: "/", label: "Map", short: "Map", backLabel: "Back to map" },
   { href: "/dispatch", label: "Dispatch order", short: "Order", backLabel: "Back to dispatch order" },
   { href: "/review", label: "Manual review", short: "Review", backLabel: "Back to manual review" },
-  { href: "/archive", label: "Archive", short: "Archive", backLabel: "Back to archive" },
   { href: "/resolved", label: "Resolved", short: "Resolved", backLabel: "Back to resolved" },
+  { href: "/archive", label: "Archive", short: "Archive", backLabel: "Back to archive" },
   { href: "/submit", label: "Submit image", short: "Submit", backLabel: "Back to submit image" },
 ] as const;
 

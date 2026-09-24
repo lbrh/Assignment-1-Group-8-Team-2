@@ -11,22 +11,26 @@ export function DetailActionsBar({ incident }: { incident: Incident }) {
   const cancelDispatch = useIncidentStore((s) => s.cancelDispatch);
   const markExtinguished = useIncidentStore((s) => s.markExtinguished);
   const sendToManualReview = useIncidentStore((s) => s.sendToManualReview);
+  const archiveIncident = useIncidentStore((s) => s.archiveIncident);
 
   const isFlagged = incident.flag === "flagged_review";
   const isLive = incident.dispatch === "live";
   const isExtinguished = incident.dispatch === "extinguished";
+  // one slot walks the lifecycle: dispatch -> mark extinguished -> archive
+  const primary = isLive
+    ? { label: "Mark extinguished", run: () => markExtinguished(incident.id) }
+    : isExtinguished
+      ? { label: "Archive", run: () => archiveIncident(incident.id) }
+      : incident.dispatch === "archived"
+        ? null
+        : { label: "Dispatch crew", run: () => dispatchCrew(incident.id), disabled: incident.band === 0 };
 
   return (
     <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-      {/* one slot for both labels, so the button that was clicked shows its ✓ and then the next step */}
-      {!isExtinguished ? (
-        <Button
-          variant="primary"
-          ack
-          disabled={!isLive && incident.band === 0}
-          onClick={() => (isLive ? markExtinguished(incident.id) : dispatchCrew(incident.id))}
-        >
-          {isLive ? "Mark extinguished" : "Dispatch crew"}
+      {/* one slot for every label, so the button that was clicked shows its ✓ and then the next step */}
+      {primary ? (
+        <Button variant="primary" ack disabled={primary.disabled} onClick={primary.run}>
+          {primary.label}
         </Button>
       ) : null}
       {isLive ? (

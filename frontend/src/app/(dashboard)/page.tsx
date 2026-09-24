@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ActiveIncidentsRail } from "@/components/map/ActiveIncidentsRail";
+import { RailResizer, useRailWidth } from "@/components/map/RailResizer";
 
 // Leaflet reads `window` at import time, so the map canvas is client-only.
 const MapCanvas = dynamic(
@@ -10,10 +11,12 @@ const MapCanvas = dynamic(
 );
 
 export default function MapPage() {
+  const [railWidth, setRailWidth] = useRailWidth();
   return (
     <div style={{ display: "flex", height: "100%" }}>
       <MapCanvas />
-      <ActiveIncidentsRail />
+      <RailResizer width={railWidth} onChange={setRailWidth} />
+      <ActiveIncidentsRail width={railWidth} />
     </div>
   );
 }

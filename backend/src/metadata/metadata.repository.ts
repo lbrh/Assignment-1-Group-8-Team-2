@@ -50,11 +50,17 @@ function fromRow(row: Record<string, unknown>): ImageMetadata {
 }
 
 function fromIncidentRow(row: Record<string, unknown>): IncidentImage {
-    return { ...fromRow(row), dispatchState: (row.dispatch_state as DispatchState | null) ?? null };
+    const updatedAt = row.dispatch_updated_at;
+    return {
+        ...fromRow(row),
+        dispatchState: (row.dispatch_state as DispatchState | null) ?? null,
+        dispatchUpdatedBy: (row.dispatch_updated_by as string | null) ?? null,
+        dispatchUpdatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : ((updatedAt as string | null) ?? null),
+    };
 }
 
 // Image columns plus the incident's dispatch state, for every incident-facing read.
-const INCIDENT_SELECT = `i.*, d.state AS dispatch_state
+const INCIDENT_SELECT = `i.*, d.state AS dispatch_state, d.updated_by AS dispatch_updated_by, d.updated_at AS dispatch_updated_at
          FROM images i
          LEFT JOIN incident_dispatch d ON d.incident_id = i.incident_id`;
 

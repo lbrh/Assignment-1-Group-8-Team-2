@@ -52,7 +52,7 @@ export default function IncidentDetailPage() {
   const priorityLabel =
     incident.dispatch === "live"
       ? "live · crew dispatched"
-      : incident.dispatch === "extinguished"
+      : incident.dispatch === "extinguished" || incident.dispatch === "archived"
         ? "resolved · not ranked"
         : incident.band === 0
           ? "not ranked until reviewed"
@@ -61,7 +61,7 @@ export default function IncidentDetailPage() {
   const classificationLabel =
     incident.flag === "not_a_fire"
       ? "Non-Fire"
-      : incident.dispatch === "extinguished"
+      : incident.dispatch === "extinguished" || incident.dispatch === "archived"
         ? "Extinguished"
         : incident.band === 0
           ? "Uncertain"

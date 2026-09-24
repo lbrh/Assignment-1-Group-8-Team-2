@@ -1,4 +1,5 @@
-import type { Incident, SeverityBand } from "@/lib/types";
+import type { DispatchState, Incident, SeverityBand } from "@/lib/types";
+import type { MapFilter } from "@/lib/store/useIncidentStore";
 
 function byIds(incidents: Record<string, Incident>, order: string[]): Incident[] {
   return order.map((id) => incidents[id]).filter(Boolean);
@@ -26,9 +27,29 @@ export function reviewQueue(incidents: Record<string, Incident>, order: string[]
     .sort((a, b) => (a.capturedAtIso < b.capturedAtIso ? 1 : -1));
 }
 
+/** Map filter -> the dispatch states it shows, shared by the map and the incidents list. */
+const FILTER_STATES: Record<MapFilter, DispatchState[]> = {
+  all: ["awaiting", "live", "extinguished"],
+  active: ["awaiting"],
+  dispatched: ["live"],
+  extinguished: ["extinguished"],
+};
+
+/** Incidents for the map page's list and markers under a filter, most urgent first. */
+export function filteredIncidents(
+  incidents: Record<string, Incident>,
+  order: string[],
+  filter: MapFilter
+): Incident[] {
+  return byIds(incidents, order)
+    .filter((i) => i.band > 0 && i.flag !== "not_a_fire" && FILTER_STATES[filter].includes(i.dispatch))
+    .sort(bySeverityThenDistance);
+}
+
+/** Dismissed images plus extinguished fires the coordinator has archived. */
 export function archiveList(incidents: Record<string, Incident>, order: string[]): Incident[] {
   return byIds(incidents, order)
-    .filter((i) => i.flag === "not_a_fire")
+    .filter((i) => i.flag === "not_a_fire" || i.dispatch === "archived")
     .sort((a, b) => ((a.dismissedAtIso ?? "") < (b.dismissedAtIso ?? "") ? 1 : -1));
 }
 
@@ -42,15 +63,8 @@ export function resolvedList(incidents: Record<string, Incident>, order: string[
  * redline's "flagged and dismissed images are never drawn on the map" rule. */
 export function mapMarkers(incidents: Record<string, Incident>, order: string[]): Incident[] {
   return byIds(incidents, order).filter(
-    (i) => i.band > 0 && i.dispatch !== "extinguished" && i.flag !== "not_a_fire"
+    (i) => i.band > 0 && (i.dispatch === "awaiting" || i.dispatch === "live") && i.flag !== "not_a_fire"
   );
-}
-
-export function extinguishedMarkers(
-  incidents: Record<string, Incident>,
-  order: string[]
-): Incident[] {
-  return byIds(incidents, order).filter((i) => i.dispatch === "extinguished");
 }
 
 export function legendCounts(

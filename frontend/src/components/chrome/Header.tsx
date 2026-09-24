@@ -10,8 +10,6 @@ import { TABS } from "@/lib/constants/nav";
 export function Header() {
   const theme = useIncidentStore((s) => s.theme);
   const toggleTheme = useIncidentStore((s) => s.toggleTheme);
-  const notesOn = useIncidentStore((s) => s.notesOn);
-  const toggleNotes = useIncidentStore((s) => s.toggleNotes);
   const keysOpen = useIncidentStore((s) => s.keysOpen);
   const setKeysOpen = useIncidentStore((s) => s.setKeysOpen);
   const incidents = useIncidentStore((s) => s.incidents);
@@ -142,26 +140,6 @@ export function Header() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: "none" }}>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={toggleNotes}
-          aria-pressed={notesOn}
-          title="Show prototype change notes"
-          style={{
-            width: "auto",
-            padding: "0 10px",
-            gap: 6,
-            fontSize: "var(--text-xs)",
-            fontWeight: 600,
-            color: notesOn ? "var(--accent-fg)" : "var(--muted)",
-            background: notesOn ? "var(--accent-soft)" : "var(--panel)",
-            borderColor: notesOn ? "var(--accent-border)" : "var(--border-2)",
-          }}
-        >
-          <span aria-hidden>Δ</span> Notes
-        </button>
-
         <button
           type="button"
           className="icon-btn"

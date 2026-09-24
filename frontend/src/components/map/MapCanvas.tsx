@@ -3,12 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import L from "leaflet";
-import { useIncidentStore, type ZoomTier } from "@/lib/store/useIncidentStore";
-import {
-  extinguishedMarkers,
-  legendCounts,
-  mapMarkers,
-} from "@/lib/store/selectors";
+import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import { filteredIncidents, legendCounts, mapMarkers } from "@/lib/store/selectors";
 import { SEVERITY } from "@/lib/constants/severity";
 import { STAGING_COORDS, distanceKm } from "@/lib/utils/geo";
 import { clusterByProximity } from "@/lib/utils/project";
@@ -23,9 +19,8 @@ import type { Incident, SeverityBand } from "@/lib/types";
  * events so the rest of the UI (legend header, tab-return) stays in step.
  */
 
-const ZOOM_LABEL = { 1: "Regional, clustered", 2: "District", 3: "Site, all markers" } as const;
+type ZoomTier = 1 | 2 | 3; // regional (clustered) / district / site
 const CLUSTER_THRESHOLD_PX = { 1: 64, 2: 0, 3: 0 } as const; // screen px; 0 disables clustering
-const MIN_ZOOM = 8;
 const MAX_ZOOM = 19;
 const INITIAL_MAX_ZOOM = 12;
 
@@ -87,8 +82,6 @@ export function MapCanvas() {
   const router = useRouter();
   const incidents = useIncidentStore((s) => s.incidents);
   const order = useIncidentStore((s) => s.order);
-  const zoom = useIncidentStore((s) => s.zoom);
-  const setZoom = useIncidentStore((s) => s.setZoom);
   const setMapView = useIncidentStore((s) => s.setMapView);
   const mapFilter = useIncidentStore((s) => s.mapFilter);
   const mapHoverId = useIncidentStore((s) => s.mapHoverId);
@@ -115,7 +108,6 @@ export function MapCanvas() {
 
     const map = L.map(container, {
       zoomControl: false,
-      minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
       attributionControl: true,
     });
@@ -136,10 +128,7 @@ export function MapCanvas() {
     overlayLayerRef.current = L.layerGroup().addTo(map);
     markerLayerRef.current = L.layerGroup().addTo(map);
 
-    const syncZoom = () => {
-      setLeafletZoom(map.getZoom());
-      setZoom(tierFor(map.getZoom()));
-    };
+    const syncZoom = () => setLeafletZoom(map.getZoom());
     const syncView = () => {
       const c = map.getCenter();
       setMapView({ center: [c.lat, c.lng], zoom: map.getZoom() });
@@ -163,7 +152,7 @@ export function MapCanvas() {
       markerByIdRef.current = new Map();
       useIncidentStore.getState().setMapHoverId(null);
     };
-  }, [setZoom, setMapView]);
+  }, [setMapView]);
 
   // Incident markers: rebuilt from the store whenever the data, filter or zoom level changes.
   useEffect(() => {
@@ -174,10 +163,8 @@ export function MapCanvas() {
     layer.clearLayers();
     const markerById = new Map<string, L.Marker>();
 
-    const markers = mapMarkers(incidents, order).filter((i) => {
-      if (mapFilter === "sev34") return i.band === 3 || i.band === 4;
-      return true;
-    });
+    const shown = filteredIncidents(incidents, order, mapFilter);
+    const markers = shown.filter((i) => i.dispatch !== "extinguished");
     const points = markers.map((incident) => {
       const p = map.project([incident.coords.lat, incident.coords.lng], leafletZoom);
       return { id: incident.id, x: p.x, y: p.y, incident };
@@ -233,15 +220,13 @@ export function MapCanvas() {
       for (const incident of members) markerById.set(incident.id, marker);
     }
 
-    if (mapFilter === "extinguished") {
-      for (const incident of extinguishedMarkers(incidents, order)) {
-        L.marker([incident.coords.lat, incident.coords.lng], {
-          icon: extinguishedIcon(),
-          interactive: false,
-          keyboard: false,
-          zIndexOffset: -500,
-        }).addTo(layer);
-      }
+    for (const incident of shown.filter((i) => i.dispatch === "extinguished")) {
+      L.marker([incident.coords.lat, incident.coords.lng], {
+        icon: extinguishedIcon(),
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: -500,
+      }).addTo(layer);
     }
 
     markerByIdRef.current = markerById;
@@ -284,7 +269,7 @@ export function MapCanvas() {
     applyHover(markerByIdRef.current, mapHoverId);
   }, [mapHoverId]);
 
-  const atMin = leafletZoom !== null && leafletZoom <= MIN_ZOOM;
+  const atMin = leafletZoom !== null && leafletZoom <= 0;
   const atMax = leafletZoom !== null && leafletZoom >= MAX_ZOOM;
 
   return (
@@ -306,26 +291,6 @@ export function MapCanvas() {
         aria-label="Incident map. Arrow keys pan, plus and minus zoom."
         style={{ position: "absolute", inset: 0, zIndex: 0 }}
       />
-
-      <div
-        className="card"
-        style={{
-          position: "absolute",
-          left: "var(--space-4)",
-          top: "var(--space-4)",
-          zIndex: 1,
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          boxShadow: "var(--shadow-pop)",
-          borderRadius: "var(--radius-md)",
-        }}
-      >
-        <span style={{ font: "600 var(--text-xs)/1 var(--font-plex-sans)", color: "var(--fg)" }}>Sector 7, VIC</span>
-        <span aria-hidden style={{ borderLeft: "1px solid var(--border-2)", height: 14 }} />
-        <span className="caption">{ZOOM_LABEL[zoom]}</span>
-      </div>
 
       <div
         className="card"

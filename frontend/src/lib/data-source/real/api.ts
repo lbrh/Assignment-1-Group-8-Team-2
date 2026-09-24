@@ -1,4 +1,4 @@
-import { normalizeIncident } from "@/lib/normalize";
+import { ARCHIVED_REASON, normalizeIncident } from "@/lib/normalize";
 import { bandFromSum } from "@/lib/constants/severity";
 import type {
   ApiIncidentRecord,
@@ -45,7 +45,12 @@ export async function getIncident(id: string): Promise<Incident | null> {
   }
 }
 
-/** Signed link to the stored image, valid for 15 minutes. */
+/** Downscaled WebP of the stored image, cached by the browser. Safe to use as an <img> src. */
+export function getImagePreviewUrl(imageId: string, width: 240 | 800 = 800): string | null {
+  return `${BASE}/images/${encodeURIComponent(imageId)}/preview?w=${width}`;
+}
+
+/** Signed link to the full-resolution stored image, valid for 15 minutes. */
 export async function getImageUrl(imageId: string): Promise<string | null> {
   const { url } = await request<{ url: string }>(`/images/${encodeURIComponent(imageId)}`);
   return url;
@@ -103,12 +108,16 @@ async function decide(incident: Incident, patch: ReviewPatch): Promise<Partial<I
 async function setDispatch(incident: Incident, state: BackendDispatchState): Promise<Partial<Incident>> {
   await request(`/incidents/${encodeURIComponent(incident.id)}/dispatch`, jsonInit("PUT", { state }));
   const now = new Date().toISOString();
+  const archived = state === "archived";
   return {
     dispatch: state,
     backend: { ...incident.backend, dispatchState: state },
     extinguishedNote: state === "extinguished" ? "Crew reported the fire out" : null,
     extinguishedBy: state === "extinguished" ? COORDINATOR_NAME : null,
     extinguishedAtIso: state === "extinguished" ? now : null,
+    dismissedReason: archived ? ARCHIVED_REASON : incident.dismissedReason,
+    dismissedBy: archived ? COORDINATOR_NAME : incident.dismissedBy,
+    dismissedAtIso: archived ? now : incident.dismissedAtIso,
   };
 }
 
@@ -147,6 +156,7 @@ export const dispatchCrew = (incident: Incident) => setDispatch(incident, "live"
 export const cancelDispatch = (incident: Incident) => setDispatch(incident, "awaiting");
 export const markExtinguished = (incident: Incident) => setDispatch(incident, "extinguished");
 export const reopenIncident = (incident: Incident) => setDispatch(incident, "live");
+export const archiveIncident = (incident: Incident) => setDispatch(incident, "archived");
 
 /** Puts the server back to the snapshot taken before the action, sending only what changed.
  * The backend logs the undo like any other decision. */

@@ -12,7 +12,10 @@ export function StatusFlagChip({ flag, dispatch }: Props) {
   let label: string;
   let style: CSSProperties;
 
-  if (dispatch === "extinguished") {
+  if (dispatch === "archived") {
+    label = "Archived";
+    style = { color: "var(--muted)", background: "var(--surface-2)", borderColor: "var(--border-2)" };
+  } else if (dispatch === "extinguished") {
     label = "Extinguished";
     style = { color: "var(--fg-4)", background: "var(--surface-2)", borderColor: "var(--border-2)" };
   } else if (dispatch === "live") {

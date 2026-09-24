@@ -14,6 +14,9 @@ import type {
 } from "@/lib/types";
 
 
+/** Archive reason shown for an extinguished fire the coordinator filed away. */
+export const ARCHIVED_REASON = "Extinguished fire, archived.";
+
 // 1-4 weights, same tables as backend/src/pipeline/assess-severity.ts. Only used to show the
 // "scored X of 16" breakdown — the band itself always comes from the backend's severityScore.
 const SMOKE_LEVEL: Record<SmokeDensity, number> = {
@@ -107,6 +110,9 @@ export function normalizeIncident(
     record.dispatchState ??
     (labelOf(record) === "extinguished" ? "extinguished" : flag === "processed" && band > 0 ? "awaiting" : "unranked");
   const discardedByCoordinator = record.classificationLabelOverride === "non_fire";
+  const archived = dispatch === "archived";
+  const dispatchBy = record.dispatchUpdatedBy ?? null;
+  const dispatchAt = record.dispatchUpdatedAt ?? null;
 
   return {
     id: record.incidentId,
@@ -135,14 +141,15 @@ export function normalizeIncident(
       flag !== "flagged_review" ? null : record.classificationLabelOverride === "uncertain" ? "restored_not_fire" : "below_threshold",
     reviewReasonNote: null,
 
-    dismissedReason:
-      flag !== "not_a_fire" ? null : discardedByCoordinator ? "Discarded by reviewer — no fire present in the image." : "Classified as not a fire by the AI gate.",
-    dismissedBy: flag !== "not_a_fire" ? null : discardedByCoordinator ? record.overriddenBy : "AI classification gate",
-    dismissedAtIso: flag !== "not_a_fire" ? null : discardedByCoordinator ? record.overriddenAt : record.timestamp,
+    dismissedReason: archived
+      ? ARCHIVED_REASON
+      : flag !== "not_a_fire" ? null : discardedByCoordinator ? "Discarded by reviewer — no fire present in the image." : "Classified as not a fire by the AI gate.",
+    dismissedBy: archived ? dispatchBy : flag !== "not_a_fire" ? null : discardedByCoordinator ? record.overriddenBy : "AI classification gate",
+    dismissedAtIso: archived ? dispatchAt : flag !== "not_a_fire" ? null : discardedByCoordinator ? record.overriddenAt : record.timestamp,
 
-    extinguishedNote: null,
-    extinguishedBy: null,
-    extinguishedAtIso: null,
+    extinguishedNote: dispatch === "extinguished" && dispatchBy ? "Crew reported the fire out" : null,
+    extinguishedBy: dispatch === "extinguished" ? dispatchBy : null,
+    extinguishedAtIso: dispatch === "extinguished" ? dispatchAt : null,
 
     backend: {
       imageId: record.imageId,

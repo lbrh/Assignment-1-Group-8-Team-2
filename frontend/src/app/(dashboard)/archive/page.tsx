@@ -21,8 +21,8 @@ export default function ArchivePage() {
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "var(--space-6) var(--space-5) var(--space-7)" }}>
       <PageHeader
-        title="Archive: not a fire"
-        lede="Dismissed images are removed from the map and the dispatch order. Nothing is deleted, and every record can be restored."
+        title="Archive"
+        lede="Images dismissed as not a fire, and extinguished fires filed away from Resolved. Nothing is deleted, and every record can be restored."
         stat={`${list.length} retained for audit`}
       />
 
@@ -32,21 +32,21 @@ export default function ArchivePage() {
           <span role="columnheader">Location</span>
           <span role="columnheader">Source</span>
           <span role="columnheader">Captured</span>
-          <span role="columnheader">Why dismissed</span>
+          <span role="columnheader">Why archived</span>
           <span role="columnheader">Decided by</span>
           <span role="columnheader" aria-label="Actions" />
         </div>
 
         {list.length === 0 ? (
           <p className="caption" style={{ padding: "var(--space-7) var(--space-5)", fontSize: "var(--text-sm)" }}>
-            Nothing has been dismissed. Images classified as not a fire, and images a reviewer
-            discards, are listed here.
+            Nothing archived yet. Images discarded as not a fire, and extinguished fires archived
+            from Resolved, are listed here.
           </p>
         ) : (
           list.map((incident) => (
             <div key={incident.id} role="row" style={bodyRow}>
               <div role="cell" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                <SeverityDot band="not_a_fire" size={26} />
+                <SeverityDot band={incident.dispatch === "archived" ? incident.band : "not_a_fire"} size={26} />
                 <span className="data" style={{ font: "600 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
                   {incident.id}
                 </span>
@@ -84,8 +84,9 @@ export default function ArchivePage() {
 
       {list.length > 0 ? (
         <p className="caption" style={{ marginTop: "var(--space-4)", maxWidth: "80ch" }}>
-          Restoring returns an image to Manual review with its provisional tag and confidence
-          figure intact. The dismissal stays on the record.
+          Restoring a dismissed image returns it to Manual review with its provisional tag and
+          confidence intact; restoring an archived fire returns it to Resolved. Either way the
+          decision stays on the record.
         </p>
       ) : null}
     </div>

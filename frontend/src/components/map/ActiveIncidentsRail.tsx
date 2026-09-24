@@ -1,20 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useIncidentStore } from "@/lib/store/useIncidentStore";
-import { rankedAwaiting, reviewQueue } from "@/lib/store/selectors";
+import { useIncidentStore, type MapFilter } from "@/lib/store/useIncidentStore";
+import { filteredIncidents, reviewQueue } from "@/lib/store/selectors";
 import { RankedIncidentRow } from "@/components/map/RankedIncidentRow";
 import { GroupingProposalCard } from "@/components/map/GroupingProposalCard";
 import { Button } from "@/components/primitives/Button";
 import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
-const FILTERS: { key: "all" | "sev34" | "extinguished"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "sev34", label: "Severity 3–4" },
-  { key: "extinguished", label: "Extinguished" },
+const FILTERS: { key: MapFilter; label: string; empty: string }[] = [
+  { key: "all", label: "All", empty: "No incidents on the map right now." },
+  { key: "active", label: "Active", empty: "No incidents are waiting for a crew." },
+  { key: "dispatched", label: "Dispatched", empty: "No crews are out right now." },
+  { key: "extinguished", label: "Extinguished", empty: "Nothing has been extinguished yet." },
 ];
 
-export function ActiveIncidentsRail() {
+export function ActiveIncidentsRail({ width }: { width: number }) {
   const router = useRouter();
   const incidents = useIncidentStore((s) => s.incidents);
   const order = useIncidentStore((s) => s.order);
@@ -24,22 +25,19 @@ export function ActiveIncidentsRail() {
   const setAlertsPanelOpen = useIncidentStore((s) => s.setAlertsPanelOpen);
   const group = useIncidentStore((s) => s.group);
 
-  const ranked = rankedAwaiting(incidents, order).filter((i) => {
-    if (mapFilter === "sev34") return i.band === 3 || i.band === 4;
-    return true;
-  });
+  const ranked = filteredIncidents(incidents, order, mapFilter);
   const flaggedCount = reviewQueue(incidents, order).length;
   const suggestionCount = group && group.state === "suggested" ? 1 : 0;
 
   return (
     <aside
       aria-label={alertsPanelOpen ? "Alerts and suggestions" : "Active incidents"}
+      className="incident-rail"
       style={{
-        width: 384,
+        width,
         flex: "none",
         display: "flex",
         flexDirection: "column",
-        borderLeft: "1px solid var(--border)",
         background: "var(--panel)",
         overflow: "hidden",
       }}
@@ -116,9 +114,7 @@ export function ActiveIncidentsRail() {
           </div>
         ) : ranked.length === 0 ? (
           <p className="caption" style={{ padding: "var(--space-5)" }}>
-            {mapFilter === "sev34"
-              ? "No severity 3 or 4 incidents are waiting. Switch to All to see the rest."
-              : "No incidents are waiting for dispatch."}
+            {FILTERS.find((f) => f.key === mapFilter)?.empty}
           </p>
         ) : (
           <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>

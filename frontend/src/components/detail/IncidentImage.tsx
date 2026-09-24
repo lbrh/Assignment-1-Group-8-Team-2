@@ -3,25 +3,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { dataSource } from "@/lib/data-source";
 
-type State =
-  | { kind: "loading" }
-  | { kind: "ready"; url: string }
-  | { kind: "missing"; note: string };
-
-/** The incident's field image, fetched through a signed link. Falls back to a labelled
- * placeholder while loading, in mock mode, or when the image isn't stored yet. */
+/** The incident's field image. Shows the downscaled WebP preview straight away; the signed
+ * full-resolution link loads alongside it for "Open full size", and stands in if the preview
+ * can't be served. Falls back to a labelled placeholder in mock mode or when nothing is stored. */
 export function IncidentImage({ imageId, alt, height = 200 }: { imageId: string; alt: string; height?: number }) {
-  const [state, setState] = useState<State>({ kind: "loading" });
+  const preview = dataSource.getImagePreviewUrl(imageId, 800);
+  const [fullUrl, setFullUrl] = useState<string | null>(null);
+  const [fullError, setFullError] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [retried, setRetried] = useState(false);
 
-  const load = useCallback(() => {
+  const loadFull = useCallback(() => {
     let cancelled = false;
     dataSource.getImageUrl(imageId).then(
       (url) => {
-        if (!cancelled) setState(url ? { kind: "ready", url } : { kind: "missing", note: imageId });
+        if (cancelled) return;
+        if (url) setFullUrl(url);
+        else setFullError(imageId);
       },
       (err: unknown) => {
-        if (!cancelled) setState({ kind: "missing", note: err instanceof Error ? err.message : "Image unavailable" });
+        if (!cancelled) setFullError(err instanceof Error ? err.message : "Image unavailable");
       }
     );
     return () => {
@@ -29,22 +30,23 @@ export function IncidentImage({ imageId, alt, height = 200 }: { imageId: string;
     };
   }, [imageId]);
 
-  useEffect(load, [load]);
+  useEffect(loadFull, [loadFull]);
 
-  if (state.kind !== "ready") {
+  const src = preview && !previewFailed ? preview : fullUrl;
+  if (!src) {
     return (
       <div className="image-slot" style={{ height }}>
-        {state.kind === "loading" ? "Loading image…" : state.note}
+        {fullError ?? "Loading image…"}
       </div>
     );
   }
 
   return (
     <a
-      href={state.url}
+      href={fullUrl ?? undefined}
       target="_blank"
       rel="noopener noreferrer"
-      title="Open full size"
+      title={fullUrl ? "Open full size" : undefined}
       style={{
         display: "block",
         height,
@@ -55,19 +57,23 @@ export function IncidentImage({ imageId, alt, height = 200 }: { imageId: string;
         boxShadow: "var(--shadow-card)",
       }}
     >
-      {/* Signed storage links are one-off and expire, so next/image optimisation doesn't fit here. */}
+      {/* Previews are already sized and cached by the backend, so next/image adds nothing here. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={state.url}
+        src={src}
         alt={alt}
+        decoding="async"
         style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
         onError={() => {
-          // an expired link: fetch a fresh one once, then give up
-          if (!retried) {
-            setRetried(true);
-            load();
+          if (src === preview) {
+            setPreviewFailed(true); // fall back to the full-size image
+          } else if (!retried) {
+            setRetried(true); // an expired signed link: fetch a fresh one once
+            setFullUrl(null);
+            loadFull();
           } else {
-            setState({ kind: "missing", note: "Image could not be loaded" });
+            setFullUrl(null);
+            setFullError("Image could not be loaded");
           }
         }}
       />

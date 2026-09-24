@@ -5,6 +5,7 @@ import { COORDINATOR_NAME, dataSource, getSeedDecisionLog, getSeedGroup, useMock
 import type { SubmitImagePayload } from "@/lib/data-source";
 import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
 import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
+import { ARCHIVED_REASON } from "@/lib/normalize";
 import type {
   DecisionLogEntry,
   DispatchState,
@@ -23,9 +24,9 @@ export interface Toast {
   createdAt: number;
 }
 
-export type MapFilter = "all" | "sev34" | "extinguished";
+/** Map page filter by dispatch state: active = awaiting a crew, dispatched = crew on scene. */
+export type MapFilter = "all" | "active" | "dispatched" | "extinguished";
 export type DispatchFilter = "all" | "awaiting" | "live";
-export type ZoomTier = 1 | 2 | 3;
 
 /** Last Leaflet viewport on the Map tab, so returning to it restores where the coordinator was
  * looking instead of re-fitting to every marker. */
@@ -42,11 +43,8 @@ interface IncidentStoreState {
   toasts: Toast[];
 
   theme: "dark" | "light";
-  notesOn: boolean;
   clockTick: number;
   keysOpen: boolean;
-  /** Coarse zoom tier (regional / district / site), derived from the Leaflet zoom level. */
-  zoom: ZoomTier;
   mapView: MapView | null;
   /** Incident hovered/focused on either the map or the Active incidents rail; each side
    * highlights it so the two stay visually linked. */
@@ -67,10 +65,8 @@ interface IncidentStoreState {
   toggleTheme: () => void;
   /** Adopts the theme the pre-paint script in the root layout already applied. */
   syncThemeFromDocument: () => void;
-  toggleNotes: () => void;
   tickClock: () => void;
   setKeysOpen: (open: boolean) => void;
-  setZoom: (zoom: ZoomTier) => void;
   setMapView: (view: MapView) => void;
   setMapHoverId: (id: string | null) => void;
   setMapFilter: (f: MapFilter) => void;
@@ -88,6 +84,7 @@ interface IncidentStoreState {
   cancelDispatch: (id: string) => Promise<void>;
   markExtinguished: (id: string) => Promise<void>;
   reopenIncident: (id: string) => Promise<void>;
+  archiveIncident: (id: string) => Promise<void>;
   sendToManualReview: (id: string) => Promise<void>;
   restoreFromArchive: (id: string) => Promise<void>;
   confirmGrouping: () => Promise<void>;
@@ -209,10 +206,8 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     toasts: [],
 
     theme: "light",
-    notesOn: true,
     clockTick: 0,
     keysOpen: false,
-    zoom: 2,
     mapView: null,
     mapHoverId: null,
     mapFilter: "all",
@@ -317,10 +312,8 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       set({
         theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light",
       }),
-    toggleNotes: () => set((s) => ({ notesOn: !s.notesOn })),
     tickClock: () => set((s) => ({ clockTick: s.clockTick + 1 })),
     setKeysOpen: (open) => set({ keysOpen: open }),
-    setZoom: (zoom) => set({ zoom }),
     setMapView: (mapView) => set({ mapView }),
     setMapHoverId: (mapHoverId) => set({ mapHoverId }),
     setMapFilter: (mapFilter) => set({ mapFilter }),
@@ -509,8 +502,47 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       );
     },
 
+    archiveIncident: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't archive · ${id}`,
+        {
+          dispatch: "archived",
+          dismissedReason: ARCHIVED_REASON,
+          dismissedBy: COORDINATOR_NAME,
+          dismissedAtIso: new Date().toISOString(),
+        },
+        () => dataSource.archiveIncident(prev),
+        "Archived. Extinguished fire filed away",
+        {
+          title: `Archived · ${id}`,
+          body: "Moved from Resolved to the Archive. Restore it from there if needed.",
+          severityBand: prev.band,
+          cta: "undo",
+          onUndo: undoTo(id, prev, "Restored to Resolved (undo)"),
+        }
+      );
+    },
+
     restoreFromArchive: (id) => {
       const prev = snapshot(id);
+      // an archived fire goes back to Resolved; a dismissed image goes back to manual review
+      if (prev.dispatch === "archived") {
+        return optimistic(
+          prev,
+          `Couldn't restore · ${id}`,
+          { dispatch: "extinguished", dismissedReason: null, dismissedBy: null, dismissedAtIso: null },
+          () => dataSource.markExtinguished(prev),
+          "Restored from the archive to Resolved",
+          {
+            title: `Restored to Resolved · ${id}`,
+            body: "Back on the Resolved list as an extinguished fire.",
+            severityBand: prev.band,
+            cta: "dismiss",
+          }
+        );
+      }
       set({ reviewSelectedId: id });
       return optimistic(
         prev,

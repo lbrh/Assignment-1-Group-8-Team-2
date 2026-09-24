@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server";
  * forwarded — POST /images/:id/assess (the classifier's write hook) is deliberately not exposed.
  */
 const ALLOWED: Record<string, RegExp> = {
-  GET: /^(incidents|incidents\/[^/]+|incidents\/[^/]+\/decisions|order|images\/[^/]+)$/,
+  GET: /^(incidents|incidents\/[^/]+|incidents\/[^/]+\/decisions|order|images\/[^/]+|images\/[^/]+\/preview)$/,
   POST: /^ingest$/,
   PATCH: /^images\/[^/]+\/decision$/,
   PUT: /^incidents\/[^/]+\/dispatch$/,
@@ -42,10 +42,10 @@ async function forward(req: NextRequest, path: string[]): Promise<Response> {
   } catch {
     return Response.json({ error: "The incident service is unreachable." }, { status: 502 });
   }
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
-  });
+  const responseHeaders: Record<string, string> = { "content-type": upstream.headers.get("content-type") ?? "application/json" };
+  const cacheControl = upstream.headers.get("cache-control"); // image previews are cacheable for good
+  if (cacheControl) responseHeaders["cache-control"] = cacheControl;
+  return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

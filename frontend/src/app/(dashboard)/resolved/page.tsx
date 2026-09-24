@@ -10,12 +10,13 @@ import { Button } from "@/components/primitives/Button";
 import { PageHeader } from "@/components/chrome/PageHeader";
 import { formatClock } from "@/lib/utils/time";
 
-const GRID = "minmax(100px, auto) minmax(180px, 1.3fr) 150px 96px minmax(220px, 1.6fr) minmax(140px, 1fr) 96px";
+const GRID = "minmax(100px, auto) minmax(180px, 1.3fr) 150px 96px minmax(220px, 1.6fr) minmax(140px, 1fr) 184px";
 
 export default function ResolvedPage() {
   const incidents = useIncidentStore((s) => s.incidents);
   const order = useIncidentStore((s) => s.order);
   const reopenIncident = useIncidentStore((s) => s.reopenIncident);
+  const archiveIncident = useIncidentStore((s) => s.archiveIncident);
 
   const list = resolvedList(incidents, order);
 
@@ -23,7 +24,7 @@ export default function ResolvedPage() {
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "var(--space-6) var(--space-5) var(--space-7)" }}>
       <PageHeader
         title="Resolved: extinguished"
-        lede="Fires a dispatched crew has reported out. They leave the dispatch order, show on the map only under the Extinguished filter, and can be reopened if a later image shows re-ignition."
+        lede="Fires a dispatched crew has reported out. They leave the dispatch order, can be reopened if a later image shows re-ignition, and can be archived once they no longer need watching."
         stat={`${list.length} resolved this shift`}
         statTone="ok"
       />
@@ -78,9 +79,12 @@ export default function ResolvedPage() {
               <span role="cell" style={{ font: "500 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--fg-2)" }}>
                 {incident.extinguishedBy ?? "–"}
               </span>
-              <div role="cell" style={{ justifySelf: "end" }}>
+              <div role="cell" style={{ justifySelf: "end", display: "flex", gap: "var(--space-2)" }}>
                 <Button variant="pending" small ack onClick={() => reopenIncident(incident.id)}>
                   Reopen
+                </Button>
+                <Button variant="secondary" small ack onClick={() => archiveIncident(incident.id)}>
+                  Archive
                 </Button>
               </div>
             </div>
