@@ -19,6 +19,7 @@ export function RankedIncidentRow({ incident }: { incident: Incident }) {
   return (
     <button
       type="button"
+      className="row-btn"
       onClick={() => router.push(`/incident/${incident.id}`)}
       // highlights this incident's marker on the map (and vice versa)
       onMouseEnter={() => setMapHoverId(incident.id)}
@@ -27,29 +28,22 @@ export function RankedIncidentRow({ incident }: { incident: Incident }) {
       onBlur={() => setMapHoverId(null)}
       style={{
         display: "grid",
-        gridTemplateColumns: "36px 1fr",
-        gap: 12,
-        width: "100%",
-        padding: "11px 16px",
-        borderBottom: "1px solid var(--border-5)",
-        background: hovered
-          ? "var(--acc-06)"
-          : incident.id === newIncidentId
-            ? "var(--tint)"
-            : "transparent",
+        gridTemplateColumns: "32px 1fr",
+        gap: "var(--space-3)",
+        alignItems: "start",
+        padding: "14px var(--space-5)",
+        borderBottom: "1px solid var(--border)",
+        background: hovered ? "var(--accent-soft)" : incident.id === newIncidentId ? "var(--tint)" : undefined,
         boxShadow: hovered ? "inset 3px 0 0 var(--accent)" : "none",
-        transition: "background .12s",
-        textAlign: "left",
       }}
     >
-      <SeverityDot band={incident.band} size={30} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <SeverityChip band={incident.band} />
+      <SeverityDot band={incident.band} size={32} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-2)" }}>
           <span
             style={{
-              font: "500 12.5px/1.3 var(--font-plex-sans)",
-              color: "var(--fg-3)",
+              font: "600 var(--text-sm)/1.3 var(--font-plex-sans)",
+              color: "var(--fg)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -57,24 +51,28 @@ export function RankedIncidentRow({ incident }: { incident: Incident }) {
           >
             {incident.place}
           </span>
+          <SeverityChip band={incident.band} />
         </div>
         <div
+          className="data"
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            font: "400 10px/1 var(--font-plex-mono)",
+            gap: "var(--space-2)",
+            font: "400 var(--text-2xs)/1 var(--font-plex-mono)",
             color: "var(--muted)",
           }}
         >
           <span>{incident.id}</span>
-          <span>·</span>
+          <span aria-hidden>·</span>
           <span>{relativeTime(incident.capturedAtIso, tick)}</span>
-          <span>·</span>
-          <span style={{ color: incident.confidence ? confidenceColor(incident.confidence) : undefined }}>
-            conf {incident.confidence?.toFixed(2) ?? "—"}
+          <span aria-hidden>·</span>
+          <span style={{ color: incident.confidence ? confidenceColor(incident.confidence) : undefined, fontWeight: 600 }}>
+            conf {incident.confidence?.toFixed(2) ?? "–"}
           </span>
-          <SourceChip source={incident.source} />
+          <span style={{ marginLeft: "auto" }}>
+            <SourceChip source={incident.source} />
+          </span>
         </div>
       </div>
     </button>

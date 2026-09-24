@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { reviewQueue } from "@/lib/store/selectors";
 import { ReviewQueueRail } from "@/components/review/ReviewQueueRail";
@@ -26,22 +27,34 @@ export default function ManualReviewPage() {
       {selected ? (
         <ReviewPane incident={selected} />
       ) : (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ maxWidth: 520, padding: "60px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-6)" }}>
+          <div className="card" style={{ maxWidth: 480, padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
             <span
+              aria-hidden
               style={{
-                font: "600 16px/1.3 var(--font-plex-sans)",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--fg)",
+                width: 40,
+                height: 40,
+                borderRadius: "var(--radius-md)",
+                background: "var(--ok-soft)",
+                color: "var(--ok-fg)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                font: "700 18px/1 var(--font-plex-sans)",
               }}
             >
-              Nothing awaiting review
+              ✓
             </span>
-            <p style={{ font: "400 13.5px/1.6 var(--font-plex-sans)", color: "var(--muted)" }}>
+            <h1 style={{ font: "700 var(--text-lg)/1.25 var(--font-plex-sans)", letterSpacing: "var(--tracking-tight)", color: "var(--fg)" }}>
+              Nothing awaiting review
+            </h1>
+            <p style={{ font: "400 var(--text-sm)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-4)" }}>
               Every current detection cleared the {CONFIDENCE_THRESHOLD} confidence threshold. Anything at or below it
-              routes here instead of being forced into a severity level.
+              comes here instead of being forced into a severity level.
             </p>
+            <Link href="/dispatch" className="btn btn--secondary btn--sm" style={{ alignSelf: "flex-start", marginTop: 4 }}>
+              Go to dispatch order
+            </Link>
           </div>
         </div>
       )}

@@ -13,10 +13,12 @@ import { useTrackLastTabPath } from "@/lib/hooks/useTrackLastTabPath";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const init = useIncidentStore((s) => s.init);
   const initialized = useIncidentStore((s) => s.initialized);
+  const syncThemeFromDocument = useIncidentStore((s) => s.syncThemeFromDocument);
 
   useEffect(() => {
+    syncThemeFromDocument();
     init();
-  }, [init]);
+  }, [init, syncThemeFromDocument]);
 
   useClock();
   useKeyboardShortcuts();
@@ -51,10 +53,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               alignItems: "center",
               justifyContent: "center",
               height: "100%",
-              font: "500 12px/1 var(--font-plex-mono)",
+              font: "500 var(--text-sm)/1 var(--font-plex-sans)",
               color: "var(--muted)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
             }}
           >
             Loading incident data…

@@ -1,38 +1,36 @@
 import { SEVERITY } from "@/lib/constants/severity";
 import type { SeverityBand } from "@/lib/types";
 
-export function SeverityChip({ band }: { band: SeverityBand | 0 }) {
+/** Severity as a word, so the band never relies on colour alone. `short` uses the four-letter
+ * code where a row has no room for the full label. */
+export function SeverityChip({ band, short = false }: { band: SeverityBand | 0; short?: boolean }) {
   if (band === 0) {
     return (
       <span
+        className="chip"
         style={{
-          font: "700 9px/1 var(--font-plex-mono)",
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--accent)",
-          background: "var(--halo)",
-          border: "1px dashed var(--accent)",
-          padding: "4px 7px",
+          color: "var(--accent-fg)",
+          background: "var(--accent-soft)",
+          borderColor: "var(--accent-border)",
+          borderStyle: "dashed",
         }}
       >
-        ?
+        Unscored
       </span>
     );
   }
   const meta = SEVERITY[band];
   return (
     <span
+      className="chip"
+      title={short ? meta.label : undefined}
       style={{
-        font: "700 9px/1 var(--font-plex-mono)",
-        letterSpacing: "0.14em",
-        textTransform: "uppercase",
         color: meta.ringVar,
-        background: "var(--halo)",
-        border: `1px solid ${meta.ringVar}`,
-        padding: "4px 7px",
+        background: `var(--sev${band}-tint)`,
+        borderColor: `color-mix(in srgb, ${meta.ringVar} 28%, transparent)`,
       }}
     >
-      {meta.abbr}
+      {short ? meta.abbr : meta.label}
     </span>
   );
 }

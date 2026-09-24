@@ -40,53 +40,41 @@ export function ReviewPane({ incident }: { incident: Incident }) {
 
   return (
     <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
-      <HatchBanner style={{ padding: "18px 22px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+      <HatchBanner style={{ padding: "var(--space-6) var(--space-6) var(--space-5)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-5)", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-5)", flexWrap: "wrap" }}>
             <span
               aria-hidden
               style={{
-                width: 40,
-                height: 40,
+                width: 48,
+                height: 48,
                 flex: "none",
                 borderRadius: "50%",
                 border: "2px dashed var(--accent)",
-                background: "var(--acc-10)",
+                background: "var(--panel)",
+                boxShadow: "var(--shadow-card)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                font: "700 18px/1 var(--font-plex-mono)",
+                font: "700 20px/1 var(--font-plex-sans)",
                 color: "var(--accent)",
               }}
             >
               ?
             </span>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span
-                style={{
-                  font: "600 22px/1.2 var(--font-plex-sans)",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--accent)",
-                }}
-              >
-                {headline}
-              </span>
-              <span style={{ font: "400 11px/1.4 var(--font-plex-mono)", color: "var(--accent-fg)" }}>
+              <h1 className="page-title">{headline}</h1>
+              <p className="caption">
                 {incident.reviewReason === "below_threshold"
-                  ? "provisional AI tag not applied · awaiting reviewer decision"
-                  : "routed by a coordinator · awaiting reviewer decision"}
-              </span>
+                  ? "The provisional AI tag is not applied. Awaiting your decision."
+                  : "Routed by a coordinator. Awaiting your decision."}
+              </p>
             </div>
             {incident.confidence != null ? (
-              <ConfidenceMeter
-                confidence={incident.confidence}
-                size="lg"
-                note={`at or below ${CONFIDENCE_THRESHOLD} threshold`}
-              />
+              <ConfidenceMeter confidence={incident.confidence} size="lg" note={`At or below the ${CONFIDENCE_THRESHOLD} threshold`} />
             ) : null}
           </div>
-          <span style={{ font: "600 13px/1 var(--font-plex-mono)", letterSpacing: "0.08em", color: "var(--fg-2)" }}>
+          <span className="data" style={{ font: "600 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
             {incident.id}
           </span>
         </div>
@@ -94,128 +82,76 @@ export function ReviewPane({ incident }: { incident: Incident }) {
 
       <div
         style={{
-          padding: 22,
+          padding: "var(--space-5) var(--space-6) var(--space-7)",
           display: "grid",
-          gridTemplateColumns: "minmax(300px, 400px) 1fr",
-          gap: 24,
+          gridTemplateColumns: "minmax(280px, 380px) minmax(0, 1fr)",
+          gap: "var(--space-5)",
           alignItems: "start",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div
-            style={{
-              height: 236,
-              width: "100%",
-              border: "var(--border-w) dashed var(--border-4)",
-              background: "repeating-linear-gradient(135deg, var(--surface-2) 0 8px, var(--surface) 8px 16px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span style={{ font: "400 10px/1 var(--font-plex-mono)", color: "var(--muted)" }}>{incident.file}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+          <div className="image-slot" style={{ height: 240 }}>
+            {incident.file}
           </div>
-          <span style={{ font: "400 10px/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-            unmodified · as received from field
+          <span className="caption" style={{ fontSize: 12 }}>
+            Unmodified, as received from the field.
           </span>
 
           <MetaList
             rows={[
-              { label: "Geotag", value: `${incident.coords.lat.toFixed(4)}, ${incident.coords.lng.toFixed(4)}` },
+              { label: "Geotag", value: `${incident.coords.lat.toFixed(4)}, ${incident.coords.lng.toFixed(4)}`, mono: true },
               { label: "Place", value: incident.place },
-              { label: "Captured", value: `${formatClock(incident.capturedAtIso)} · ${relativeTime(incident.capturedAtIso, tick)}` },
+              { label: "Captured", value: `${formatClock(incident.capturedAtIso)}, ${relativeTime(incident.capturedAtIso, tick)}` },
               { label: "Distance", value: `${incident.distanceKm.toFixed(1)} km from staging` },
-              { label: "Status", value: "flagged · held out of ranking" },
-              { label: "Class label", value: "Uncertain · not confirmed" },
-              { label: "Priority", value: "not ranked until reviewed" },
-              { label: "Group ID", value: incident.groupId ?? "none" },
+              { label: "Status", value: "Flagged, held out of ranking" },
+              { label: "Class label", value: "Uncertain, not confirmed" },
+              { label: "Priority", value: "Not ranked until reviewed" },
+              { label: "Group", value: incident.groupId ?? "None", mono: !!incident.groupId },
             ]}
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div
-            style={{
-              border: "var(--border-w) dashed var(--accent-border)",
-              background: "var(--surface)",
-              padding: "16px 18px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            <SectionHeading accent note="shown for review · not applied to the map or the dispatch order">
-              AI provisional tag
-            </SectionHeading>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+          <section className="card card--pending" style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <SectionHeading note="Shown for review. Not applied to the map or the dispatch order.">AI provisional tag</SectionHeading>
             {provisionalBand ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
                 <span
+                  aria-hidden
                   style={{
-                    width: 47,
-                    height: 47,
+                    width: 44,
+                    height: 44,
                     borderRadius: "50%",
                     background: SEVERITY[provisionalBand].fillVar,
                     border: `2px dashed ${SEVERITY[provisionalBand].ringVar}`,
                     opacity: 0.75,
+                    flex: "none",
                   }}
                 />
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ font: "600 17px/1.2 var(--font-plex-sans)", textTransform: "uppercase", color: "var(--fg)" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ font: "700 var(--text-lg)/1.2 var(--font-plex-sans)", letterSpacing: "var(--tracking-tight)", color: "var(--fg)" }}>
                     {SEVERITY[provisionalBand].label}
                   </span>
-                  <span style={{ font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-                    provisional · level {provisionalBand} of 4
-                  </span>
+                  <span className="caption">Provisional, level {provisionalBand} of 4</span>
                 </div>
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    font: "700 17px/1 var(--font-plex-mono)",
-                    color: "var(--accent)",
-                    borderLeft: "1px solid var(--border-3)",
-                    paddingLeft: 14,
-                  }}
-                >
-                  {incident.confidence?.toFixed(2)}
-                </span>
               </div>
             ) : (
-              <span style={{ font: "400 12px/1.4 var(--font-plex-sans)", color: "var(--muted)" }}>
-                No element scores were produced for this image.
-              </span>
+              <p className="caption">No element scores were produced for this image.</p>
             )}
             <ElementScoreRows elements={incident.elements} sum={incident.sum} />
-          </div>
+          </section>
 
-          <div
-            style={{
-              border: "var(--border-w) dashed var(--accent-border)",
-              background: "var(--surface)",
-              padding: "16px 18px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}
-          >
-            <SectionHeading accent>Reason for flagging</SectionHeading>
-            <p style={{ font: "400 13.5px/1.55 var(--font-plex-sans)", color: "var(--fg-3)" }}>
+          <section className="card card--pending" style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+            <SectionHeading>Reason for flagging</SectionHeading>
+            <p style={{ font: "400 var(--text-sm)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-2)", maxWidth: "72ch" }}>
               {incident.explanation ??
-                `Confidence ${incident.confidence?.toFixed(2)} is at or below the fixed ${CONFIDENCE_THRESHOLD} threshold — this image was held out of the ranking rather than force-classified.`}
+                `Confidence ${incident.confidence?.toFixed(2)} is at or below the fixed ${CONFIDENCE_THRESHOLD} threshold, so this image was held out of the ranking rather than force-classified.`}
             </p>
-          </div>
+          </section>
 
-          <div
-            style={{
-              border: "var(--border-w) solid var(--border-3)",
-              background: "var(--map-bg)",
-              padding: "16px 18px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
-            <SectionHeading note="one action applies immediately · logged with your id and the time">
-              Reviewer decision
+          <section className="card" style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+            <SectionHeading as="h2" note="Each action applies immediately and is logged with your ID and the time.">
+              Your decision
             </SectionHeading>
 
             <DecisionBlock
@@ -223,46 +159,26 @@ export function ReviewPane({ incident }: { incident: Incident }) {
               description="Applies the provisional level as final and promotes this image to an active incident."
             >
               <Button
-                variant="solid"
+                variant="primary"
                 disabled={!provisionalBand || busy !== null}
                 onClick={() => run("confirm", () => confirmReview(incident.id))}
               >
-                {provisionalBand ? `Confirm ${SEVERITY[provisionalBand].label} · level ${provisionalBand}` : "Confirm"}
+                {provisionalBand ? `Confirm ${SEVERITY[provisionalBand].label}, level ${provisionalBand}` : "Confirm"}
               </Button>
             </DecisionBlock>
 
-            <DecisionBlock
-              label="Change the severity and promote"
-              description="Recorded as a coordinator decision, not an AI classification."
-            >
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <DecisionBlock label="Change the severity and promote" description="Recorded as a coordinator decision, not an AI classification.">
+              <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
                 {SEVERITY_ORDER.map((band: SeverityBand) => (
                   <div key={band} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <button
                       type="button"
+                      className="sev-option"
                       disabled={busy !== null}
                       onClick={() => run("change", () => changeReview(incident.id, band))}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 7,
-                        background: "var(--panel)",
-                        border: "var(--border-w) solid var(--border-2)",
-                        padding: "7px 10px",
-                      }}
                     >
-                      <span
-                        style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: "50%",
-                          background: SEVERITY[band].fillVar,
-                          border: `2px solid ${SEVERITY[band].ringVar}`,
-                        }}
-                      />
-                      <span style={{ font: "600 11px/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
-                        {SEVERITY[band].label}
-                      </span>
+                      <span className="sev-option__dot" style={{ background: SEVERITY[band].fillVar, borderColor: SEVERITY[band].ringVar }} />
+                      {SEVERITY[band].label}
                     </button>
                     <RubricExplainer band={band} />
                   </div>
@@ -271,22 +187,18 @@ export function ReviewPane({ incident }: { incident: Incident }) {
             </DecisionBlock>
 
             <DecisionBlock
-              label="Discard · not a fire"
+              label="Discard as not a fire"
               description="Removes it from the map and the dispatch order. The image stays retrievable in the Archive."
             >
-              <Button
-                variant="outline"
-                disabled={busy !== null}
-                onClick={() => run("discard", () => discardReview(incident.id))}
-              >
-                Discard · not a fire
+              <Button variant="secondary" disabled={busy !== null} onClick={() => run("discard", () => discardReview(incident.id))}>
+                Discard as not a fire
               </Button>
             </DecisionBlock>
-          </div>
+          </section>
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <Button variant="outline">Request second image</Button>
-            <Button variant="outline" onClick={() => router.push("/")}>
+          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            <Button variant="secondary">Request second image</Button>
+            <Button variant="secondary" onClick={() => router.push("/")}>
               Locate on map
             </Button>
           </div>
@@ -306,20 +218,21 @@ function DecisionBlock({
   children: ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <span style={{ font: "600 11px/1 var(--font-plex-mono)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--fg)" }}>
-        {label}
-      </span>
-      <span style={{ font: "400 12.5px/1.4 var(--font-plex-sans)", color: "var(--muted)" }}>{description}</span>
-      <div
-        style={{
-          border: "var(--border-w) solid var(--border-4)",
-          background: "var(--panel)",
-          padding: "13px 14px",
-        }}
-      >
-        {children}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(200px, 280px) 1fr",
+        gap: "var(--space-4)",
+        alignItems: "center",
+        paddingTop: "var(--space-4)",
+        borderTop: "1px solid var(--border)",
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <h3 style={{ font: "600 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--fg)" }}>{label}</h3>
+        <p className="caption">{description}</p>
       </div>
+      <div>{children}</div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type CSSProperties } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { useMock } from "@/lib/data-source";
@@ -28,6 +28,7 @@ export default function SubmitImagePage() {
   const [status, setStatus] = useState<"idle" | "processing" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
   const [lastRef, setLastRef] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
 
   const steps: { label: string; done: boolean; running?: boolean }[] = [
@@ -71,298 +72,398 @@ export default function SubmitImagePage() {
 
   function fillDeviceLocation() {
     if (!navigator.geolocation) {
-      setError("This browser can't share its location — enter coordinates manually.");
+      setError("This browser can't share its location. Enter the coordinates manually.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) =>
         setForm((f) => ({ ...f, lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) })),
-      () => setError("Couldn't get the device location — enter coordinates manually.")
+      () => setError("Couldn't get the device location. Enter the coordinates manually.")
     );
   }
 
   return (
     <div
       style={{
-        height: "100%",
-        maxWidth: 1320,
+        maxWidth: 1200,
         margin: "0 auto",
-        padding: "18px 24px",
+        padding: "var(--space-6) var(--space-5) var(--space-7)",
         display: "flex",
         flexDirection: "column",
-        gap: 14,
+        gap: "var(--space-5)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", flex: "none" }}>
-        <h1 style={{ font: "600 20px/1.2 var(--font-plex-sans)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--fg)" }}>
-          Submit Field Image
-        </h1>
-        <p style={{ font: "400 13px/1.4 var(--font-plex-sans)", color: "var(--muted)" }}>
-          Every image runs the fire / not-fire check first, then severity scoring. Geotag and
-          capture time are required — left blank, they&apos;re read from the image&apos;s EXIF.
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+        <h1 className="page-title">Submit a field image</h1>
+        <p className="page-lede">
+          Every image runs the fire or not-a-fire check first, then severity scoring. Geotag and
+          capture time are required. Leave them blank to read them from the image&apos;s EXIF data.
         </p>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", border: "var(--border-w) solid var(--border)", background: "var(--panel)" }}>
+      <form
+        className="card"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+        style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
+      >
         {error ? (
-          <div style={{ display: "flex", gap: 13, alignItems: "flex-start", padding: "13px 18px", background: "var(--err-bg)", borderBottom: "var(--border-w) solid var(--err-border)", flex: "none" }}>
-            <div style={{ flex: "none", width: 20, height: 20, background: "var(--hard-stop)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: "700 12px/1 var(--font-plex-mono)" }}>
+          <div
+            role="alert"
+            style={{
+              display: "flex",
+              gap: "var(--space-3)",
+              alignItems: "flex-start",
+              margin: "var(--space-5) var(--space-5) 0",
+              padding: "var(--space-3) var(--space-4)",
+              background: "var(--err-bg)",
+              border: "1px solid var(--err-border)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                flex: "none",
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: "var(--hard-stop)",
+                color: "var(--on-primary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                font: "700 13px/1 var(--font-plex-sans)",
+              }}
+            >
               !
-            </div>
-            <div>
-              <div style={{ font: "600 11px/1.3 var(--font-plex-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--err-fg)" }}>
-                Submission rejected
-              </div>
-              <div style={{ font: "400 13px/1.4 var(--font-plex-sans)", color: "var(--err-fg-2)" }}>{error}</div>
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ font: "600 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--err-fg)" }}>Submission rejected</span>
+              <span style={{ font: "400 var(--text-sm)/1.45 var(--font-plex-sans)", color: "var(--err-fg-2)" }}>{error}</span>
             </div>
           </div>
         ) : null}
 
-        <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(240px, 300px) minmax(0, 1fr)" }}>
           <div
             style={{
-              width: 290,
-              flex: "none",
-              borderRight: "var(--border-w) solid var(--border)",
-              padding: 18,
+              borderRight: "1px solid var(--border)",
+              padding: "var(--space-5)",
               display: "flex",
               flexDirection: "column",
-              gap: 16,
-              overflow: "auto",
+              gap: "var(--space-5)",
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.16em", color: "var(--muted)" }}>
-                Submission flow
-              </span>
-              {steps.map((step, i) => (
-                <div
-                  key={step.label}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    padding: "9px 11px",
-                    background: step.done || step.running ? "rgb(95 217 140 / 16%)" : "var(--surface)",
-                    border: `2px solid ${step.done || step.running ? "var(--ok-fg)" : "var(--border-4)"}`,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <span
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <h2 className="label">Progress</h2>
+              <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                {steps.map((step, i) => {
+                  const lit = step.done || step.running;
+                  return (
+                    <li
+                      key={step.label}
                       style={{
-                        width: 20,
-                        height: 20,
-                        flex: "none",
-                        borderRadius: "50%",
-                        border: `2px solid ${step.done || step.running ? "var(--ok-fg)" : "var(--border-2)"}`,
-                        color: step.done || step.running ? "var(--ok-fg)" : "var(--muted)",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        font: "700 10px/1 var(--font-plex-mono)",
+                        gap: "var(--space-3)",
+                        padding: "10px var(--space-3)",
+                        borderRadius: "var(--radius-md)",
+                        background: lit ? "var(--ok-soft)" : "var(--surface)",
+                        border: `1px solid ${lit ? "var(--ok-border)" : "var(--border)"}`,
+                        transition: "background-color var(--dur) var(--ease), border-color var(--dur) var(--ease)",
                       }}
                     >
-                      {i + 1}
-                    </span>
-                    <span style={{ font: "500 12.5px/1.3 var(--font-plex-sans)", color: "var(--fg-3)" }}>
-                      {step.label}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      flex: "none",
-                      font: "600 9px/1 var(--font-plex-mono)",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: step.running ? "var(--conf-mid)" : step.done ? "var(--ok-fg)" : "var(--muted)",
-                    }}
-                  >
-                    {step.running ? "Running" : step.done ? "Done" : "Waiting"}
-                  </span>
-                </div>
-              ))}
+                      <span
+                        className="data"
+                        aria-hidden
+                        style={{
+                          width: 24,
+                          height: 24,
+                          flex: "none",
+                          borderRadius: "50%",
+                          background: step.done ? "var(--ok-fg)" : "var(--panel)",
+                          border: `1px solid ${lit ? "var(--ok-fg)" : "var(--border-2)"}`,
+                          color: step.done ? "var(--panel)" : lit ? "var(--ok-fg)" : "var(--muted)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          font: "600 var(--text-2xs)/1 var(--font-plex-mono)",
+                        }}
+                      >
+                        {step.done ? "✓" : i + 1}
+                      </span>
+                      <span style={{ font: "500 var(--text-sm)/1.3 var(--font-plex-sans)", color: "var(--fg-2)", flex: 1 }}>
+                        {step.label}
+                      </span>
+                      <span className="caption" style={{ fontSize: 12, color: step.running ? "var(--conf-mid)" : step.done ? "var(--ok-fg)" : undefined }}>
+                        {step.running ? "Running" : step.done ? "Done" : "Waiting"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.16em", color: "var(--muted)" }}>
+            <fieldset style={{ border: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <legend className="label" style={{ padding: 0, marginBottom: "var(--space-2)" }}>
                 Input source
-              </span>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {SOURCES.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, source: s }))}
-                    style={{
-                      height: 56,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      textAlign: "center",
-                      gap: 4,
-                      padding: "10px 6px",
-                      background: form.source === s ? "var(--acc-10)" : "var(--surface-2)",
-                      border: form.source === s ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-3)",
-                    }}
-                  >
-                    <span style={{ font: "700 10px/1 var(--font-plex-mono)", letterSpacing: "0.1em", color: form.source === s ? "var(--accent)" : "var(--fg-4)" }}>
-                      {SOURCE_META[s].abbr}
-                    </span>
-                    <span style={{ font: "400 10px/1.3 var(--font-plex-sans)", color: "var(--fg-3)", whiteSpace: "nowrap" }}>
-                      {SOURCE_META[s].label}
-                    </span>
-                  </button>
-                ))}
+              </legend>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+                {SOURCES.map((src) => {
+                  const on = form.source === src;
+                  return (
+                    <button
+                      key={src}
+                      type="button"
+                      aria-pressed={on}
+                      className="sev-option"
+                      onClick={() => setForm((f) => ({ ...f, source: src }))}
+                      style={{
+                        height: "auto",
+                        minHeight: 60,
+                        padding: "var(--space-2) var(--space-3)",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        justifyContent: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <span style={{ font: "600 var(--text-xs)/1 var(--font-plex-sans)" }}>{SOURCE_META[src].abbr}</span>
+                      <span style={{ font: "400 12px/1.3 var(--font-plex-sans)", color: "var(--muted)", textAlign: "left" }}>
+                        {SOURCE_META[src].label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            </fieldset>
           </div>
 
-          <div style={{ flex: 1, minWidth: 0, padding: 18, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
-            <Field label="Image" required>
+          <div style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <Field label="Image" required htmlFor="submit-file">
               <label
-                onDragOver={(e) => e.preventDefault()}
+                htmlFor="submit-file"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
                 onDrop={(e) => {
                   e.preventDefault();
+                  setDragging(false);
                   const file = e.dataTransfer.files[0];
                   if (file) setForm((f) => ({ ...f, file }));
                 }}
                 style={{
-                  border: "var(--border-w) dashed var(--border-4)",
-                  background: "var(--surface)",
-                  padding: 20,
+                  position: "relative",
+                  border: `1.5px dashed ${dragging || form.file ? "var(--accent)" : "var(--border-2)"}`,
+                  borderRadius: "var(--radius-lg)",
+                  background: dragging ? "var(--accent-soft)" : form.file ? "var(--grad-pending)" : "var(--surface)",
+                  padding: "var(--space-5)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 8,
+                  gap: "var(--space-2)",
                   width: "100%",
-                  height: 130,
+                  minHeight: 148,
                   cursor: "pointer",
+                  transition: "background-color var(--dur) var(--ease), border-color var(--dur) var(--ease)",
                 }}
               >
                 <input
+                  id="submit-file"
                   type="file"
                   accept="image/jpeg,image/png"
+                  aria-required="true"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) setForm((f) => ({ ...f, file }));
                   }}
                   style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                 />
-                <div style={{ width: 30, height: 24, border: "1px solid var(--border-7)" }} />
-                <span style={{ font: "600 13.5px/1 var(--font-plex-sans)", color: "var(--fg-2)" }}>
-                  {form.file?.name || "Choose an image or drag it here"}
+                <span
+                  aria-hidden
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--accent-soft)",
+                    color: "var(--accent)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
                 </span>
-                <span style={{ font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>JPEG or PNG · max 15 MB</span>
+                <span style={{ font: "600 var(--text-sm)/1.3 var(--font-plex-sans)", color: "var(--fg)" }}>
+                  {form.file?.name || (
+                    <>
+                      <span style={{ color: "var(--accent)" }}>Choose an image</span> or drag it here
+                    </>
+                  )}
+                </span>
+                <span className="caption" style={{ fontSize: 12 }}>
+                  JPEG or PNG, up to 15 MB
+                </span>
               </label>
             </Field>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="Latitude">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
+              <Field label="Latitude" htmlFor="submit-lat">
                 <input
+                  id="submit-lat"
+                  className="input"
+                  inputMode="decimal"
+                  autoComplete="off"
                   value={form.lat}
                   onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value }))}
                   placeholder="-37.6214"
-                  style={inputStyle}
                 />
               </Field>
-              <Field label="Longitude">
+              <Field label="Longitude" htmlFor="submit-lng">
                 <input
+                  id="submit-lng"
+                  className="input"
+                  inputMode="decimal"
+                  autoComplete="off"
                   value={form.lng}
                   onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value }))}
                   placeholder="145.3087"
-                  style={inputStyle}
                 />
               </Field>
             </div>
-            <button
-              type="button"
-              onClick={fillDeviceLocation}
-              style={{ alignSelf: "flex-start", marginTop: -6, font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent)" }}
-            >
+            <button type="button" className="btn btn--link" onClick={fillDeviceLocation} style={{ alignSelf: "flex-start", marginTop: -8, fontSize: "var(--text-xs)" }}>
               Use device location
             </button>
 
-            <Field label="Capture time">
+            <Field label="Capture time" htmlFor="submit-ts">
               <input
+                id="submit-ts"
+                className="input"
+                autoComplete="off"
                 value={form.ts}
                 onChange={(e) => setForm((f) => ({ ...f, ts: e.target.value }))}
                 placeholder="2026-09-22 14:02"
-                style={inputStyle}
               />
             </Field>
             <button
               type="button"
+              className="btn btn--link"
               onClick={() => setForm((f) => ({ ...f, ts: new Date().toISOString() }))}
-              style={{ alignSelf: "flex-start", marginTop: -6, font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent)" }}
+              style={{ alignSelf: "flex-start", marginTop: -8, fontSize: "var(--text-xs)" }}
             >
               Use current time
             </button>
 
-            <Field label="Notes (optional)" grow>
+            <Field label="Notes" hint="Optional" htmlFor="submit-notes">
               <textarea
+                id="submit-notes"
+                className="input"
+                rows={4}
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder="Observed conditions, access, hazards"
-                style={{ ...inputStyle, flex: 1, minHeight: 90, padding: "9px 11px", resize: "none", font: "400 13.5px/1.5 var(--font-plex-sans)" }}
               />
             </Field>
           </div>
         </div>
 
-        <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderTop: "var(--border-w) solid var(--border)", background: "var(--surface)" }}>
-          <Button variant="solid" onClick={() => handleSubmit()} disabled={status === "processing"}>
-            {status === "processing" ? "Processing…" : "Submit for assessment"}
+        {status === "processing" || status === "done" ? (
+          <div
+            role="status"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-3)",
+              margin: "0 var(--space-5) var(--space-4)",
+              padding: "var(--space-3) var(--space-4)",
+              background: "var(--ok-soft)",
+              border: "1px solid var(--ok-border)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                flex: "none",
+                border: "2px solid var(--ok-fg)",
+                borderTopColor: status === "done" ? "var(--ok-fg)" : "transparent",
+                background: status === "done" ? "var(--ok-fg)" : "transparent",
+                animation: status === "processing" ? "spin 0.8s linear infinite" : undefined,
+              }}
+            />
+            <span style={{ font: "600 var(--text-sm)/1.4 var(--font-plex-sans)", color: "var(--ok-fg)" }}>
+              {status === "done" ? "Submission confirmed" : "Assessing fire behaviour and exposure…"}
+              {lastRef ? <span className="data" style={{ fontFamily: "var(--font-plex-mono)", fontWeight: 500 }}> · ref {lastRef}</span> : null}
+            </span>
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-4)",
+            padding: "var(--space-4) var(--space-5)",
+            borderTop: "1px solid var(--border)",
+            background: "var(--surface)",
+          }}
+        >
+          <Button type="submit" variant="primary" disabled={status === "processing"}>
+            {status === "processing" ? "Submitting…" : "Submit for assessment"}
           </Button>
           <button
             type="button"
+            className="btn btn--quiet"
             onClick={() => {
               setForm(EMPTY);
               setError(null);
               setStatus("idle");
             }}
-            style={{ font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)" }}
           >
-            Clear
+            Clear form
           </button>
-          <span style={{ marginLeft: "auto", font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-            {status === "done" && lastRef ? `confirmed · ref ${lastRef}` : "image required"}
+          <span className="caption" style={{ marginLeft: "auto" }}>
+            {status === "done" && lastRef ? "Opening the incident…" : form.file ? "Ready to submit" : "An image is required"}
           </span>
         </div>
-
-        {status === "processing" || status === "done" ? (
-          <div style={{ flex: "none", padding: "0 18px 14px", display: "flex", flexDirection: "column", gap: 11, background: "var(--surface)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgb(95 217 140 / 16%)", border: "var(--border-w) solid var(--ok-fg)", padding: "9px 12px" }}>
-              <div style={{ width: 16, height: 16, background: "var(--conf-high)", color: "#04190C", display: "flex", alignItems: "center", justifyContent: "center", font: "700 10px/1 var(--font-plex-mono)", flex: "none" }}>
-                ✓
-              </div>
-              <span style={{ font: "600 11px/1.4 var(--font-plex-mono)", color: "var(--ok-fg)", letterSpacing: "0.06em" }}>
-                {status === "done" ? "Submission confirmed" : "Assessing fire behaviour and exposure…"}
-                {lastRef ? ` · ref ${lastRef}` : ""}
-              </span>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      </form>
 
       {useMock ? (
-      <div style={{ flex: "none", display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <DemoButton label="Demo: missing geotag" onClick={() => {
-          setForm((f) => ({ ...f, lat: "", lng: "" }));
-          setError("Required — no geotag found in the image EXIF. Enter manually or use device location.");
-        }} />
-        <DemoButton label="Demo: valid submission" onClick={() => handleSubmit("valid")} />
-        <DemoButton label="Demo: low-confidence result" onClick={() => handleSubmit("low_confidence")} />
-        <DemoButton label="Demo: not-a-fire result" onClick={() => handleSubmit("not_fire")} />
-      </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
+          <span className="caption" style={{ marginRight: 4 }}>
+            Demo outcomes
+          </span>
+          <DemoButton
+            label="Missing geotag"
+            onClick={() => {
+              setForm((f) => ({ ...f, lat: "", lng: "" }));
+              setError("No geotag found in the image EXIF data. Enter the coordinates, or use the device location.");
+            }}
+          />
+          <DemoButton label="Valid submission" onClick={() => handleSubmit("valid")} />
+          <DemoButton label="Low-confidence result" onClick={() => handleSubmit("low_confidence")} />
+          <DemoButton label="Not-a-fire result" onClick={() => handleSubmit("not_fire")} />
+        </div>
       ) : null}
     </div>
   );
 }
 
-/** Returns an error message, or null when the form can be sent. Blank geotag/time is allowed —
+/** Returns an error message, or null when the form can be sent. Blank geotag/time is allowed:
  * the backend reads it from EXIF and rejects the submission if it's missing there too. */
 function validate(form: FormState, isDemo: boolean): string | null {
   if (!form.file && !isDemo) return "Attach an image to submit.";
@@ -374,27 +475,31 @@ function validate(form: FormState, isDemo: boolean): string | null {
     if (!Number.isFinite(lng) || lng < -180 || lng > 180) return "Longitude must be a number between -180 and 180.";
   }
   if (form.ts && Number.isNaN(new Date(form.ts).getTime())) {
-    return "Capture time isn't a valid date — use e.g. 2026-09-22 14:02.";
+    return "Capture time isn't a valid date. Use the format 2026-09-22 14:02.";
   }
   return null;
 }
 
 function Field({
   label,
+  hint,
   required,
-  grow,
+  htmlFor,
   children,
 }: {
   label: string;
+  hint?: string;
   required?: boolean;
-  grow?: boolean;
+  htmlFor: string;
   children: ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7, ...(grow ? { flex: 1, minHeight: 0 } : { flex: "none" }) }}>
-      <span style={{ font: "600 10px/1 var(--font-plex-mono)", letterSpacing: "0.16em", color: "var(--muted)", flex: "none" }}>
-        {label} {required ? <span style={{ color: "var(--err-fg)" }}>*</span> : null}
-      </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+      <label htmlFor={htmlFor} className="label" style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+        {label}
+        {required ? <span style={{ color: "var(--err-fg)", fontWeight: 500 }}>Required</span> : null}
+        {hint ? <span style={{ color: "var(--muted)", fontWeight: 400 }}>{hint}</span> : null}
+      </label>
       {children}
     </div>
   );
@@ -402,29 +507,8 @@ function Field({
 
 function DemoButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        font: "600 10px/1 var(--font-plex-mono)",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        color: "var(--muted)",
-        background: "var(--panel)",
-        border: "var(--border-w) dashed var(--border-2)",
-        padding: "10px 13px",
-      }}
-    >
+    <button type="button" className="btn btn--pending btn--sm" onClick={onClick}>
       {label}
     </button>
   );
 }
-
-const inputStyle: CSSProperties = {
-  height: 38,
-  border: "var(--border-w) solid var(--border-3)",
-  padding: "0 11px",
-  font: "400 14px/1 var(--font-plex-mono)",
-  color: "var(--fg)",
-  background: "var(--input-bg)",
-};

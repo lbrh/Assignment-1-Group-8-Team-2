@@ -7,10 +7,10 @@ import { HatchBanner } from "@/components/primitives/HatchBanner";
 import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
 const REASON_LABEL: Record<string, string> = {
-  below_threshold: `≤ ${CONFIDENCE_THRESHOLD}`,
-  sent_by_coordinator: "sent by coordinator",
-  restored_not_fire: "restored · was not a fire",
-  restored_discarded: "restored · was discarded",
+  below_threshold: `At or below ${CONFIDENCE_THRESHOLD}`,
+  sent_by_coordinator: "Sent by coordinator",
+  restored_not_fire: "Restored, was not a fire",
+  restored_discarded: "Restored, was discarded",
 };
 
 export function ReviewQueueRail() {
@@ -23,109 +23,79 @@ export function ReviewQueueRail() {
   const queue = reviewQueue(incidents, order);
 
   return (
-    <div
+    <aside
+      aria-label="Review queue"
       style={{
-        width: 308,
+        width: 320,
         flex: "none",
-        borderRight: "var(--border-w) dashed var(--accent-border)",
+        borderRight: "1px solid var(--border)",
+        background: "var(--panel)",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <HatchBanner style={{ padding: "14px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div
-            style={{
-              font: "600 11px/1 var(--font-plex-mono)",
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "var(--accent)",
-            }}
-          >
+      <HatchBanner style={{ padding: "var(--space-5)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
+          <h2 style={{ font: "700 var(--text-lg)/1.2 var(--font-plex-sans)", letterSpacing: "var(--tracking-tight)", color: "var(--fg)" }}>
             Review queue
-          </div>
+          </h2>
           <span
-            style={{
-              font: "700 11px/1 var(--font-plex-mono)",
-              color: "var(--accent)",
-              background: "var(--acc-12)",
-              border: "1px solid var(--accent-border)",
-              padding: "3px 7px",
-            }}
+            className="chip chip--pill data"
+            style={{ color: "var(--on-primary)", background: "var(--grad-primary)", fontFamily: "var(--font-plex-mono)" }}
           >
             {queue.length}
           </span>
         </div>
+        <p className="caption" style={{ marginTop: 4 }}>
+          Held out of the ranking until you decide.
+        </p>
       </HatchBanner>
 
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <ul style={{ flex: 1, overflow: "auto", listStyle: "none", margin: 0, padding: 0 }}>
         {queue.map((incident) => {
           const selected = incident.id === selectedId;
           return (
-            <button
-              key={incident.id}
-              type="button"
-              onClick={() => selectReview(incident.id)}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                padding: "14px 16px",
-                background: selected ? "var(--tint)" : "transparent",
-                borderLeft: selected ? "3px solid var(--accent)" : "3px solid transparent",
-                borderBottom: "1px solid var(--border-5)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      border: "2px dashed var(--accent)",
-                      background: "var(--acc-10)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      font: "700 11px/1 var(--font-plex-mono)",
-                      color: "var(--accent)",
-                    }}
-                  >
-                    ?
-                  </span>
-                  <span style={{ font: "600 11px/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
+            <li key={incident.id}>
+              <button
+                type="button"
+                className="row-btn"
+                aria-current={selected ? "true" : undefined}
+                onClick={() => selectReview(incident.id)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  padding: "var(--space-4) var(--space-5)",
+                  background: selected ? "var(--accent-soft)" : undefined,
+                  boxShadow: selected ? "inset 3px 0 0 var(--accent)" : "none",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
                     {incident.id}
                   </span>
+                  <span className="data" style={{ font: "700 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--accent)" }}>
+                    {incident.confidence?.toFixed(2)}
+                  </span>
                 </div>
-                <span style={{ font: "600 10px/1 var(--font-plex-mono)", color: "var(--accent)" }}>
-                  {incident.confidence?.toFixed(2)}
-                </span>
-              </div>
-              <span style={{ font: "500 12.5px/1.3 var(--font-plex-sans)", color: "var(--fg-3)" }}>
-                {incident.place}
-              </span>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-                  {relativeTime(incident.capturedAtIso, tick)}
-                </span>
-                <span
-                  style={{
-                    font: "600 9px/1 var(--font-plex-mono)",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--accent)",
-                  }}
-                >
-                  {REASON_LABEL[incident.reviewReason ?? "below_threshold"]}
-                </span>
-              </div>
-            </button>
+                <span style={{ font: "600 var(--text-sm)/1.3 var(--font-plex-sans)", color: "var(--fg)" }}>{incident.place}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span className="caption" style={{ fontSize: 12 }}>
+                    {relativeTime(incident.capturedAtIso, tick)}
+                  </span>
+                  <span
+                    className="chip"
+                    style={{ color: "var(--accent-fg)", background: "var(--accent-soft)", borderColor: "var(--accent-border)", borderStyle: "dashed", fontWeight: 500 }}
+                  >
+                    {REASON_LABEL[incident.reviewReason ?? "below_threshold"]}
+                  </span>
+                </div>
+              </button>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </aside>
   );
 }

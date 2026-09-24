@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import L from "leaflet";
 import { useIncidentStore, type ZoomTier } from "@/lib/store/useIncidentStore";
@@ -18,12 +18,12 @@ import type { Incident, SeverityBand } from "@/lib/types";
 /**
  * Leaflet is imperative and touches `window` on import, so this module is only ever loaded
  * client-side (see the `ssr: false` dynamic import in the Map page). Everything the map draws
- * is derived from the incident store on each change — Leaflet owns the viewport, the store owns
- * the data — and the store's coarse `zoom` tier / `mapView` are written back from Leaflet's
+ * is derived from the incident store on each change (Leaflet owns the viewport, the store owns
+ * the data), and the store's coarse `zoom` tier / `mapView` are written back from Leaflet's
  * events so the rest of the UI (legend header, tab-return) stays in step.
  */
 
-const ZOOM_LABEL = { 1: "REGIONAL · CLUSTERED", 2: "DISTRICT", 3: "SITE · ALL MARKERS" } as const;
+const ZOOM_LABEL = { 1: "Regional, clustered", 2: "District", 3: "Site, all markers" } as const;
 const CLUSTER_THRESHOLD_PX = { 1: 64, 2: 0, 3: 0 } as const; // screen px; 0 disables clustering
 const MIN_ZOOM = 8;
 const MAX_ZOOM = 19;
@@ -47,15 +47,15 @@ function incidentIcon(incident: Incident): L.DivIcon {
   const meta = SEVERITY[incident.band as SeverityBand];
   const d = meta.dotDiameter;
   return L.divIcon({
-    className: "embera-marker",
+    className: "fori-marker",
     iconSize: [d, d],
     iconAnchor: [d / 2, d / 2],
     html:
-      `<div class="embera-pin">` +
-      `<div class="embera-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
+      `<div class="fori-pin">` +
+      `<div class="fori-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
       `border:${meta.ringWidth}px solid ${meta.ringVar};font-size:${meta.numeralFont}px">` +
       `${incident.band}</div>` +
-      `<span class="embera-label">${escapeHtml(incident.id)}</span>` +
+      `<span class="fori-label">${escapeHtml(incident.id)}</span>` +
       `</div>`,
   });
 }
@@ -64,31 +64,31 @@ function clusterIcon(count: number, maxBand: SeverityBand): L.DivIcon {
   const size = 40 + count * 4;
   const ring = SEVERITY[maxBand].ringVar;
   return L.divIcon({
-    className: "embera-marker",
+    className: "fori-marker",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     html:
-      `<div class="embera-cluster" style="border-color:${ring}">` +
-      `<span class="embera-cluster-count" style="color:${ring}">${count}</span>` +
-      `<span class="embera-cluster-caption">SITES</span>` +
+      `<div class="fori-cluster" style="border-color:${ring}">` +
+      `<span class="fori-cluster-count" style="color:${ring}">${count}</span>` +
+      `<span class="fori-cluster-caption">sites</span>` +
       `</div>`,
   });
 }
 
 const extinguishedIcon = () =>
   L.divIcon({
-    className: "embera-marker embera-marker-out",
+    className: "fori-marker fori-marker-out",
     iconSize: [34, 34],
     iconAnchor: [17, 17],
-    html: `<div class="embera-out">OUT</div>`,
+    html: `<div class="fori-out">Out</div>`,
   });
 
 const stagingIcon = () =>
   L.divIcon({
-    className: "embera-marker embera-marker-staging",
+    className: "fori-marker fori-marker-staging",
     iconSize: [14, 14],
     iconAnchor: [7, 7],
-    html: `<div class="embera-staging"></div><span class="embera-staging-label">STAGING</span>`,
+    html: `<div class="fori-staging"></div><span class="fori-staging-label">Staging</span>`,
   });
 
 export function MapCanvas() {
@@ -163,7 +163,7 @@ export function MapCanvas() {
     syncZoom();
     syncView();
 
-    // The canvas is a flex child — keep Leaflet's cached size in step with the layout.
+    // The canvas is a flex child, so keep Leaflet's cached size in step with the layout.
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
     resizeObserver.observe(container);
 
@@ -269,7 +269,7 @@ export function MapCanvas() {
     layer.clearLayers();
     if (!group || group.state !== "suggested") return;
 
-    // only members already drawn on the map — a ring centred partly on a flagged image would
+    // only members already drawn on the map: a ring centred partly on a flagged image would
     // leak the location the "never drawn on the map" rule is keeping off it
     const onMap = new Set(mapMarkers(incidents, order).map((i) => i.id));
     const members = group.memberIds.filter((id) => onMap.has(id)).map((id) => incidents[id]);
@@ -282,12 +282,12 @@ export function MapCanvas() {
 
     L.circle([center.lat, center.lng], {
       radius: radiusM,
-      className: "embera-group-ring",
+      className: "fori-group-ring",
       bubblingMouseEvents: false,
     })
       .bindTooltip(`Grouping suggested · ${members.length} images · click to review`, {
         direction: "top",
-        className: "embera-tooltip",
+        className: "fori-tooltip",
       })
       .on("click", () => setAlertsPanelOpen(true))
       .addTo(layer);
@@ -316,55 +316,73 @@ export function MapCanvas() {
     >
       <div
         ref={containerRef}
-        className="embera-map"
+        className="fori-map"
         aria-label="Incident map. Arrow keys pan, plus and minus zoom."
         style={{ position: "absolute", inset: 0, zIndex: 0 }}
       />
 
       <div
+        className="card"
         style={{
           position: "absolute",
-          left: 12,
-          top: 12,
+          left: "var(--space-4)",
+          top: "var(--space-4)",
           zIndex: 1,
-          background: "var(--halo)",
-          border: "1px solid var(--border-3)",
-          padding: "7px 11px",
+          padding: "8px 12px",
           display: "flex",
           alignItems: "center",
           gap: 10,
-          font: "600 10px/1 var(--font-plex-mono)",
+          boxShadow: "var(--shadow-pop)",
+          borderRadius: "var(--radius-md)",
         }}
       >
-        <span style={{ letterSpacing: "0.16em", color: "var(--accent)" }}>SECTOR 7 · VIC</span>
-        <span style={{ borderLeft: "1px solid var(--border-6)", height: 12 }} />
-        <span style={{ letterSpacing: "0.1em", color: "var(--muted)", fontWeight: 500 }}>
-          {ZOOM_LABEL[zoom]}
-        </span>
+        <span style={{ font: "600 var(--text-xs)/1 var(--font-plex-sans)", color: "var(--fg)" }}>Sector 7, VIC</span>
+        <span aria-hidden style={{ borderLeft: "1px solid var(--border-2)", height: 14 }} />
+        <span className="caption">{ZOOM_LABEL[zoom]}</span>
       </div>
 
-      <div style={{ position: "absolute", right: 12, top: 12, zIndex: 1, display: "flex", gap: 6 }}>
+      <div
+        className="card"
+        style={{
+          position: "absolute",
+          right: "var(--space-4)",
+          top: "var(--space-4)",
+          zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          padding: 3,
+          borderRadius: "var(--radius-md)",
+          boxShadow: "var(--shadow-pop)",
+        }}
+      >
         <button
           type="button"
+          className="icon-btn icon-btn--bare"
           onClick={() => mapRef.current?.zoomOut()}
           disabled={atMin}
           aria-label="Zoom out"
-          style={{ ...zoomBtnStyle, opacity: atMin ? 0.4 : 1 }}
+          style={{ fontSize: 18 }}
         >
           −
         </button>
+        <span
+          className="data"
+          aria-label={`Zoom level ${leafletZoom ?? "unknown"}`}
+          style={{ minWidth: 34, textAlign: "center", font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}
+        >
+          Z{leafletZoom ?? "–"}
+        </span>
         <button
           type="button"
+          className="icon-btn icon-btn--bare"
           onClick={() => mapRef.current?.zoomIn()}
           disabled={atMax}
           aria-label="Zoom in"
-          style={{ ...zoomBtnStyle, opacity: atMax ? 0.4 : 1 }}
+          style={{ fontSize: 18 }}
         >
           +
         </button>
-        <div style={{ ...zoomBtnStyle, cursor: "default", color: "var(--muted)" }}>
-          Z{leafletZoom ?? "–"}
-        </div>
       </div>
 
       <SeverityLegend counts={counts} />
@@ -378,15 +396,3 @@ function applyHover(markerById: Map<string, L.Marker>, hoverId: string | null) {
     marker.getElement()?.classList.toggle("is-hover", marker === hovered);
   }
 }
-
-const zoomBtnStyle: CSSProperties = {
-  width: 30,
-  height: 30,
-  background: "var(--halo)",
-  border: "1px solid var(--border-2)",
-  color: "var(--fg-4)",
-  font: "500 15px/1 var(--font-plex-mono)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};

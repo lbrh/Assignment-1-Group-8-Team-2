@@ -1,42 +1,50 @@
 import type { Incident } from "@/lib/types";
 import { CONFIDENCE_THRESHOLD, SEVERITY, needsManualReview } from "@/lib/constants/severity";
 import { SeverityDot } from "@/components/primitives/SeverityDot";
-import { SeverityChip } from "@/components/primitives/SeverityChip";
 import { StatusFlagChip } from "@/components/primitives/StatusFlagChip";
 import { SourceChip } from "@/components/primitives/SourceChip";
 import { ConfidenceMeter } from "@/components/primitives/ConfidenceMeter";
 
 const PROVENANCE_TEXT: Record<Incident["provenance"], (i: Incident) => string> = {
-  ai_classified: (i) => `Automated assessment · scored ${i.sum ?? "—"} of 16 · severity ${i.band} of 4`,
-  ai_confirmed_by_coordinator: (i) => `AI provisional tag confirmed by coordinator · scored ${i.sum ?? "—"} of 16`,
-  coordinator_assigned: () => "Assigned manually by coordinator · not an AI classification",
-  coordinator_override: (i) => `Coordinator override · model assessed level ${i.band} of 4`,
-  none: () => "No severity applied · routed to manual review",
+  ai_classified: (i) => `Automated assessment. Scored ${i.sum ?? "–"} of 16, severity ${i.band} of 4.`,
+  ai_confirmed_by_coordinator: (i) => `AI provisional tag confirmed by a coordinator. Scored ${i.sum ?? "–"} of 16.`,
+  coordinator_assigned: () => "Assigned manually by a coordinator, not an AI classification.",
+  coordinator_override: (i) => `Coordinator override. The model assessed level ${i.band} of 4.`,
+  none: () => "No severity applied. Routed to manual review.",
 };
 
 export function SeverityHeader({ incident }: { incident: Incident }) {
   const band = incident.band;
+  const tint = band ? `var(--sev${band}-tint)` : "var(--accent-soft)";
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 20, padding: "20px 22px" }}>
-      <SeverityDot band={band} size={56} halo />
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 220 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            style={{
-              font: "600 24px/1.1 var(--font-plex-sans)",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--fg)",
-            }}
-          >
-            {band ? SEVERITY[band].label : "Flagged for manual review"}
-          </span>
-          <SeverityChip band={band} />
-        </div>
-        <span style={{ font: "400 11px/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
-          {band === 0 ? PROVENANCE_TEXT.none(incident) : PROVENANCE_TEXT[incident.provenance](incident)}
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "var(--space-5)",
+        padding: "var(--space-6)",
+        // a wash of the band's own colour, fading out, so severity reads before any text does
+        background: `linear-gradient(180deg, ${tint} 0%, transparent 100%)`,
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <SeverityDot band={band} size={64} halo />
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1, minWidth: 240 }}>
+        <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
+          {incident.id} · {incident.place}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+        <h1
+          style={{
+            font: "800 var(--text-2xl)/1.1 var(--font-plex-sans)",
+            letterSpacing: "var(--tracking-tight)",
+            color: band ? SEVERITY[band].ringVar : "var(--accent-fg)",
+          }}
+        >
+          {band ? SEVERITY[band].label : "Flagged for manual review"}
+        </h1>
+        <p className="caption">{band === 0 ? PROVENANCE_TEXT.none(incident) : PROVENANCE_TEXT[incident.provenance](incident)}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: 2 }}>
           <StatusFlagChip flag={incident.flag} dispatch={incident.dispatch} />
           <SourceChip source={incident.source} />
         </div>
@@ -48,22 +56,11 @@ export function SeverityHeader({ incident }: { incident: Incident }) {
           size="lg"
           note={
             needsManualReview(incident.confidence)
-              ? `at or below the ${CONFIDENCE_THRESHOLD} threshold · never auto-classified`
-              : `above the ${CONFIDENCE_THRESHOLD} threshold`
+              ? `At or below the ${CONFIDENCE_THRESHOLD} threshold, never auto-classified`
+              : `Above the ${CONFIDENCE_THRESHOLD} threshold`
           }
         />
       ) : null}
-
-      <span
-        style={{
-          font: "600 13px/1 var(--font-plex-mono)",
-          letterSpacing: "0.08em",
-          color: "var(--fg-2)",
-          alignSelf: "flex-start",
-        }}
-      >
-        {incident.id}
-      </span>
     </div>
   );
 }

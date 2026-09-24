@@ -17,31 +17,26 @@ export function DetailActionsBar({ incident }: { incident: Incident }) {
   const isExtinguished = incident.dispatch === "extinguished";
 
   return (
-    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
       {!isLive && !isExtinguished ? (
-        <Button variant="solid" onClick={() => dispatchCrew(incident.id)} disabled={incident.band === 0}>
+        <Button variant="primary" onClick={() => dispatchCrew(incident.id)} disabled={incident.band === 0}>
           Dispatch crew
         </Button>
       ) : null}
       {isLive ? (
         <>
-          <Button variant="outline" onClick={() => markExtinguished(incident.id)}>
+          <Button variant="primary" onClick={() => markExtinguished(incident.id)}>
             Mark extinguished
           </Button>
-          <Button variant="outline" onClick={() => cancelDispatch(incident.id)}>
+          <Button variant="secondary" onClick={() => cancelDispatch(incident.id)}>
             Cancel dispatch
           </Button>
         </>
       ) : null}
-      <Button
-        variant="outline"
-        onClick={() =>
-          isFlagged ? router.push("/review") : sendToManualReview(incident.id)
-        }
-      >
+      <Button variant="secondary" onClick={() => (isFlagged ? router.push("/review") : sendToManualReview(incident.id))}>
         {isFlagged ? "Open in manual review" : "Send to manual review"}
       </Button>
-      <Button variant="outline" onClick={() => router.push("/dispatch")}>
+      <Button variant="secondary" onClick={() => router.push("/dispatch")}>
         View in dispatch order
       </Button>
     </div>

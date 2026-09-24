@@ -3,6 +3,7 @@ import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 // Leaflet base styles first so the app's map overrides (styles/map.css) win the cascade.
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
+import { THEME_BOOT_SCRIPT } from "@/lib/constants/theme";
 
 const plexSans = IBM_Plex_Sans({
   variable: "--font-plex-sans",
@@ -17,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EMBERA — Emergency Monitoring for Bushfire Evaluation, Response and Awareness",
+  title: "Fori | Bushfire situational awareness",
   description:
     "AI-assisted bushfire severity classification and dispatch coordination.",
 };
@@ -29,6 +30,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${plexSans.variable} ${plexMono.variable} h-full`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="h-full">{children}</body>
     </html>
   );
