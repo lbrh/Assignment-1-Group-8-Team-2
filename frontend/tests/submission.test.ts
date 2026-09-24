@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY, validate, type FormState } from "../src/lib/submission";
+import { EMPTY, toLocalInput, validate, type FormState } from "../src/lib/submission";
 
 const now = new Date("2026-10-01T12:00:00+10:00");
+// The form holds local wall time (datetime-local), so build test times from `now` the same way the
+// form does; a hard-coded "2026-10-01T11:30" means a different instant on a UTC CI runner.
+const minutesFromNow = (minutes: number) => toLocalInput(new Date(now.getTime() + minutes * 60_000));
 const jpeg = new File([new Uint8Array(1024)], "fire.jpg", { type: "image/jpeg" });
 const form = (patch: Partial<FormState>): FormState => ({ ...EMPTY, file: jpeg, ...patch });
 
 describe("submit form validation", () => {
   it("accepts a complete, sensible submission", () => {
-    expect(validate(form({ lat: "-37.62", lng: "145.31", ts: "2026-10-01T11:30", notes: "Smoke over the ridge" }), false, now)).toEqual({});
+    expect(validate(form({ lat: "-37.62", lng: "145.31", ts: minutesFromNow(-30), notes: "Smoke over the ridge" }), false, now)).toEqual({});
   });
 
   it("accepts blank geotag and time (read from EXIF by the backend)", () => {
@@ -30,8 +33,8 @@ describe("submit form validation", () => {
   });
 
   it("rejects a capture time in the future or more than 30 days back", () => {
-    expect(validate(form({ ts: "2026-10-01T13:00" }), false, now).ts).toMatch(/future/);
-    expect(validate(form({ ts: "2025-10-01T12:00" }), false, now).ts).toMatch(/30 days/);
+    expect(validate(form({ ts: minutesFromNow(60) }), false, now).ts).toMatch(/future/);
+    expect(validate(form({ ts: minutesFromNow(-31 * 24 * 60) }), false, now).ts).toMatch(/30 days/);
   });
 
   it("limits notes to 1000 characters", () => {
