@@ -12,24 +12,29 @@ Client: IBM · Team 8 — AI for Emergency & Environmental Response, Team B
 Web form ─┐
 Drone/CCTV/─┼─► POST /ingest ─► Cloud Object Storage (image)
 Satellite  ┘         │          Postgres (metadata record)
-                      ▼
-              POST /images/:id/assess ─► severity_score + explanation
-                      │
-                      ▼
-        GET /images/:id ─► signed read URL ─► frontend (Map/Incident/Order pages)
+                     │
+                     ▼ background, ~10 s
+        4 indicator models on watsonx.ai Runtime
+        (smoke, flame, vegetation, infrastructure)
+                     │
+                     ▼
+        rubric → severity 1–4, confidence, explanation
+                     │
+                     ▼
+   GET /incidents, /order ─► frontend (Map / Incident / Order pages)
 ```
 
 - **Backend** (`backend/`) — Express + TypeScript API: ingestion, storage, metadata, and severity assessment.
 - **Frontend** (`frontend/`) — Next.js app: Map, Incident, Order, and Image Submission pages.
 
-See [`docs/storage/Storage_and_metadata_V2.md`](docs/storage/Storage_and_metadata_V2.md) for the full ingestion pipeline design and metadata schema, and [`docs/ai-ml/AI_Framework_and_Technical_Approach.md`](docs/ai-ml/AI_Framework_and_Technical_Approach.md) for the severity-classification approach.
+See [`docs/live/architecture.md`](docs/live/architecture.md) for the full pipeline and API, [`docs/live/severity-rubric.md`](docs/live/severity-rubric.md) for how severity is scored, and [`docs/live/ai-models-and-dataset.md`](docs/live/ai-models-and-dataset.md) for the models.
 
 ## Prerequisites
 
 - Node.js 24+ (the backend runs TypeScript directly via `node index.ts`, which needs Node's native type-stripping support)
-- A Postgres database (currently a Neon project; see [`docs/storage/Storage_and_Metadata_Finalisation_Addendum.md`](docs/storage/Storage_and_Metadata_Finalisation_Addendum.md))
+- A Postgres database (currently a Neon project; see [`docs/live/metadata-schema.md`](docs/live/metadata-schema.md))
 - IBM Cloud Object Storage credentials (image storage)
-- An IBM Cloud / watsonx.ai account for the AI severity assessment — see [`docs/setup/DevelopmentSetupRequirements.md`](docs/setup/DevelopmentSetupRequirements.md) and [`docs/setup/SetupStepsDocumentation.md`](docs/setup/SetupStepsDocumentation.md) for full setup steps (macOS and Windows)
+- An IBM Cloud / watsonx.ai account for the AI severity assessment — see [`docs/live/dev-setup.md`](docs/live/dev-setup.md) for full setup steps (macOS and Windows)
 
 ## Running locally
 
@@ -48,7 +53,11 @@ Runs on `http://localhost:3000`. Required `.env` values (see `backend/.env.examp
 |---|---|
 | `DATABASE_URL` | Postgres connection string for metadata |
 | `COS_ENDPOINT`, `COS_BUCKET`, `COS_ACCESS_KEY_ID`, `COS_SECRET_ACCESS_KEY` | Cloud Object Storage for images |
-| `IBM_CLOUD_API_KEY`, `WATSONX_PROJECT_ID`, `WATSONX_SPACE_ID`, `WATSONX_REGION` | watsonx.ai severity assessment |
+| `IBM_CLOUD_API_KEY`, `WATSONX_API_KEY`, `WATSONX_PROJECT_ID`, `WATSONX_SPACE_ID`, `WATSONX_REGION` | watsonx.ai access |
+| `WATSONX_*_DEPLOYMENT_ID` (smoke, flame, vegetation, infrastructure) | One per indicator model; unset skips that indicator |
+| `ALLOWED_API_KEYS` | `name:key` pairs allowed to call the API |
+
+Full list: [`docs/live/architecture.md`](docs/live/architecture.md#4-configuration).
 
 Run backend tests with:
 
@@ -60,26 +69,31 @@ npm test
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
-Runs on `http://localhost:3000` by default — start it on a different port (e.g. `npm run dev -- -p 3001`) if the backend is already running.
+Runs on `http://localhost:3000` by default — start it on a different port (e.g. `pnpm dev -p 3001`) if the backend is already running.
 
 ## API endpoints
 
+All routes except `/` and `/health` need an `x-api-key` header.
+
 | Endpoint | Description |
 |---|---|
-| `POST /ingest` | Upload an image with metadata (`source_type`, `latitude`, `longitude`, `timestamp`, `incident_id`). Shared by the web form and any direct API client (drone/CCTV/satellite). |
-| `GET /images/:id` | Returns a signed, time-limited read URL for the stored image. |
-| `POST /images/:id/assess` | Runs the AI severity assessment and stores the result. |
+| `POST /ingest` | Upload an image with `source_type`, `latitude`, `longitude`, `timestamp` (optional `incident_id`). Returns the record immediately; severity is scored in the background. |
+| `GET /incidents?minLat&maxLat&minLon&maxLon` | Records in a map viewport |
+| `GET /incidents/:id` | Every image record in an incident, including severity |
+| `GET /order` | Records by dispatch priority |
+| `GET /images/:id` | Signed, time-limited download link for the image |
+| `POST /images/:id/assess` | Score an image from manually supplied indicator labels |
+
+Details: [`docs/live/architecture.md`](docs/live/architecture.md#3-api).
 
 ## Documentation
 
-More detailed docs live under [`docs/`](docs), organised by area:
+See [`docs/README.md`](docs/README.md). In short:
 
-- [`docs/requirements/`](docs/requirements) — target users, requirements, and acceptance criteria
-- [`docs/ai-ml/`](docs/ai-ml) — AI framework selection, dataset status, and technical approach
-- [`docs/storage/`](docs/storage) — ingestion pipeline and metadata schema
-- [`docs/setup/`](docs/setup) — IBM Cloud / watsonx.ai environment setup
-- [`docs/ui/`](docs/ui) — UI research, mockups, and prototypes
+- [`docs/live/`](docs/live): current requirements, rubric, architecture, schema, models, deployment, setup, UI, open questions
+- [`docs/decisions/decision-log.md`](docs/decisions/decision-log.md): every decision and why it was made
+- [`docs/archive/`](docs/archive): past sprint documents, frozen

@@ -10,6 +10,7 @@ const IMAGENET_STD = [0.229, 0.224, 0.225];
 // width — the rank-4 input the ONNX deployment expects.
 export async function preprocessImage(imageBuffer: Buffer): Promise<number[][][][]> {
     const { data, info } = await sharp(imageBuffer)
+        .rotate() // apply EXIF orientation, so a phone photo stored sideways reaches the model upright
         .removeAlpha()
         .toColourspace('srgb')
         .resize(IMAGE_SIZE, IMAGE_SIZE, { fit: 'fill', kernel: 'linear' })

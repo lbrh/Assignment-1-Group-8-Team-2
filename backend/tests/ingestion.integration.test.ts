@@ -5,6 +5,7 @@ import express from 'express';
 import { Pool } from 'pg';
 import { ingestionRouter } from '../src/routes/ingestion.routes.ts';
 import { deleteImage } from '../src/storage/cos.service.ts';
+import { testImage } from './test-image.ts';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 after(() => pool.end());
@@ -24,7 +25,7 @@ test('rejects a submission missing required fields', async () => {
     const { close, url } = await startServer();
     try {
         const form = new FormData();
-        form.append('image', new Blob([Buffer.from('fake-image')]), 'photo.jpg');
+        form.append('image', new Blob([await testImage(`ingest-${Date.now()}`)]), 'photo.jpg');
         // source_type/latitude/longitude/timestamp intentionally omitted
 
         const res = await fetch(`${url}/ingest`, { method: 'POST', body: form });
@@ -38,7 +39,7 @@ test('creates a metadata record for a valid submission', async () => {
     const { close, url } = await startServer();
     try {
         const form = new FormData();
-        form.append('image', new Blob([Buffer.from('fake-image')]), 'photo.jpg');
+        form.append('image', new Blob([await testImage(`ingest-${Date.now()}`)]), 'photo.jpg');
         form.append('source_type', 'citizen');
         form.append('latitude', '-37.8136');
         form.append('longitude', '144.9631');

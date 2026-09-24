@@ -3,7 +3,7 @@ import { newIncidentId, newImageId } from '../utils/ids.ts';
 import { buildObjectKey, uploadImage } from '../storage/cos.service.ts';
 import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { extractExif } from './exif.ts';
-import { validateIngestion } from './validate.ts';
+import { validateIngestion, assertReadableImage } from './validate.ts';
 import { findIncidentToAttachTo } from './group-incident.ts';
 import { INDICATOR_MODELS, classifyIndicator, isIndicatorConfigured, type Indicator } from '../ai/indicator-models.ts';
 import { assessSeverity, type IndicatorReadings, type IndicatorConfidences } from './assess-severity.ts';
@@ -16,9 +16,11 @@ export interface IngestedFile {
     originalname: string;
 }
 
-// Flow per docs/storage/Storage_and_metadata_V2.md section 3: fill gaps from EXIF,
+// Flow per docs/live/architecture.md section 2: fill gaps from EXIF,
 // validate, create the pending metadata record, then write to storage and update status.
 export async function processImage(input: IngestionInput, file: IngestedFile): Promise<ImageMetadata> {
+    // Before anything is written, so a corrupt upload leaves nothing behind to clean up.
+    await assertReadableImage(file.buffer);
     const exif = await extractExif(file.buffer);
     const merged: IngestionInput = {
         sourceType: input.sourceType,

@@ -34,3 +34,15 @@ test('rejects coordinates inside the global range but outside the operating regi
 test('rejects a missing timestamp', () => {
     assert.throws(() => validateIngestion({ ...VALID, timestamp: undefined }), ValidationError);
 });
+
+test('assertReadableImage accepts a valid image and rejects a truncated one', async () => {
+    const sharp = (await import('sharp')).default;
+    const { assertReadableImage } = await import('../src/pipeline/validate.ts');
+    const jpeg = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: 200, g: 50, b: 50 } } })
+        .jpeg()
+        .toBuffer();
+
+    await assert.doesNotReject(assertReadableImage(jpeg));
+    await assert.rejects(assertReadableImage(jpeg.subarray(0, jpeg.length / 2)), /corrupt or unreadable/);
+    await assert.rejects(assertReadableImage(Buffer.from('not an image')), ValidationError);
+});
