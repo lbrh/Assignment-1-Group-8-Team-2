@@ -136,7 +136,7 @@ export interface BoundingBox {
 }
 
 // One row per incident (its most recent image) within a map viewport — per
-// docs/storage/Storage_and_metadata_V2.md section 7, the Map Page reads coordinates,
+// docs/live/architecture.md section 3, the Map Page reads coordinates,
 // severity_score, and assessment_status for markers.
 export async function findInBoundingBox(bounds: BoundingBox): Promise<ImageMetadata[]> {
     const { rows } = await pool.query(

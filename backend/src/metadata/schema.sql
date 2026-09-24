@@ -1,6 +1,4 @@
--- Agreed metadata schema per docs/storage/Storage_and_metadata_V2.md section 2,
--- extended by Storage_and_Metadata_Finalisation_Addendum.md and
--- docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md. One row per image/video object.
+-- Metadata schema, documented in docs/live/metadata-schema.md. One row per image/video object.
 -- Final rubric: smoke, flame, amount of vegetation (fuel load) and amount of infrastructure nearby
 -- (priority: fires near towns outrank fires in the middle of nowhere), people proximity dropped.
 

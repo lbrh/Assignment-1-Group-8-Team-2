@@ -1,6 +1,4 @@
-// Field set and flow per docs/storage/Storage_and_metadata_V2.md section 2-3, extended by
-// docs/storage/Storage_and_Metadata_Finalisation_Addendum.md (confidence_score, override/audit
-// trail) and docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md (per-indicator labels).
+// Field set per docs/live/metadata-schema.md; indicator labels per docs/live/severity-rubric.md.
 
 export type SourceType = 'drone' | 'cctv' | 'citizen' | 'satellite';
 export type UploadStatus = 'pending' | 'stored' | 'failed';

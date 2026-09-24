@@ -36,3 +36,19 @@ test('normalizes a known solid colour against the ImageNet mean/std', async () =
     assert.ok(Math.abs(g - (0 - 0.456) / 0.224) < 1e-3, `green channel: ${g}`);
     assert.ok(Math.abs(b - (0 - 0.406) / 0.225) < 1e-3, `blue channel: ${b}`);
 });
+
+test('applies EXIF orientation before resizing', async () => {
+    // Stored 64x32 with red on the left, blue on the right, tagged orientation 6 (rotate 90°
+    // clockwise to display). Upright, red is on top — so the model's top rows must be red.
+    const left = await sharp({ create: { width: 32, height: 32, channels: 3, background: { r: 255, g: 0, b: 0 } } }).png().toBuffer();
+    const jpeg = await sharp({ create: { width: 64, height: 32, channels: 3, background: { r: 0, g: 0, b: 255 } } })
+        .composite([{ input: left, left: 0, top: 0 }])
+        .withMetadata({ orientation: 6 })
+        .jpeg()
+        .toBuffer();
+
+    const [image] = await preprocessImage(jpeg);
+    const red = image[0];
+    assert.ok(red[10][64] > 1, `top should be red, got ${red[10][64]}`);
+    assert.ok(red[118][64] < 0, `bottom should be blue, got ${red[118][64]}`);
+});

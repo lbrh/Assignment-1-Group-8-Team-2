@@ -5,6 +5,7 @@ import express from 'express';
 import { Pool } from 'pg';
 import { ingestionRouter } from '../src/routes/ingestion.routes.ts';
 import { deleteImage } from '../src/storage/cos.service.ts';
+import { testImage } from './test-image.ts';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 after(() => pool.end());
@@ -20,9 +21,9 @@ function startServer() {
     });
 }
 
-function ingestForm(bytes: string, latitude: string, longitude: string, timestamp: string) {
+async function ingestForm(bytes: string, latitude: string, longitude: string, timestamp: string) {
     const form = new FormData();
-    form.append('image', new Blob([Buffer.from(bytes)]), 'photo.jpg');
+    form.append('image', new Blob([await testImage(bytes)]), 'photo.jpg');
     form.append('source_type', 'citizen');
     form.append('latitude', latitude);
     form.append('longitude', longitude);
@@ -36,8 +37,8 @@ test('two concurrent uploads in the same area/window attach to one incident, not
     const tag = Date.now();
     try {
         const [resA, resB] = await Promise.all([
-            fetch(`${url}/ingest`, { method: 'POST', body: ingestForm(`concurrency-a-${tag}`, '-37.810', '144.910', timestamp) }),
-            fetch(`${url}/ingest`, { method: 'POST', body: ingestForm(`concurrency-b-${tag}`, '-37.811', '144.911', timestamp) }),
+            fetch(`${url}/ingest`, { method: 'POST', body: await ingestForm(`concurrency-a-${tag}`, '-37.810', '144.910', timestamp) }),
+            fetch(`${url}/ingest`, { method: 'POST', body: await ingestForm(`concurrency-b-${tag}`, '-37.811', '144.911', timestamp) }),
         ]);
         assert.equal(resA.status, 201);
         assert.equal(resB.status, 201);

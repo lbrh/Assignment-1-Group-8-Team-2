@@ -1,6 +1,6 @@
 /*
  * Design tokens transcribed from the Sprint 2 WK1 developer redline
- * (docs/ui/Sprint 2 Week 1/SP2_WK1_Dev_Redline_Annotations.pdf, section "tokens").
+ * (docs/archive/sprint-2/week-1/SP2_WK1_Dev_Redline_Annotations.pdf, section "tokens").
  * Dark is the default palette; light overrides apply under [data-theme="light"].
  * Do not hardcode hex values in components — read these custom properties instead.
  */

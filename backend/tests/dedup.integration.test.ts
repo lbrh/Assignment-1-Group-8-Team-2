@@ -5,6 +5,7 @@ import express from 'express';
 import { Pool } from 'pg';
 import { ingestionRouter } from '../src/routes/ingestion.routes.ts';
 import { deleteImage } from '../src/storage/cos.service.ts';
+import { testImage } from './test-image.ts';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 after(() => pool.end());
@@ -20,9 +21,9 @@ function startServer() {
     });
 }
 
-function ingestForm(bytes: string) {
+async function ingestForm(bytes: string) {
     const form = new FormData();
-    form.append('image', new Blob([Buffer.from(bytes)]), 'photo.jpg');
+    form.append('image', new Blob([await testImage(bytes)]), 'photo.jpg');
     form.append('source_type', 'citizen');
     form.append('latitude', '-37.8136');
     form.append('longitude', '144.9631');
@@ -34,11 +35,11 @@ test('re-uploading the same image bytes returns the existing record instead of a
     const { close, url } = await startServer();
     const bytes = `dedup-test-${Date.now()}`;
     try {
-        const first = await fetch(`${url}/ingest`, { method: 'POST', body: ingestForm(bytes) });
+        const first = await fetch(`${url}/ingest`, { method: 'POST', body: await ingestForm(bytes) });
         assert.equal(first.status, 201);
         const firstBody = await first.json();
 
-        const second = await fetch(`${url}/ingest`, { method: 'POST', body: ingestForm(bytes) });
+        const second = await fetch(`${url}/ingest`, { method: 'POST', body: await ingestForm(bytes) });
         assert.equal(second.status, 201);
         const secondBody = await second.json();
 
