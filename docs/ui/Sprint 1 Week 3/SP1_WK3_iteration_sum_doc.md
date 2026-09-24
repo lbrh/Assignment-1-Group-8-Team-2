@@ -1,6 +1,6 @@
 # Change Log — WK2 v2 → WK3
 
-**Project:** AI-Powered Bushfire Situational Awareness & Emergency Response (Fori)
+**Project:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness)
 
 **Client:** IBM · Naresh Olladapu (Technical Supervisor), Emily Chin (Non-Technical Supervisor)
 

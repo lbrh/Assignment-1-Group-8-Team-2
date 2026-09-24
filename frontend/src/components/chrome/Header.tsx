@@ -63,7 +63,7 @@ export function Header() {
           }}
           aria-hidden
         >
-          F
+          E
         </div>
         <span
           style={{
@@ -72,7 +72,7 @@ export function Header() {
             textTransform: "uppercase",
           }}
         >
-          Fori
+          EMBERA
         </span>
       </div>
 

@@ -5,17 +5,17 @@
  * Square-cornered like the rest of the system; only severity dots are circles.
  */
 
-.fori-map.leaflet-container {
+.embera-map.leaflet-container {
   background: var(--map-bg);
   font-family: var(--font-plex-mono), monospace;
 }
 
-.fori-map.leaflet-container:focus-visible {
+.embera-map.leaflet-container:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-.fori-map .leaflet-control-attribution {
+.embera-map .leaflet-control-attribution {
   background: var(--halo);
   color: var(--muted);
   font: 400 9px/1.5 var(--font-plex-mono), monospace;
@@ -24,30 +24,30 @@
   padding: 1px 6px;
 }
 
-.fori-map .leaflet-control-attribution a {
+.embera-map .leaflet-control-attribution a {
   color: var(--fg-4);
 }
 
 /* ---- markers ---- */
 
-.fori-marker {
+.embera-marker {
   background: none;
   border: none;
 }
 
 /* Hovered here or on the Active Incidents rail — lift above neighbours (Leaflet sets
    z-index inline, hence !important). */
-.fori-marker.is-hover {
+.embera-marker.is-hover {
   z-index: 10000 !important;
 }
 
-.fori-pin {
+.embera-pin {
   position: relative;
   width: 100%;
   height: 100%;
 }
 
-.fori-dot {
+.embera-dot {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -61,7 +61,7 @@
   transition: box-shadow 0.12s;
 }
 
-.fori-label {
+.embera-label {
   position: absolute;
   left: 50%;
   top: calc(100% + 6px);
@@ -75,21 +75,21 @@
   transition: color 0.12s, border-color 0.12s;
 }
 
-.fori-marker.is-hover .fori-dot {
+.embera-marker.is-hover .embera-dot {
   box-shadow: 0 0 0 4px var(--halo), 0 0 0 6px var(--accent);
 }
 
-.fori-marker.is-hover .fori-label {
+.embera-marker.is-hover .embera-label {
   color: var(--accent);
   border-color: var(--accent);
 }
 
 /* Marker pulse on insert (redline motion table) — a freshly submitted incident. */
-.fori-marker.is-new .fori-dot {
+.embera-marker.is-new .embera-dot {
   animation: pulseRing 1.2s ease-out 3;
 }
 
-.fori-cluster {
+.embera-cluster {
   width: 100%;
   height: 100%;
   background: var(--map-bg);
@@ -103,21 +103,21 @@
   transition: box-shadow 0.12s;
 }
 
-.fori-marker.is-hover .fori-cluster {
+.embera-marker.is-hover .embera-cluster {
   box-shadow: 0 0 0 4px var(--halo), 0 0 0 6px var(--accent);
 }
 
-.fori-cluster-count {
+.embera-cluster-count {
   font: 700 17px/1 var(--font-plex-mono), monospace;
 }
 
-.fori-cluster-caption {
+.embera-cluster-caption {
   font: 600 9px/1 var(--font-plex-mono), monospace;
   letter-spacing: 0.12em;
   color: var(--muted);
 }
 
-.fori-out {
+.embera-out {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -131,14 +131,14 @@
   color: var(--faint);
 }
 
-.fori-staging {
+.embera-staging {
   width: 100%;
   height: 100%;
   background: var(--accent);
   border: 2px solid var(--halo);
 }
 
-.fori-staging-label {
+.embera-staging-label {
   position: absolute;
   left: calc(100% + 6px);
   top: 50%;
@@ -154,7 +154,7 @@
 /* ---- overlays ---- */
 
 /* Leaflet writes stroke/fill as SVG attributes; CSS properties take precedence. */
-.fori-group-ring {
+.embera-group-ring {
   stroke: var(--accent);
   stroke-width: 1.5;
   stroke-dasharray: 6 5;
@@ -162,7 +162,7 @@
   fill-opacity: 0.07;
 }
 
-.fori-tooltip.leaflet-tooltip {
+.embera-tooltip.leaflet-tooltip {
   background: var(--panel);
   color: var(--fg-3);
   border: 1px solid var(--accent-border);
@@ -172,6 +172,6 @@
   padding: 5px 8px;
 }
 
-.fori-tooltip.leaflet-tooltip-top::before {
+.embera-tooltip.leaflet-tooltip-top::before {
   border-top-color: var(--accent-border);
 }

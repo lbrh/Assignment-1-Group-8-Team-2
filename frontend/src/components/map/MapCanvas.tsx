@@ -47,15 +47,15 @@ function incidentIcon(incident: Incident): L.DivIcon {
   const meta = SEVERITY[incident.band as SeverityBand];
   const d = meta.dotDiameter;
   return L.divIcon({
-    className: "fori-marker",
+    className: "embera-marker",
     iconSize: [d, d],
     iconAnchor: [d / 2, d / 2],
     html:
-      `<div class="fori-pin">` +
-      `<div class="fori-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
+      `<div class="embera-pin">` +
+      `<div class="embera-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
       `border:${meta.ringWidth}px solid ${meta.ringVar};font-size:${meta.numeralFont}px">` +
       `${incident.band}</div>` +
-      `<span class="fori-label">${escapeHtml(incident.id)}</span>` +
+      `<span class="embera-label">${escapeHtml(incident.id)}</span>` +
       `</div>`,
   });
 }
@@ -64,31 +64,31 @@ function clusterIcon(count: number, maxBand: SeverityBand): L.DivIcon {
   const size = 40 + count * 4;
   const ring = SEVERITY[maxBand].ringVar;
   return L.divIcon({
-    className: "fori-marker",
+    className: "embera-marker",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     html:
-      `<div class="fori-cluster" style="border-color:${ring}">` +
-      `<span class="fori-cluster-count" style="color:${ring}">${count}</span>` +
-      `<span class="fori-cluster-caption">SITES</span>` +
+      `<div class="embera-cluster" style="border-color:${ring}">` +
+      `<span class="embera-cluster-count" style="color:${ring}">${count}</span>` +
+      `<span class="embera-cluster-caption">SITES</span>` +
       `</div>`,
   });
 }
 
 const extinguishedIcon = () =>
   L.divIcon({
-    className: "fori-marker fori-marker-out",
+    className: "embera-marker embera-marker-out",
     iconSize: [34, 34],
     iconAnchor: [17, 17],
-    html: `<div class="fori-out">OUT</div>`,
+    html: `<div class="embera-out">OUT</div>`,
   });
 
 const stagingIcon = () =>
   L.divIcon({
-    className: "fori-marker fori-marker-staging",
+    className: "embera-marker embera-marker-staging",
     iconSize: [14, 14],
     iconAnchor: [7, 7],
-    html: `<div class="fori-staging"></div><span class="fori-staging-label">STAGING</span>`,
+    html: `<div class="embera-staging"></div><span class="embera-staging-label">STAGING</span>`,
   });
 
 export function MapCanvas() {
@@ -282,12 +282,12 @@ export function MapCanvas() {
 
     L.circle([center.lat, center.lng], {
       radius: radiusM,
-      className: "fori-group-ring",
+      className: "embera-group-ring",
       bubblingMouseEvents: false,
     })
       .bindTooltip(`Grouping suggested · ${members.length} images · click to review`, {
         direction: "top",
-        className: "fori-tooltip",
+        className: "embera-tooltip",
       })
       .on("click", () => setAlertsPanelOpen(true))
       .addTo(layer);
@@ -316,7 +316,7 @@ export function MapCanvas() {
     >
       <div
         ref={containerRef}
-        className="fori-map"
+        className="embera-map"
         aria-label="Incident map. Arrow keys pan, plus and minus zoom."
         style={{ position: "absolute", inset: 0, zIndex: 0 }}
       />

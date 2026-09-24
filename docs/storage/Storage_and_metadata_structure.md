@@ -1,7 +1,7 @@
 # Storage & Metadata Structure Documentation
 
 **Task:** [INFRASTRUCTURE] - Configure Storage & Metadata Structure
-**Project:** AI-Powered Bushfire Situational Awareness & Emergency Response (Team 8)
+**Project:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness) (Team 8)
 **Scope:** Infrastructure only. No upload feature or AI-analysis workflow implemented in this task.
 
 ---
