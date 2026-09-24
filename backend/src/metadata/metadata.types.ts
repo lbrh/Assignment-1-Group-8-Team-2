@@ -15,7 +15,8 @@ export type FlameVisibility =
     | 'large_flame_wall_embers_everywhere';
 // Amount of vegetation (fuel load) in frame, whether burning or not.
 export type VegetationImpact = 'no_vegetation' | 'sparse_vegetation' | 'moderate_vegetation' | 'dense_vegetation';
-export type InfrastructureImpact = 'no_infrastructure_nearby' | 'nearby_not_burnt' | 'partially_burnt' | 'extensively_burnt';
+// Amount of infrastructure in/near the scene, burning or not: fires near towns get higher priority.
+export type InfrastructureImpact = 'no_infrastructure' | 'sparse_infrastructure' | 'moderate_infrastructure' | 'dense_infrastructure';
 
 export interface ImageMetadata {
     incidentId: string;

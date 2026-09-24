@@ -29,10 +29,10 @@ const VEGETATION_WEIGHT: Record<VegetationImpact, 1 | 2 | 3 | 4> = {
 };
 
 const INFRASTRUCTURE_WEIGHT: Record<InfrastructureImpact, 1 | 2 | 3 | 4> = {
-    no_infrastructure_nearby: 1,
-    nearby_not_burnt: 2,
-    partially_burnt: 3,
-    extensively_burnt: 4,
+    no_infrastructure: 1,
+    sparse_infrastructure: 2,
+    moderate_infrastructure: 3,
+    dense_infrastructure: 4,
 };
 
 export interface IndicatorReadings {

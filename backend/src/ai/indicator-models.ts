@@ -33,7 +33,7 @@ export const INDICATOR_MODELS = {
     },
     infrastructureImpact: {
         envVar: 'WATSONX_INFRASTRUCTURE_IMPACT_DEPLOYMENT_ID',
-        labels: ['extensively_burnt', 'nearby_not_burnt', 'no_infrastructure_nearby', 'partially_burnt'],
+        labels: ['dense_infrastructure', 'moderate_infrastructure', 'no_infrastructure', 'sparse_infrastructure'],
     },
 } as const satisfies {
     [K in keyof IndicatorReadings]: { envVar: string; labels: readonly IndicatorReadings[K][] };

@@ -1,8 +1,8 @@
 -- Agreed metadata schema per docs/storage/Storage_and_metadata_V2.md section 2,
 -- extended by Storage_and_Metadata_Finalisation_Addendum.md and
 -- docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md. One row per image/video object.
--- Final rubric: smoke, flame, amount of vegetation (fuel load, burning or not), nearby infrastructure burnt
--- (people proximity dropped).
+-- Final rubric: smoke, flame, amount of vegetation (fuel load) and amount of infrastructure nearby
+-- (priority: fires near towns outrank fires in the middle of nowhere), people proximity dropped.
 
 CREATE TABLE IF NOT EXISTS images (
     image_id UUID PRIMARY KEY,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS images (
     smoke_density TEXT CHECK (smoke_density IN ('none_or_haze', 'moderate', 'dense_dark', 'very_dense_blocking_vision')),
     flame_visibility TEXT CHECK (flame_visibility IN ('no_visible_flame', 'some_flame', 'visible_high_flames_and_embers', 'large_flame_wall_embers_everywhere')),
     vegetation_impact TEXT CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation')),
-    infrastructure_impact TEXT CHECK (infrastructure_impact IN ('no_infrastructure_nearby', 'nearby_not_burnt', 'partially_burnt', 'extensively_burnt')),
+    infrastructure_impact TEXT CHECK (infrastructure_impact IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure')),
 
     assessment_status TEXT NOT NULL CHECK (assessment_status IN ('assessed', 'unable_to_assess', 'pending_review')),
     classification_label TEXT CHECK (classification_label IN ('fire', 'non_fire', 'extinguished', 'uncertain')),
@@ -42,7 +42,10 @@ CREATE INDEX IF NOT EXISTS images_priority_rank_idx ON images (priority_rank);
 -- infrastructure_impact, vegetation_impact redefined as amount of vegetation. Re-runnable.
 -- Old vegetation values measured damage, not amount, so they can't be mapped and are cleared.
 ALTER TABLE images DROP COLUMN IF EXISTS structure_people_proximity;
-ALTER TABLE images ADD COLUMN IF NOT EXISTS infrastructure_impact TEXT CHECK (infrastructure_impact IN ('no_infrastructure_nearby', 'nearby_not_burnt', 'partially_burnt', 'extensively_burnt'));
+ALTER TABLE images ADD COLUMN IF NOT EXISTS infrastructure_impact TEXT;
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_infrastructure_impact_check;
+UPDATE images SET infrastructure_impact = NULL WHERE infrastructure_impact NOT IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure');
+ALTER TABLE images ADD CONSTRAINT images_infrastructure_impact_check CHECK (infrastructure_impact IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure'));
 ALTER TABLE images DROP CONSTRAINT IF EXISTS images_vegetation_impact_check;
 UPDATE images SET vegetation_impact = NULL WHERE vegetation_impact NOT IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation');
 ALTER TABLE images ADD CONSTRAINT images_vegetation_impact_check CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation'));

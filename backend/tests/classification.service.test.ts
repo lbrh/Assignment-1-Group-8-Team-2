@@ -41,7 +41,7 @@ test('sends the documented request shape and parses a successful response', asyn
                 smoke_density: { value: 'dense_dark', confidence: 0.88 },
                 flame_visibility: { value: 'visible_high_flames_and_embers', confidence: 0.81 },
                 vegetation_impact: { value: 'moderate_vegetation', confidence: 0.9 },
-                infrastructure_impact: { value: 'partially_burnt', confidence: 0.85 },
+                infrastructure_impact: { value: 'moderate_infrastructure', confidence: 0.85 },
             },
             model_version: 'indicator-classifier-v0.1',
         },
@@ -68,7 +68,7 @@ test('sends the documented request shape and parses a successful response', asyn
         assert.equal(result?.smokeDensity, 'dense_dark');
         assert.equal(result?.flameVisibility, 'visible_high_flames_and_embers');
         assert.equal(result?.vegetationImpact, 'moderate_vegetation');
-        assert.equal(result?.infrastructureImpact, 'partially_burnt');
+        assert.equal(result?.infrastructureImpact, 'moderate_infrastructure');
     } finally {
         stub.close();
         delete process.env.CLASSIFICATION_SERVICE_URL;
