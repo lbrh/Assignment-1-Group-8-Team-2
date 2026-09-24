@@ -13,11 +13,9 @@ export type FlameVisibility =
     | 'some_flame'
     | 'visible_high_flames_and_embers'
     | 'large_flame_wall_embers_everywhere';
-export type VegetationImpact = 'none_at_risk' | 'scorching' | 'noticeable_impact' | 'extensive_burnt_area';
-export type StructurePeopleProximity =
-    | 'no_structure_at_risk'
-    | 'infrastructure_in_fire_line'
-    | 'extensive_infrastructure_damage_people_in_proximity';
+// Amount of vegetation (fuel load) in frame, whether burning or not.
+export type VegetationImpact = 'no_vegetation' | 'sparse_vegetation' | 'moderate_vegetation' | 'dense_vegetation';
+export type InfrastructureImpact = 'no_infrastructure_nearby' | 'nearby_not_burnt' | 'partially_burnt' | 'extensively_burnt';
 
 export interface ImageMetadata {
     incidentId: string;
@@ -37,7 +35,7 @@ export interface ImageMetadata {
     smokeDensity: SmokeDensity | null;
     flameVisibility: FlameVisibility | null;
     vegetationImpact: VegetationImpact | null;
-    structurePeopleProximity: StructurePeopleProximity | null;
+    infrastructureImpact: InfrastructureImpact | null;
     assessmentStatus: AssessmentStatus;
     classificationLabel: ClassificationLabel | null;
     priorityRank: number | null;

@@ -1,32 +1,45 @@
 import { preprocessImage } from './preprocess-image.ts';
 import { scoreDeployment } from './watsonx-client.ts';
-import type { SmokeDensity, FlameVisibility } from '../metadata/metadata.types.ts';
+import type { IndicatorReadings } from '../pipeline/assess-severity.ts';
 
-// Class order confirmed against a real scored example (logits [0.323, 2.168, 0.831,
-// -6.969] -> softmax [11.1%, 70.4%, 18.5%, 0.0%] -> moderate predicted at 70.4%,
-// matching index 1). It's alphabetical by label name, not the schema's declaration
-// order — a common default when a training script builds its label encoding from
-// `sorted(set(labels))`.
-const SMOKE_DENSITY_LABELS: readonly SmokeDensity[] = [
-    'dense_dark',
-    'moderate',
-    'none_or_haze',
-    'very_dense_blocking_vision',
-];
+// One small ONNX classifier per indicator, each its own watsonx.ai Runtime deployment
+// (docs/ai-ml/AI_Framework_and_Technical_Approach.md). Swapping a model is just pointing
+// its envVar at the new deployment ID; unset means that indicator is skipped.
+//
+// Label order = the model's output order. The training notebooks build it with
+// `sorted(df[INDICATOR].unique())`, i.e. alphabetical over the classes present in the
+// training data — confirmed for smoke by a real scored example. If a retrained model's
+// output count doesn't match its label list (a class missing from its training data),
+// classifyIndicator throws rather than silently mislabelling.
+export const INDICATOR_MODELS = {
+    smokeDensity: {
+        envVar: 'WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID',
+        labels: ['dense_dark', 'moderate', 'none_or_haze', 'very_dense_blocking_vision'],
+    },
+    flameVisibility: {
+        envVar: 'WATSONX_FLAME_VISIBILITY_DEPLOYMENT_ID',
+        labels: [
+            'large_flame_wall_embers_everywhere',
+            'no_visible_flame',
+            'some_flame',
+            'visible_high_flames_and_embers',
+        ],
+    },
+    // The currently deployed vegetation model was trained on the old damage-based labels,
+    // so its outputs don't mean these yet; correct once retrained on the relabelled subset.
+    vegetationImpact: {
+        envVar: 'WATSONX_VEGETATION_IMPACT_DEPLOYMENT_ID',
+        labels: ['dense_vegetation', 'moderate_vegetation', 'no_vegetation', 'sparse_vegetation'],
+    },
+    infrastructureImpact: {
+        envVar: 'WATSONX_INFRASTRUCTURE_IMPACT_DEPLOYMENT_ID',
+        labels: ['extensively_burnt', 'nearby_not_burnt', 'no_infrastructure_nearby', 'partially_burnt'],
+    },
+} as const satisfies {
+    [K in keyof IndicatorReadings]: { envVar: string; labels: readonly IndicatorReadings[K][] };
+};
 
-// UNCONFIRMED — unlike SMOKE_DENSITY_LABELS, no real scored example has verified this
-// order for flame_visibility. Assumed alphabetical by analogy (same owner, same naming
-// convention, deployed the same way — bushfire-flame_visibility-classifier-deployment
-// alongside bushfire-smoke_density-classifier-deployment, both in the same space), but
-// that's an inference, not a confirmation. Verify with a real scored example (a photo
-// with an obvious, undisputed flame level) before trusting this in production; if
-// predictions look systematically off, this ordering is the first thing to check.
-const FLAME_VISIBILITY_LABELS: readonly FlameVisibility[] = [
-    'large_flame_wall_embers_everywhere',
-    'no_visible_flame',
-    'some_flame',
-    'visible_high_flames_and_embers',
-];
+export type Indicator = keyof typeof INDICATOR_MODELS;
 
 export function softmax(logits: number[]): number[] {
     const max = Math.max(...logits);
@@ -44,45 +57,32 @@ interface RawScoringResponse {
     predictions: { values: number[][] }[];
 }
 
-// Pulled out from classifySmokeDensity so the label-mapping logic (the part that's
-// actually easy to get subtly wrong) is directly unit-testable against a known example,
-// without needing a real network call.
-export function smokeDensityFromLogits(logits: number[]): IndicatorPrediction<SmokeDensity> {
+export function predictionFromLogits<T extends string>(labels: readonly T[], logits: number[]): IndicatorPrediction<T> {
+    if (logits.length !== labels.length) {
+        throw new Error(`model returned ${logits.length} outputs, expected ${labels.length} (${labels.join(', ')})`);
+    }
     const probabilities = softmax(logits);
     const bestIndex = probabilities.indexOf(Math.max(...probabilities));
-    return { value: SMOKE_DENSITY_LABELS[bestIndex], confidence: probabilities[bestIndex] };
+    return { value: labels[bestIndex], confidence: probabilities[bestIndex] };
 }
 
-// Deployed per docs/ai-ml/AI_Framework_and_Technical_Approach.md's recommended approach:
-// one small ONNX classifier per indicator dimension, each its own watsonx.ai Runtime
-// deployment. Only smoke_density and flame_visibility are deployed so far; the other two
-// indicator functions don't exist yet because their deployments don't either.
-export async function classifySmokeDensity(imageBuffer: Buffer): Promise<IndicatorPrediction<SmokeDensity>> {
-    const deploymentId = process.env.WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID;
+export function isIndicatorConfigured(indicator: Indicator): boolean {
+    return Boolean(process.env[INDICATOR_MODELS[indicator].envVar]);
+}
+
+export async function classifyIndicator<K extends Indicator>(
+    indicator: K,
+    imageBuffer: Buffer,
+): Promise<IndicatorPrediction<IndicatorReadings[K]>> {
+    const { envVar, labels } = INDICATOR_MODELS[indicator];
+    const deploymentId = process.env[envVar];
     if (!deploymentId) {
-        throw new Error('WATSONX_SMOKE_DENSITY_DEPLOYMENT_ID is not configured');
+        throw new Error(`${envVar} is not configured`);
     }
 
     const tensor = await preprocessImage(imageBuffer);
     const response = (await scoreDeployment(deploymentId, tensor)) as RawScoringResponse;
-    const logits = response.predictions[0].values[0];
-    return smokeDensityFromLogits(logits);
-}
-
-export function flameVisibilityFromLogits(logits: number[]): IndicatorPrediction<FlameVisibility> {
-    const probabilities = softmax(logits);
-    const bestIndex = probabilities.indexOf(Math.max(...probabilities));
-    return { value: FLAME_VISIBILITY_LABELS[bestIndex], confidence: probabilities[bestIndex] };
-}
-
-export async function classifyFlameVisibility(imageBuffer: Buffer): Promise<IndicatorPrediction<FlameVisibility>> {
-    const deploymentId = process.env.WATSONX_FLAME_VISIBILITY_DEPLOYMENT_ID;
-    if (!deploymentId) {
-        throw new Error('WATSONX_FLAME_VISIBILITY_DEPLOYMENT_ID is not configured');
-    }
-
-    const tensor = await preprocessImage(imageBuffer);
-    const response = (await scoreDeployment(deploymentId, tensor)) as RawScoringResponse;
-    const logits = response.predictions[0].values[0];
-    return flameVisibilityFromLogits(logits);
+    return predictionFromLogits<string>(labels, response.predictions[0].values[0]) as IndicatorPrediction<
+        IndicatorReadings[K]
+    >;
 }

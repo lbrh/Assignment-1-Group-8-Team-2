@@ -5,7 +5,7 @@ import type {
     SmokeDensity,
     FlameVisibility,
     VegetationImpact,
-    StructurePeopleProximity,
+    InfrastructureImpact,
 } from '../metadata/metadata.types.ts';
 
 // 1-4 weight per indicator reading per requirements
@@ -22,23 +22,24 @@ const FLAME_WEIGHT: Record<FlameVisibility, 1 | 2 | 3 | 4> = {
     large_flame_wall_embers_everywhere: 4,
 };
 const VEGETATION_WEIGHT: Record<VegetationImpact, 1 | 2 | 3 | 4> = {
-    none_at_risk: 1,
-    scorching: 2,
-    noticeable_impact: 3,
-    extensive_burnt_area: 4,
+    no_vegetation: 1,
+    sparse_vegetation: 2,
+    moderate_vegetation: 3,
+    dense_vegetation: 4,
 };
 
-const PROXIMITY_WEIGHT: Record<StructurePeopleProximity, 1 | 2 | 3 | 4> = {
-    no_structure_at_risk: 1,
-    infrastructure_in_fire_line: 3,
-    extensive_infrastructure_damage_people_in_proximity: 4,
+const INFRASTRUCTURE_WEIGHT: Record<InfrastructureImpact, 1 | 2 | 3 | 4> = {
+    no_infrastructure_nearby: 1,
+    nearby_not_burnt: 2,
+    partially_burnt: 3,
+    extensively_burnt: 4,
 };
 
 export interface IndicatorReadings {
     smokeDensity: SmokeDensity;
     flameVisibility: FlameVisibility;
     vegetationImpact: VegetationImpact;
-    structurePeopleProximity: StructurePeopleProximity;
+    infrastructureImpact: InfrastructureImpact;
 }
 
 export type IndicatorConfidences = Record<keyof IndicatorReadings, number>;
@@ -84,32 +85,39 @@ export function parseSeverityAssessmentInput(body: unknown): SeverityAssessmentI
     const smokeDensity = assertEnumField(b, 'smoke_density', SMOKE_WEIGHT);
     const flameVisibility = assertEnumField(b, 'flame_visibility', FLAME_WEIGHT);
     const vegetationImpact = assertEnumField(b, 'vegetation_impact', VEGETATION_WEIGHT);
-    const structurePeopleProximity = assertEnumField(b, 'structure_people_proximity', PROXIMITY_WEIGHT);
+    const infrastructureImpact = assertEnumField(b, 'infrastructure_impact', INFRASTRUCTURE_WEIGHT);
 
     const confidencesRaw = b.confidences;
     if (typeof confidencesRaw !== 'object' || confidencesRaw === null) {
-        throw new ValidationError('confidences must be an object with smokeDensity/flameVisibility/vegetationImpact/structurePeopleProximity');
+        throw new ValidationError('confidences must be an object with smokeDensity/flameVisibility/vegetationImpact/infrastructureImpact');
     }
     const c = confidencesRaw as Record<string, unknown>;
 
     return {
         classificationLabel,
-        indicators: { smokeDensity, flameVisibility, vegetationImpact, structurePeopleProximity },
+        indicators: { smokeDensity, flameVisibility, vegetationImpact, infrastructureImpact },
         confidences: {
             smokeDensity: assertConfidence(c, 'smokeDensity'),
             flameVisibility: assertConfidence(c, 'flameVisibility'),
             vegetationImpact: assertConfidence(c, 'vegetationImpact'),
-            structurePeopleProximity: assertConfidence(c, 'structurePeopleProximity'),
+            infrastructureImpact: assertConfidence(c, 'infrastructureImpact'),
         },
     };
+}
+
+// Vegetation is fuel: it only adds to severity when there's any smoke or flame, otherwise it
+// counts 0 (a green hillside with no fire isn't a hazard). Total range 3-16.
+function effectiveVegetationWeight(indicators: IndicatorReadings): 0 | 1 | 2 | 3 | 4 {
+    const fire = SMOKE_WEIGHT[indicators.smokeDensity] > 1 || FLAME_WEIGHT[indicators.flameVisibility] > 1;
+    return fire ? VEGETATION_WEIGHT[indicators.vegetationImpact] : 0;
 }
 
 export function calculateSeverityScore(indicators: IndicatorReadings): 1 | 2 | 3 | 4 {
     const total =
         SMOKE_WEIGHT[indicators.smokeDensity] +
         FLAME_WEIGHT[indicators.flameVisibility] +
-        VEGETATION_WEIGHT[indicators.vegetationImpact] +
-        PROXIMITY_WEIGHT[indicators.structurePeopleProximity];
+        effectiveVegetationWeight(indicators) +
+        INFRASTRUCTURE_WEIGHT[indicators.infrastructureImpact];
 
     if (total <= 7) return 1;
     if (total <= 10) return 2;
@@ -142,8 +150,8 @@ function buildSeverityExplanation(indicators: IndicatorReadings, severityScore: 
     const weighted: [string, number][] = [
         ['smoke', SMOKE_WEIGHT[indicators.smokeDensity]],
         ['flame visibility', FLAME_WEIGHT[indicators.flameVisibility]],
-        ['vegetation impact', VEGETATION_WEIGHT[indicators.vegetationImpact]],
-        ['structure/people proximity', PROXIMITY_WEIGHT[indicators.structurePeopleProximity]],
+        ['vegetation', effectiveVegetationWeight(indicators)],
+        ['infrastructure impact', INFRASTRUCTURE_WEIGHT[indicators.infrastructureImpact]],
     ];
     const highest = Math.max(...weighted.map(([, weight]) => weight));
     const drivers = weighted.filter(([, weight]) => weight === highest).map(([label]) => label);
@@ -166,7 +174,7 @@ export type SeverityAssessmentResult = Pick<
     | 'smokeDensity'
     | 'flameVisibility'
     | 'vegetationImpact'
-    | 'structurePeopleProximity'
+    | 'infrastructureImpact'
     | 'assessmentStatus'
 >;
 
@@ -184,7 +192,7 @@ export function assessSeverity({
             smokeDensity: null,
             flameVisibility: null,
             vegetationImpact: null,
-            structurePeopleProximity: null,
+            infrastructureImpact: null,
             assessmentStatus: 'assessed',
         };
     }
@@ -209,7 +217,7 @@ export function assessSeverity({
         smokeDensity: indicators.smokeDensity,
         flameVisibility: indicators.flameVisibility,
         vegetationImpact: indicators.vegetationImpact,
-        structurePeopleProximity: indicators.structurePeopleProximity,
+        infrastructureImpact: indicators.infrastructureImpact,
         assessmentStatus: reviewNeeded ? 'unable_to_assess' : 'assessed',
     };
 }

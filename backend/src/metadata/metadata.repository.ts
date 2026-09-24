@@ -24,7 +24,7 @@ const COLUMNS = {
     smokeDensity: 'smoke_density',
     flameVisibility: 'flame_visibility',
     vegetationImpact: 'vegetation_impact',
-    structurePeopleProximity: 'structure_people_proximity',
+    infrastructureImpact: 'infrastructure_impact',
     assessmentStatus: 'assessment_status',
     classificationLabel: 'classification_label',
     priorityRank: 'priority_rank',

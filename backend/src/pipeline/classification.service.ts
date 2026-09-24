@@ -15,7 +15,7 @@ export type ClassificationResult = Pick<
     | 'smokeDensity'
     | 'flameVisibility'
     | 'vegetationImpact'
-    | 'structurePeopleProximity'
+    | 'infrastructureImpact'
 >;
 
 // Contract per docs/ai-ml/Dataset_Integration_Interface_for_Htet.md: this ingestion API
@@ -71,7 +71,7 @@ export async function requestClassification(image: {
             smokeDensity: body.indicators?.smoke_density?.value ?? null,
             flameVisibility: body.indicators?.flame_visibility?.value ?? null,
             vegetationImpact: body.indicators?.vegetation_impact?.value ?? null,
-            structurePeopleProximity: body.indicators?.structure_people_proximity?.value ?? null,
+            infrastructureImpact: body.indicators?.infrastructure_impact?.value ?? null,
         };
     } catch (err) {
         // Per the interface doc's error table: an unreachable/failed classification call
@@ -87,7 +87,7 @@ export async function requestClassification(image: {
             smokeDensity: null,
             flameVisibility: null,
             vegetationImpact: null,
-            structurePeopleProximity: null,
+            infrastructureImpact: null,
         };
     }
 }
