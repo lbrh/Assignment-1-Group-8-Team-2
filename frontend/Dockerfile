@@ -1,12 +1,14 @@
 FROM node:25-alpine AS deps
 WORKDIR /app
-RUN corepack enable
+# Node 25 images no longer bundle corepack, so install it first
+RUN npm install -g corepack && corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM node:25-alpine AS builder
 WORKDIR /app
-RUN corepack enable
+# Node 25 images no longer bundle corepack, so install it first
+RUN npm install -g corepack && corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
