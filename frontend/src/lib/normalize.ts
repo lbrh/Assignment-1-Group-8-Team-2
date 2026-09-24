@@ -13,6 +13,7 @@ import type {
   VegetationImpact,
 } from "@/lib/types";
 
+
 // 1-4 weights, same tables as backend/src/pipeline/assess-severity.ts. Only used to show the
 // "scored X of 16" breakdown — the band itself always comes from the backend's severityScore.
 const SMOKE_LEVEL: Record<SmokeDensity, number> = {
