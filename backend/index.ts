@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { ingestionRouter } from './src/routes/ingestion.routes.ts';
 import { imagesRouter } from './src/routes/images.routes.ts';
 import { incidentsRouter } from './src/routes/incidents.ts';
+import { coordinatorRouter } from './src/routes/coordinator.routes.ts';
 import { requireApiKey } from './src/middleware/api-key.middleware.ts';
 import { rateLimit } from './src/middleware/rate-limit.middleware.ts';
 import { cors } from './src/middleware/cors.middleware.ts';
@@ -31,14 +32,15 @@ app.get('/health', async (req: Request, res: Response) => {
     }
 });
 
-// Ingestion routes
-app.use(requireApiKey, rateLimit, ingestionRouter);
+// Everything below needs an API key. Applied once: path-less app.use(middleware, router)
+// runs its middleware for every request that falls through it, so repeating rateLimit per
+// router counted each request once per router and cut the real limit to a fraction.
+app.use(requireApiKey, rateLimit);
 
-// Image read routes
-app.use(requireApiKey, rateLimit, imagesRouter);
-
-// AI severity assessment routes
-app.use(requireApiKey, rateLimit, incidentsRouter);
+app.use(ingestionRouter); // POST /ingest
+app.use(imagesRouter); // signed image URLs
+app.use(incidentsRouter); // map / incident / order reads, classifier write-back
+app.use(coordinatorRouter); // review, override, dispatch, decision log
 
 const server = app.listen(port, () => {
     logger.info('app listening', { port });

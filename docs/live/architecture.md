@@ -64,16 +64,20 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 | GET | `/` | Liveness `{status: "ok"}` |
 | GET | `/health` | Readiness, checks the database |
 | POST | `/ingest` | Multipart: `image` (≤ 15 MB), `source_type` (`drone`/`cctv`/`citizen`/`satellite`), `latitude`, `longitude`, `timestamp`, optional `incident_id`. 201 with the new (or existing duplicate) record. |
-| GET | `/incidents?minLat&maxLat&minLon&maxLon` | Records inside a map viewport |
-| GET | `/incidents/:incidentId` | Every image record in an incident, newest first |
+| GET | `/incidents?minLat&maxLat&minLon&maxLon` | Records inside a map viewport (latest image per incident), each with the incident's `dispatchState` |
+| GET | `/incidents/:incidentId` | Every image record in an incident, newest first, with `dispatchState` |
 | GET | `/order` | All records by `priority_rank`, nulls last |
 | GET | `/images/:imageId` | `{url}`: a signed, time-limited download link. **Only the link, not the record.** |
-| POST | `/images/:imageId/assess` | Manual scoring: JSON with `classification_label`, the four indicator labels and `confidences`. Runs the rubric and saves the result. |
+| POST | `/images/:imageId/assess` | Manual scoring: JSON with `classification_label`, the four indicator labels and `confidences`. Runs the rubric and saves the result. **`classifier` caller only.** |
+| PATCH | `/images/:imageId/decision` | Coordinator review/override: any of `severityScoreOverride` (1–4 or null), `classificationLabelOverride` (label or null), `assessmentStatus` (`assessed`/`unable_to_assess`), plus `by`. Each changed field is logged. **`frontend` caller only.** |
+| PUT | `/incidents/:incidentId/dispatch` | `{state: awaiting \| live \| extinguished, by}`: dispatch, cancel, extinguish, reopen. Logged. **`frontend` caller only.** |
+| GET | `/incidents/:incidentId/decisions` | Decision log, newest first: field, from, to, who, when. **`frontend` caller only.** |
 
 Cross-cutting:
 
-- **Rate limit:** 30 requests / minute per API key, in memory per instance (up to 5 instances). Every browser shares the `frontend` key. See open questions.
-- **CORS:** only `FRONTEND_ORIGIN`; methods GET, POST, OPTIONS.
+- **Caller scopes:** a key's name (`frontend`, `classifier`, …) decides which write routes it may use; other keys get 403.
+- **Rate limit:** 30 requests / minute per caller + client IP (the frontend proxy forwards the user's IP as `x-forwarded-for`), in memory per instance (up to 5 instances). Applied once to every keyed route. See open questions.
+- **CORS:** only `FRONTEND_ORIGIN`; methods GET, POST, PUT, PATCH, OPTIONS.
 - **No client ever holds a COS key.** Writes go through the API; reads use signed URLs.
 
 ## 4. Configuration

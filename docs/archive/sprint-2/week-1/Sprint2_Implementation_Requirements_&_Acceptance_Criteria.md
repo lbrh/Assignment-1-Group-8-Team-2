@@ -3,7 +3,7 @@
 # Sprint 2 Implementation Requirements and Acceptance Criteria
 
 **Owner:** Aryaveer Singh (BA)
-**Project name:** AI Powered Bushfire Situational Awareness & Emergency Response
+**Project name:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness)
 **Client:** IBM
 **Client representative:** Naresh Olladapu
 **Team:** Team 8

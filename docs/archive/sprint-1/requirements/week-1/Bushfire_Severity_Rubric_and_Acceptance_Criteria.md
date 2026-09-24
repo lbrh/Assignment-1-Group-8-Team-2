@@ -3,7 +3,7 @@
 # Requirements Document
 ## Bushfire Severity Rubric and Acceptance Criteria
 
-**Project name:** AI-Powered Bushfire Situational Awareness & Emergency Response
+**Project name:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness)
 **Client:** IBM
 **Client representative:** Naresh Olladapu
 **Team:** Team 8 - AI for Emergency & Environmental Response - Team B

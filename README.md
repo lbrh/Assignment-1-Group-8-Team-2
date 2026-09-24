@@ -1,4 +1,6 @@
-# AI-Powered Bushfire Situational Awareness & Emergency Response
+# EMBERA
+
+**Emergency Monitoring for Bushfire Evaluation, Response and Awareness**
 
 Ingests bushfire imagery (citizen uploads, drone/CCTV/satellite feeds) through a single API, stores the image and its metadata, and runs an AI severity assessment so emergency coordinators can see incidents on a map ranked by severity instead of reviewing photos manually.
 

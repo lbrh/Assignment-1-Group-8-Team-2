@@ -2,7 +2,7 @@
 
 # Prototype Change Summary — WK1 → WK2 v2
  
-**Project:** AI-Powered Bushfire Situational Awareness & Emergency Response
+**Project:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness)
 
 **Client:** IBM · Client representative: Naresh Olladapu
 

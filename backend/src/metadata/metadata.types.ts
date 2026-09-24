@@ -4,6 +4,7 @@ export type SourceType = 'drone' | 'cctv' | 'citizen' | 'satellite';
 export type UploadStatus = 'pending' | 'stored' | 'failed';
 export type AssessmentStatus = 'assessed' | 'unable_to_assess' | 'pending_review';
 export type ClassificationLabel = 'fire' | 'non_fire' | 'extinguished' | 'uncertain';
+export type DispatchState = 'awaiting' | 'live' | 'extinguished';
 
 export type SmokeDensity = 'none_or_haze' | 'moderate' | 'dense_dark' | 'very_dense_blocking_vision';
 export type FlameVisibility =
@@ -37,10 +38,36 @@ export interface ImageMetadata {
     infrastructureImpact: InfrastructureImpact | null;
     assessmentStatus: AssessmentStatus;
     classificationLabel: ClassificationLabel | null;
+    // Coordinator's call, same pattern as severityScoreOverride: the AI's label is never overwritten.
+    classificationLabelOverride: ClassificationLabel | null;
     priorityRank: number | null;
     uploadStatus: UploadStatus;
     ingestionError: string | null;
     contentHash: string | null;
+}
+
+// Read shape for the incident queries: an image plus its incident's dispatch state
+// (null = no coordinator dispatch decision yet).
+export interface IncidentImage extends ImageMetadata {
+    dispatchState: DispatchState | null;
+}
+
+// The fields a coordinator may change on an image. null clears an override (used by undo).
+export interface CoordinatorPatch {
+    severityScoreOverride?: 1 | 2 | 3 | 4 | null;
+    classificationLabelOverride?: ClassificationLabel | null;
+    assessmentStatus?: 'assessed' | 'unable_to_assess';
+}
+
+export interface Decision {
+    id: number;
+    incidentId: string;
+    imageId: string | null;
+    field: string;
+    fromValue: string | null;
+    toValue: string | null;
+    decidedBy: string;
+    decidedAt: string;
 }
 
 export interface IngestionInput {

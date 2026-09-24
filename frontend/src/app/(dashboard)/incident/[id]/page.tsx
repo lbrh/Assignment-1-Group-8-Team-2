@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { relativeTime } from "@/lib/utils/time";
@@ -26,6 +27,12 @@ export default function IncidentDetailPage() {
   const id = params.id;
   const incident = useIncidentStore((s) => s.incidents[id]);
   const decisionLogs = useIncidentStore((s) => s.decisionLogs[id] ?? EMPTY_LOGS);
+  const loadDecisionLog = useIncidentStore((s) => s.loadDecisionLog);
+  // Refetch the server's log whenever this incident's server-side state changes (i.e. after a decision).
+  const backendState = incident?.backend;
+  useEffect(() => {
+    loadDecisionLog(id);
+  }, [id, backendState, loadDecisionLog]);
   const tick = useIncidentStore((s) => s.clockTick);
   const lastTabPath = useIncidentStore((s) => s.lastTabPath);
 

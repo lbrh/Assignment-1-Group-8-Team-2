@@ -29,7 +29,8 @@ One row per submitted image. An incident is a group of rows sharing `incident_id
 | `vegetation_impact` | enum | Amount of vegetation (named `_impact` for history) |
 | `infrastructure_impact` | enum | Amount of infrastructure nearby (named `_impact` for symmetry) |
 | `assessment_status` | `assessed` / `unable_to_assess` / `pending_review` | AI outcome, separate from upload status |
-| `classification_label` | `fire` / `non_fire` / `extinguished` / `uncertain` | Lifecycle label |
+| `classification_label` | `fire` / `non_fire` / `extinguished` / `uncertain` | Lifecycle label (AI) |
+| `classification_label_override` | same values | Coordinator's label; screens use it when set. The AI label is never overwritten |
 | `priority_rank` | int | Dispatch order position; not computed yet |
 | `upload_status` | `pending` / `stored` / `failed` | Storage write outcome |
 | `ingestion_error` | text | Why a storage write failed |
@@ -37,7 +38,14 @@ One row per submitted image. An incident is a group of rows sharing `incident_id
 
 Indexes: `incident_id`, `(latitude, longitude)`, `priority_rank`.
 
-Not yet in the schema, but required: a full override **history** (every change, not just the latest), and the separate gate confidence figure.
+Two coordinator tables sit alongside `images`:
+
+| Table | Columns | Purpose |
+|---|---|---|
+| `incident_dispatch` | `incident_id` PK, `state` (`awaiting`/`live`/`extinguished`), `updated_by`, `updated_at` | Per-incident dispatch state. No row = no coordinator decision yet |
+| `decisions` | `id`, `incident_id`, `image_id` (null for dispatch), `field`, `from_value`, `to_value`, `decided_by`, `decided_at` | Append-only history of every coordinator change, including undos. Indexed on `(incident_id, decided_at)` |
+
+Not yet in the schema, but required: the separate gate confidence figure.
 
 ## 2. Migrations
 

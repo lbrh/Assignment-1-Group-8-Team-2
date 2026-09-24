@@ -3,7 +3,7 @@
 **Status:** Live. Consolidates every requirements doc from Sprint 1 and Sprint 2 Week 1 into the current set. Build status is as of the date below.
 **Owner:** Aryaveer Singh (BA). Consolidated by Liam Robinson Hounsell (Dev 2); items marked **(pending BA)** changed after the BA's last document and need sign-off.
 **Last updated:** 2026-09-24
-**Project:** AI-Powered Bushfire Situational Awareness & Emergency Response · **Client:** IBM (Naresh Olladapu, technical supervisor; Emily Chin, non-technical supervisor) · **Team:** Team 8, Team B
+**Project:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness) · **Client:** IBM (Naresh Olladapu, technical supervisor; Emily Chin, non-technical supervisor) · **Team:** Team 8, Team B
 
 Sources: [Week 1 users & requirements](../archive/sprint-1/requirements/week-1/Define_Target_Users_&_Core_Requirements.md) · [Week 2 user stories](../archive/sprint-1/requirements/week-2/Refine%20User%20Stories%2C%20Requirements%20%26%20Traceability.md) · [Sprint 1 final](../archive/sprint-1/requirements/final/Sprint1_AI_Req_Acceptance_Criteria.md) · [Sprint 2 W1](../archive/sprint-2/week-1/Sprint2_Implementation_Requirements_&_Acceptance_Criteria.md)
 
@@ -31,7 +31,7 @@ Sources: [Week 1 users & requirements](../archive/sprint-1/requirements/week-1/D
 | FR10 / FR13 | Low-confidence images routed to manual review, never shown as confirmed | Must | ✅ `assessment_status` routing | ❌ review queue |
 | FR11 | Four input methods (manual, drone, satellite, bulk/API) through one pipeline | Must | ✅ one API, `source_type` enum | ❌ |
 | FR12 | Hybrid incident grouping: auto-group, coordinator confirms or splits | Must | 🟡 auto-group (2 km / 6 h) built; confirm/split not built | ❌ |
-| FR14 | Immediate override with undo and 5 s toast, logged (original, new, who, when) | Must | 🟡 schema fields exist, no override endpoint | ❌ |
+| FR14 | Immediate override with undo and 5 s toast, logged (original, new, who, when) | Must | ✅ `PATCH /images/:id/decision`, every change logged in `decisions` (who is unverified until login exists) | ✅ override, undo and 5 s toast wired to the API |
 
 ## 3. AI input and output
 
@@ -60,7 +60,7 @@ The result is written to the stored record in the background. Submitters get the
 
 Flow: submission → fire gate (≤ 0.75 → Uncertain; confident non-fire → Archive) → severity scoring (≤ 0.75 → Uncertain) → Fire. Archive and Resolved are separate lists; nothing is deleted.
 
-Build status: `classification_label` supports all four values; the gate, archive, resolved and reopen flows are not built.
+Build status: `classification_label` supports all four values. Archive (discard), Resolved (extinguish) and reopen are built as coordinator actions (`classification_label_override`, `incident_dispatch`); the automatic fire gate is not built.
 
 **Acceptance criteria:**
 1. Every submission resolves to Fire, Non-Fire or Uncertain, never unclassified.
@@ -84,7 +84,7 @@ Build status: `classification_label` supports all four values; the gate, archive
 | NFR2 severity accuracy | Precision ≥ 0.80, recall ≥ 0.75 vs a labelled test set | Not yet measured; needs retrained models and a human-checked test set. |
 | **Fire gate miss rate (pending BA)** | ≥ 98% of real fires classified Fire (≤ 2% missed) on ≥ 300 fire test images; non-fire only accepted at ≥ 0.95 confidence | **Proposed** 2026-09-24, see D-25. Current NFR2 recall of 0.75 would allow 1 in 4 fires to be dismissed. |
 | Confidence honesty | 100% of low-confidence images routed to review | Built (≤ 0.75 rule). |
-| Override | Immediate, undo available | Not built. |
+| Override | Immediate, undo available | Built. |
 | Map clarity | Zero overlapping markers at default zoom | Not built. |
 | No data loss | Nothing lost between submission and storage | Record written before upload; failed uploads kept with `ingestion_error`. |
 | Load tolerance | Survive a spike of simultaneous submissions | Grouping is locked against races; rate limit 30 req/min per API key (see open questions). |

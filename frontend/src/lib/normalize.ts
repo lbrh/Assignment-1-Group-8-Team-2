@@ -63,17 +63,21 @@ function sumOf(elements: ElementScores): number | null {
 }
 
 function provenanceOf(record: ApiIncidentRecord): SeverityProvenance {
-  if (record.overriddenBy) return "coordinator_override";
-  // TODO(api): "confirmed by coordinator" vs "assigned manually" both currently collapse to
-  // overriddenBy/overriddenAt on the wire; the UI distinguishes them via local review state
-  // until the schema grows a dedicated field.
+  if (record.severityScoreOverride != null) {
+    return record.severityScoreOverride === record.severityScore ? "ai_confirmed_by_coordinator" : "coordinator_override";
+  }
   if (record.severityScore != null) return "ai_classified";
   return "none";
 }
 
+/** The coordinator's label wins over the AI's (same pattern as the severity override). */
+function labelOf(record: ApiIncidentRecord) {
+  return record.classificationLabelOverride ?? record.classificationLabel;
+}
+
 // Routing is decided by the backend (0.75 threshold, uncertain label) — the UI only reads it.
 function flagOf(record: ApiIncidentRecord, isDiscarded: boolean): PipelineFlag {
-  if (isDiscarded || record.classificationLabel === "non_fire") return "not_a_fire";
+  if (isDiscarded || labelOf(record) === "non_fire") return "not_a_fire";
   // pending_review = not assessed yet; never show that as confirmed (Sprint 2 §1.5 #2).
   if (record.assessmentStatus !== "assessed") return "flagged_review";
   return "processed";
@@ -96,10 +100,12 @@ export function normalizeIncident(
   // read, shown on Manual Review but not used for the map/ranking until a coordinator acts.
   const band: SeverityBand | 0 =
     flag === "flagged_review" ? 0 : ((record.severityScoreOverride ?? record.severityScore ?? 0) as SeverityBand | 0);
-  // A confirmed fire enters the dispatch order (Sprint 2 §1.3). TODO(api): live/dispatched has no
-  // backend field yet, so everything confirmed starts as awaiting.
+  // The coordinator's dispatch state wins; otherwise a confirmed fire enters the dispatch order
+  // (Sprint 2 §1.3) and an image the AI read as burnt out counts as extinguished.
   const dispatch: DispatchState =
-    record.classificationLabel === "extinguished" ? "extinguished" : flag === "processed" && band > 0 ? "awaiting" : "unranked";
+    record.dispatchState ??
+    (labelOf(record) === "extinguished" ? "extinguished" : flag === "processed" && band > 0 ? "awaiting" : "unranked");
+  const discardedByCoordinator = record.classificationLabelOverride === "non_fire";
 
   return {
     id: record.incidentId,
@@ -124,15 +130,25 @@ export function normalizeIncident(
     dispatch,
     groupId: null,
 
-    reviewReason: flag === "flagged_review" ? "below_threshold" : null,
+    reviewReason:
+      flag !== "flagged_review" ? null : record.classificationLabelOverride === "uncertain" ? "restored_not_fire" : "below_threshold",
     reviewReasonNote: null,
 
-    dismissedReason: null,
-    dismissedBy: null,
-    dismissedAtIso: null,
+    dismissedReason:
+      flag !== "not_a_fire" ? null : discardedByCoordinator ? "Discarded by reviewer — no fire present in the image." : "Classified as not a fire by the AI gate.",
+    dismissedBy: flag !== "not_a_fire" ? null : discardedByCoordinator ? record.overriddenBy : "AI classification gate",
+    dismissedAtIso: flag !== "not_a_fire" ? null : discardedByCoordinator ? record.overriddenAt : record.timestamp,
 
     extinguishedNote: null,
     extinguishedBy: null,
     extinguishedAtIso: null,
+
+    backend: {
+      imageId: record.imageId,
+      severityScoreOverride: record.severityScoreOverride,
+      classificationLabelOverride: record.classificationLabelOverride,
+      assessmentStatus: record.assessmentStatus,
+      dispatchState: record.dispatchState ?? null,
+    },
   };
 }

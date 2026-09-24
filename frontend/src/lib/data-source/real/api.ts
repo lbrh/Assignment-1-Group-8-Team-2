@@ -1,12 +1,20 @@
 import { normalizeIncident } from "@/lib/normalize";
-import type { ApiIncidentRecord, Incident } from "@/lib/types";
+import { bandFromSum } from "@/lib/constants/severity";
+import type {
+  ApiIncidentRecord,
+  BackendDispatchState,
+  ClassificationLabel,
+  DecisionLogEntry,
+  Incident,
+  SeverityBand,
+} from "@/lib/types";
 import type { SubmitImagePayload } from "../mock/mockApi";
 
 /**
  * Real API implementation — same signatures as mock/mockApi.ts. Calls go through the Next.js
  * proxy at /api/backend (src/app/api/backend/[...path]/route.ts), which adds the API key
- * server-side. The coordinator-workflow calls below listIncidents/getIncident/submitImage have no
- * backend endpoint yet and still throw.
+ * server-side. Coordinator actions map onto PATCH /images/:id/decision and PUT /incidents/:id/dispatch;
+ * grouping has no backend endpoint yet and still throws.
  */
 const BASE = "/api/backend";
 
@@ -56,64 +64,136 @@ function notImplemented(name: string): never {
   throw new Error(`No backend endpoint for ${name}() yet.`);
 }
 
-export async function confirmReview(
-  ..._args: Parameters<typeof import("../mock/mockApi").confirmReview>
-): ReturnType<typeof import("../mock/mockApi").confirmReview> {
-  return notImplemented("confirmReview");
+// ponytail: sent as `by` on every decision; there's no login yet, so the backend records it unverified.
+export const COORDINATOR_NAME = "EC · Emergency Coordinator";
+
+type ReviewPatch = {
+  severityScoreOverride?: number | null;
+  classificationLabelOverride?: ClassificationLabel | null;
+  assessmentStatus?: "assessed" | "unable_to_assess";
+};
+
+const jsonInit = (method: string, body: object): RequestInit => ({
+  method,
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ ...body, by: COORDINATOR_NAME }),
+});
+
+// The review fields of an incident as the server now has them — merged into the store by the caller.
+function reviewFields(record: ApiIncidentRecord, incident: Incident): Partial<Incident> {
+  const next = normalizeIncident({ ...record, dispatchState: incident.backend.dispatchState });
+  const { flag, band, provenance, reviewReason, dismissedReason, dismissedBy, dismissedAtIso, dispatch, backend } = next;
+  return { flag, band, provenance, reviewReason, dismissedReason, dismissedBy, dismissedAtIso, dispatch, backend };
 }
 
-export async function changeReview(
-  ..._args: Parameters<typeof import("../mock/mockApi").changeReview>
-): ReturnType<typeof import("../mock/mockApi").changeReview> {
-  return notImplemented("changeReview");
+async function decide(incident: Incident, patch: ReviewPatch): Promise<Partial<Incident>> {
+  const record = await request<ApiIncidentRecord>(
+    `/images/${incident.backend.imageId}/decision`,
+    jsonInit("PATCH", patch)
+  );
+  return reviewFields(record, incident);
 }
 
-export async function discardReview(
-  ..._args: Parameters<typeof import("../mock/mockApi").discardReview>
-): ReturnType<typeof import("../mock/mockApi").discardReview> {
-  return notImplemented("discardReview");
+async function setDispatch(incident: Incident, state: BackendDispatchState): Promise<Partial<Incident>> {
+  await request(`/incidents/${encodeURIComponent(incident.id)}/dispatch`, jsonInit("PUT", { state }));
+  const now = new Date().toISOString();
+  return {
+    dispatch: state,
+    backend: { ...incident.backend, dispatchState: state },
+    extinguishedNote: state === "extinguished" ? "Crew reported the fire out" : null,
+    extinguishedBy: state === "extinguished" ? COORDINATOR_NAME : null,
+    extinguishedAtIso: state === "extinguished" ? now : null,
+  };
 }
 
-export async function overrideSeverity(
-  ..._args: Parameters<typeof import("../mock/mockApi").overrideSeverity>
-): ReturnType<typeof import("../mock/mockApi").overrideSeverity> {
-  return notImplemented("overrideSeverity");
+/** Confirming keeps the AI's own provisional score, recorded as the coordinator's decision. */
+export async function confirmReview(incident: Incident): Promise<Partial<Incident>> {
+  if (incident.sum == null) throw new Error("There's no AI severity to confirm — assign one instead.");
+  return decide(incident, {
+    severityScoreOverride: bandFromSum(incident.sum),
+    classificationLabelOverride: "fire",
+    assessmentStatus: "assessed",
+  });
 }
 
-export async function dispatchCrew(
-  ..._args: Parameters<typeof import("../mock/mockApi").dispatchCrew>
-): ReturnType<typeof import("../mock/mockApi").dispatchCrew> {
-  return notImplemented("dispatchCrew");
+export async function changeReview(incident: Incident, level: SeverityBand): Promise<Partial<Incident>> {
+  return decide(incident, { severityScoreOverride: level, classificationLabelOverride: "fire", assessmentStatus: "assessed" });
 }
 
-export async function cancelDispatch(
-  ..._args: Parameters<typeof import("../mock/mockApi").cancelDispatch>
-): ReturnType<typeof import("../mock/mockApi").cancelDispatch> {
-  return notImplemented("cancelDispatch");
+export async function discardReview(incident: Incident): Promise<Partial<Incident>> {
+  return decide(incident, { classificationLabelOverride: "non_fire", assessmentStatus: "assessed" });
 }
 
-export async function markExtinguished(
-  ..._args: Parameters<typeof import("../mock/mockApi").markExtinguished>
-): ReturnType<typeof import("../mock/mockApi").markExtinguished> {
-  return notImplemented("markExtinguished");
+export async function overrideSeverity(incident: Incident, level: SeverityBand): Promise<Partial<Incident>> {
+  return decide(incident, { severityScoreOverride: level });
 }
 
-export async function reopenIncident(
-  ..._args: Parameters<typeof import("../mock/mockApi").reopenIncident>
-): ReturnType<typeof import("../mock/mockApi").reopenIncident> {
-  return notImplemented("reopenIncident");
+export async function sendToManualReview(incident: Incident): Promise<Partial<Incident>> {
+  return decide(incident, { assessmentStatus: "unable_to_assess" });
 }
 
-export async function sendToManualReview(
-  ..._args: Parameters<typeof import("../mock/mockApi").sendToManualReview>
-): ReturnType<typeof import("../mock/mockApi").sendToManualReview> {
-  return notImplemented("sendToManualReview");
+/** "uncertain" puts it back in review even when the AI itself said non-fire. */
+export async function restoreFromArchive(incident: Incident): Promise<Partial<Incident>> {
+  return decide(incident, { classificationLabelOverride: "uncertain", assessmentStatus: "unable_to_assess" });
 }
 
-export async function restoreFromArchive(
-  ..._args: Parameters<typeof import("../mock/mockApi").restoreFromArchive>
-): ReturnType<typeof import("../mock/mockApi").restoreFromArchive> {
-  return notImplemented("restoreFromArchive");
+export const dispatchCrew = (incident: Incident) => setDispatch(incident, "live");
+export const cancelDispatch = (incident: Incident) => setDispatch(incident, "awaiting");
+export const markExtinguished = (incident: Incident) => setDispatch(incident, "extinguished");
+export const reopenIncident = (incident: Incident) => setDispatch(incident, "live");
+
+/** Puts the server back to the snapshot taken before the action, sending only what changed.
+ * The backend logs the undo like any other decision. */
+export async function undo(prev: Incident, current: Incident): Promise<void> {
+  const before = prev.backend;
+  const now = current.backend;
+  const reviewChanged =
+    before.severityScoreOverride !== now.severityScoreOverride ||
+    before.classificationLabelOverride !== now.classificationLabelOverride ||
+    before.assessmentStatus !== now.assessmentStatus;
+  if (reviewChanged) {
+    await request(
+      `/images/${before.imageId}/decision`,
+      jsonInit("PATCH", {
+        severityScoreOverride: before.severityScoreOverride,
+        classificationLabelOverride: before.classificationLabelOverride,
+        // pending_review can't be set by a coordinator; it means "not yet assessed", same as needing review
+        assessmentStatus: before.assessmentStatus === "assessed" ? "assessed" : "unable_to_assess",
+      })
+    );
+  }
+  if (before.dispatchState !== now.dispatchState) {
+    // no dispatch row before = the default "awaiting" for a confirmed fire
+    await request(`/incidents/${encodeURIComponent(prev.id)}/dispatch`, jsonInit("PUT", { state: before.dispatchState ?? "awaiting" }));
+  }
+}
+
+interface ApiDecision {
+  id: number;
+  incidentId: string;
+  field: string;
+  fromValue: string | null;
+  toValue: string | null;
+  decidedBy: string;
+  decidedAt: string;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  severityScoreOverride: "Severity",
+  classificationLabelOverride: "Classification",
+  assessmentStatus: "Review status",
+  dispatchState: "Dispatch",
+};
+
+export async function getDecisionLog(incidentId: string): Promise<DecisionLogEntry[]> {
+  const decisions = await request<ApiDecision[]>(`/incidents/${encodeURIComponent(incidentId)}/decisions`);
+  return decisions.map((d) => ({
+    id: String(d.id),
+    incidentId: d.incidentId,
+    summary: `${FIELD_LABELS[d.field] ?? d.field}: ${d.fromValue ?? "none"} → ${d.toValue ?? "none"}`,
+    who: d.decidedBy,
+    whenIso: d.decidedAt,
+  }));
 }
 
 export async function setGrouping(

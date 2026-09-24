@@ -47,3 +47,31 @@ ALTER TABLE images ADD CONSTRAINT images_infrastructure_impact_check CHECK (infr
 ALTER TABLE images DROP CONSTRAINT IF EXISTS images_vegetation_impact_check;
 UPDATE images SET vegetation_impact = NULL WHERE vegetation_impact NOT IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation');
 ALTER TABLE images ADD CONSTRAINT images_vegetation_impact_check CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation'));
+
+-- Coordinator decisions (Sprint 2 §5, US13/FR14). The AI's own columns are never overwritten:
+-- a coordinator's call lives in the *_override columns (same pattern as severity_score_override),
+-- and every change is written to `decisions` with its before/after value, who and when.
+ALTER TABLE images ADD COLUMN IF NOT EXISTS classification_label_override TEXT;
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_classification_label_override_check;
+ALTER TABLE images ADD CONSTRAINT images_classification_label_override_check CHECK (classification_label_override IN ('fire', 'non_fire', 'extinguished', 'uncertain'));
+
+-- Dispatch state is per incident, not per image. No row = not yet acted on.
+CREATE TABLE IF NOT EXISTS incident_dispatch (
+    incident_id UUID PRIMARY KEY,
+    state TEXT NOT NULL CHECK (state IN ('awaiting', 'live', 'extinguished')),
+    updated_by TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Audit trail: append-only, never updated or deleted (Sprint 2 §1.5 #5/#6).
+CREATE TABLE IF NOT EXISTS decisions (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id UUID NOT NULL,
+    image_id UUID,
+    field TEXT NOT NULL,
+    from_value TEXT,
+    to_value TEXT,
+    decided_by TEXT NOT NULL,
+    decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS decisions_incident_idx ON decisions (incident_id, decided_at DESC);
