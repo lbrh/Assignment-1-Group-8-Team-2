@@ -1,7 +1,7 @@
 # Open Questions, Assumptions and Known Gaps
 
 **Status:** Live. Add to it when something is unknown; move items into the [decision log](../decisions/decision-log.md) when they're decided.
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 **Supersedes:** [Technical assumptions and limitations](../archive/sprint-1/ai-ml/Technical_Assumptions_and_Limitations.md)
 
 ---
@@ -12,7 +12,6 @@
 |---|---|---|---|
 | Q1 | Sign off the 2026-09-24 rubric (people proximity dropped, vegetation and infrastructure as amounts, vegetation gated on fire) | Aryaveer, client | D-17 to D-19 |
 | Q2 | Adopt the fire-gate target (≥ 98% fire recall, asymmetric 0.95 non-fire threshold)? | Aryaveer, client | D-25 |
-| Q3 | Raise the API rate limit? Proposal: 600/min default, per-key override via `name:key:limit` in `ALLOWED_API_KEYS`. | Dev | Parked 2026-09-24. 30/min is now per caller + client IP, so frontend users no longer share one budget. |
 | Q4 | Give CI its own database | Dev | Prevents schema changes reaching prod early (D-24) |
 | Q5 | Extinguished: model label or coordinator action? What if both disagree? | Aryaveer, Benjamin | Carried from Sprint 1 |
 | Q6 | Satellite images: same visual rubric or a separate scoring path? | Aryaveer | Schema is source-agnostic either way |

@@ -9,7 +9,7 @@ function delay<T>(value: T, ms = LATENCY_MS): Promise<T> {
 }
 
 /**
- * listIncidents()/getIncident()/submitImage() mirror the documented ingestion API shape
+ * listIncidents()/getIncidentImages()/submitImage() mirror the documented ingestion API shape
  * (ApiIncidentRecord) and go through the same normalizeIncident() a real fetch response would.
  * Everything below that — confirm/change/discard/override/dispatch/extinguish/... — has no
  * backend endpoint documented yet (see the plan's "schema gap" list), so these simulate a
@@ -24,11 +24,12 @@ export async function listIncidents(): Promise<Incident[]> {
   return delay(incidents);
 }
 
-export async function getIncident(id: string): Promise<Incident | null> {
-  const record = seedRecords.find((r) => r.incidentId === id) ?? null;
-  if (!record) return delay(null);
+/** Seed incidents have one image each. */
+export async function getIncidentImages(id: string): Promise<Incident[]> {
+  const record = seedRecords.find((r) => r.incidentId === id);
+  if (!record) return delay([]);
   const overlay = seedOverlay[record.incidentId];
-  return delay(normalizeIncident(record, { discarded: overlay?.discarded, place: overlay?.place }));
+  return delay([normalizeIncident(record, { discarded: overlay?.discarded, place: overlay?.place })]);
 }
 
 /** Mock incidents have no stored files, so previews fall back to the filename placeholder. */

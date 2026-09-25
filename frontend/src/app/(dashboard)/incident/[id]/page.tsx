@@ -10,7 +10,7 @@ import { DetailActionsBar } from "@/components/detail/DetailActionsBar";
 import { OverrideSeverityCard } from "@/components/detail/OverrideSeverityCard";
 import { HowScoredExplainer } from "@/components/detail/HowScoredExplainer";
 import { NearbyStrip } from "@/components/detail/NearbyStrip";
-import { IncidentImage } from "@/components/detail/IncidentImage";
+import { IncidentGallery } from "@/components/detail/IncidentGallery";
 import { MetaList } from "@/components/primitives/MetaField";
 import { DecisionLogList } from "@/components/primitives/DecisionLogList";
 import { SectionHeading } from "@/components/primitives/Card";
@@ -104,7 +104,7 @@ export default function IncidentDetailPage() {
         <div className="detail-grid">
           <div className="detail-col" style={{ gap: "var(--space-4)" }}>
             <div className="d-image">
-              <IncidentImage key={incident.file} imageId={incident.file} alt={`Field image for ${incident.place}`} />
+              <IncidentGallery incident={incident} />
             </div>
             <div className="d-meta">
             <MetaList

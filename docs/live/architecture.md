@@ -2,7 +2,7 @@
 
 **Status:** Live. Describes what is built and deployed, with planned parts marked.
 **Owner:** Liam Robinson Hounsell (Dev 2), Htet (Dev 1)
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 **Supersedes:** [Storage and metadata V2](../archive/sprint-1/storage/Storage_and_metadata_V2.md) §1, 3, 7 · [Data-flow diagram](../archive/sprint-1/ai-ml/Technical_Data_Flow_Architecture_Finalised.md) · [Integration interface](../archive/sprint-1/ai-ml/Dataset_Integration_Interface_for_Htet.md)
 
 ---
@@ -76,7 +76,7 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 Cross-cutting:
 
 - **Caller scopes:** a key's name (`frontend`, `classifier`, …) decides which write routes it may use; other keys get 403.
-- **Rate limit:** 30 requests / minute per caller + client IP (the frontend proxy forwards the user's IP as `x-forwarded-for`), in memory per instance (up to 5 instances). Applied once to every keyed route. See open questions.
+- **Rate limit:** per caller + client IP (the frontend proxy forwards the user's IP as `x-forwarded-for`): 600 reads (`GET`) and 60 writes per minute, counted separately, in memory per instance (up to 5 instances). Applied once to every keyed route. See D-29.
 - **CORS:** only `FRONTEND_ORIGIN`; methods GET, POST, PUT, PATCH, OPTIONS.
 - **No client ever holds a COS key.** Writes go through the API; reads use signed URLs.
 

@@ -34,14 +34,10 @@ export async function listIncidents(): Promise<Incident[]> {
   return records.map((r) => normalizeIncident(r));
 }
 
-export async function getIncident(id: string): Promise<Incident | null> {
-  try {
-    // every image at the incident, most recent first — the newest one represents the incident
-    const images = await request<ApiIncidentRecord[]>(`/incidents/${encodeURIComponent(id)}`);
-    return images[0] ? normalizeIncident(images[0]) : null;
-  } catch {
-    return null;
-  }
+/** Every image at the incident, newest first, each normalised with its own rating. */
+export async function getIncidentImages(id: string): Promise<Incident[]> {
+  const images = await request<ApiIncidentRecord[]>(`/incidents/${encodeURIComponent(id)}`);
+  return images.map((r) => normalizeIncident(r));
 }
 
 /** Downscaled WebP of the stored image, cached by the browser. Safe to use as an <img> src. */
