@@ -1,78 +1,43 @@
 import type { ReactNode } from "react";
 
-export function MetaField({
-  label,
-  value,
-  secondary,
-}: {
-  label: string;
-  value: ReactNode;
-  secondary?: ReactNode;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div
-        style={{
-          font: "600 10px/1 var(--font-plex-mono)",
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ font: "600 14px/1.3 var(--font-plex-mono)", color: "var(--fg)" }}>
-        {value}
-      </div>
-      {secondary ? (
-        <div style={{ font: "400 13.5px/1.4 var(--font-plex-sans)", color: "var(--muted)" }}>
-          {secondary}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
+/** Label / value pairs. `mono` values are machine data (coordinates, ids) and render in Plex Mono. */
 export function MetaList({
   rows,
 }: {
-  rows: { label: string; value: ReactNode }[];
+  rows: { label: string; value: ReactNode; mono?: boolean }[];
 }) {
   return (
-    <div style={{ border: "var(--border-w) solid var(--border-4)", background: "var(--panel)" }}>
+    <dl className="card card--inset" style={{ margin: 0, padding: "var(--space-1) var(--space-4)" }}>
       {rows.map((row, i) => (
         <div
           key={row.label}
           style={{
             display: "flex",
             justifyContent: "space-between",
-            gap: 12,
-            padding: "11px 14px",
-            borderBottom: i < rows.length - 1 ? "1px solid var(--border-5)" : "none",
+            alignItems: "baseline",
+            gap: "var(--space-3)",
+            padding: "10px 0",
+            borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none",
           }}
         >
-          <span
-            style={{
-              flex: "0 0 74px",
-              font: "600 10px/1.4 var(--font-plex-mono)",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "var(--muted)",
-            }}
-          >
+          <dt className="caption" style={{ flex: "none" }}>
             {row.label}
-          </span>
-          <span
+          </dt>
+          <dd
+            className={row.mono ? "data" : undefined}
             style={{
-              font: "500 13px/1.4 var(--font-plex-mono)",
+              margin: 0,
+              font: row.mono
+                ? "500 var(--text-xs)/1.4 var(--font-plex-mono)"
+                : "500 var(--text-sm)/1.4 var(--font-plex-sans)",
               color: "var(--fg)",
               textAlign: "right",
             }}
           >
             {row.value}
-          </span>
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

@@ -1,76 +1,44 @@
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/constants/severity";
 import type { SeverityBand } from "@/lib/types";
 
+const DOT = { 4: 20, 3: 17, 2: 15, 1: 13 } as const;
+
 export function SeverityLegend({ counts }: { counts: Record<SeverityBand, number> }) {
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: 12,
-        bottom: 12,
-        width: 250,
-        background: "var(--halo)",
-        border: "var(--border-w) solid var(--border-3)",
-      }}
+    <section
+      aria-label="Severity scale"
+      className="card map-legend"
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "8px 11px",
-          borderBottom: "1px solid var(--border-6)",
-          font: "600 10px/1 var(--font-plex-mono)",
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-        }}
-      >
-        <span>Severity scale</span>
-        <span>Qty</span>
+      <div className="map-legend__head">
+        <span className="label">Severity scale</span>
+        <span className="caption">On map</span>
       </div>
-      {SEVERITY_ORDER.map((band) => {
-        const meta = SEVERITY[band];
-        return (
-          <div
-            key={band}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              padding: "6px 11px",
-            }}
-          >
-            <div
-              style={{
-                width: { 4: 20, 3: 17, 2: 15, 1: 13 }[band],
-                height: { 4: 20, 3: 17, 2: 15, 1: 13 }[band],
-                borderRadius: "50%",
-                background: meta.fillVar,
-                border: `1px solid ${meta.ringVar}`,
-                flex: "none",
-              }}
-            />
-            <span
-              style={{
-                font: "700 9px/1 var(--font-plex-mono)",
-                color: meta.ringVar,
-                border: `1px solid ${meta.ringVar}`,
-                padding: "2px 5px",
-              }}
-            >
-              {meta.abbr}
-            </span>
-            <span
-              style={{ font: "500 12.5px/1 var(--font-plex-sans)", color: "var(--fg-2)", flex: 1 }}
-            >
-              {meta.label}
-            </span>
-            <span style={{ font: "500 11px/1 var(--font-plex-mono)", color: "var(--fg-4)" }}>
-              {counts[band]}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+      <ul className="map-legend__list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {SEVERITY_ORDER.map((band) => {
+          const meta = SEVERITY[band];
+          return (
+            <li key={band} className="map-legend__item">
+              <span style={{ width: 20, display: "flex", justifyContent: "center", flex: "none" }}>
+                <span
+                  style={{
+                    width: DOT[band],
+                    height: DOT[band],
+                    borderRadius: "50%",
+                    background: meta.fillVar,
+                    border: `1px solid ${meta.ringVar}`,
+                  }}
+                />
+              </span>
+              <span className="map-legend__label">
+                {meta.label}
+              </span>
+              <span className="data" style={{ font: "600 var(--text-xs)/1 var(--font-plex-mono)", color: counts[band] ? "var(--fg)" : "var(--faint)" }}>
+                {counts[band]}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

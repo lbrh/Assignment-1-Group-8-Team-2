@@ -10,7 +10,7 @@ import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 const FILTERS: { key: "all" | "awaiting" | "live"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "awaiting", label: "Awaiting dispatch" },
-  { key: "live", label: "Live / dispatched" },
+  { key: "live", label: "Live" },
 ];
 
 export default function DispatchOrderPage() {
@@ -26,94 +26,106 @@ export default function DispatchOrderPage() {
 
   const showAwaiting = dispatchFilter !== "live";
   const showLive = dispatchFilter !== "awaiting";
+  const counts = { all: awaiting.length + live.length, awaiting: awaiting.length, live: live.length };
 
   return (
-    <div style={{ maxWidth: 1240, margin: "0 auto", padding: "20px 24px 40px" }}>
-      <h1
-        style={{
-          font: "600 22px/1.2 var(--font-plex-sans)",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "var(--fg)",
-        }}
-      >
-        Dispatch Order
-      </h1>
-      <p style={{ font: "400 12.5px/1.4 var(--font-plex-sans)", color: "var(--muted)", marginTop: 6 }}>
-        Severity first, then distance from staging. Every position states its own reason.
-      </p>
-
-      <div style={{ display: "flex", gap: 8, margin: "16px 0" }}>
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setDispatchFilter(f.key)}
-            style={{
-              font: "600 10px/1 var(--font-plex-mono)",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              padding: "8px 11px",
-              background: dispatchFilter === f.key ? "var(--accent)" : "transparent",
-              color: dispatchFilter === f.key ? "var(--on-accent)" : "var(--muted)",
-              border: dispatchFilter === f.key ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-2)",
-            }}
-          >
-            {f.label} {f.key === "awaiting" ? `(${awaiting.length})` : f.key === "live" ? `(${live.length})` : ""}
-          </button>
-        ))}
+    <div className="page">
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "var(--space-4)", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          <h1 className="page-title">Dispatch order</h1>
+          <p className="page-lede">Severity first, then distance from staging. Every position states its own reason.</p>
+        </div>
+        <div className="seg" role="group" aria-label="Filter dispatch order">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className="seg__btn"
+              aria-pressed={dispatchFilter === f.key}
+              onClick={() => setDispatchFilter(f.key)}
+            >
+              {f.label}
+              <span className="seg__count">{counts[f.key]}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div style={{ border: "var(--border-w) solid var(--border)", background: "var(--panel)" }}>
+      <div className="card" style={{ marginTop: "var(--space-5)", overflow: "hidden" }}>
+        <div
+          aria-hidden
+          style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
+          className="caption dispatch-grid dispatch-head"
+        >
+          <span>Rank</span>
+          <span>Severity</span>
+          <span>Incident</span>
+          <span>Reason</span>
+          <span>Conf.</span>
+          <span>Distance</span>
+          <span />
+        </div>
+
         {showAwaiting ? (
-          <>
-            <SectionBar tone="accent" title={`Awaiting dispatch (${awaiting.length})`} note="ranked by severity, then distance from staging" />
+          <section aria-label="Awaiting dispatch">
+            <SectionBar tone="accent" title="Awaiting dispatch" count={awaiting.length} />
             {awaiting.length === 0 ? (
               <EmptyRow text="Every ranked incident has a crew assigned." />
             ) : (
               awaiting.map((i, idx) => <DispatchRow key={i.id} incident={i} rank={idx + 1} />)
             )}
-          </>
+          </section>
         ) : null}
 
         {showLive ? (
-          <>
-            <SectionBar tone="ok" title={`Live / dispatched (${live.length})`} note="crew assigned · mark extinguished when the crew reports the fire out" />
+          <section aria-label="Live">
+            <SectionBar tone="ok" title="Live" count={live.length} note="Mark extinguished when the crew reports the fire out." />
             {live.length === 0 ? (
-              <EmptyRow text="No crews out yet. Incidents move here when you press Dispatch." />
+              <EmptyRow text="No crews out yet. Incidents move here when you dispatch a crew." />
             ) : (
               live.map((i) => <DispatchRow key={i.id} incident={i} rank={null} />)
             )}
-          </>
+          </section>
         ) : null}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18 }}>
+      <div
+        className="card card--pending"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: "var(--space-4)",
+          marginTop: "var(--space-5)",
+          padding: "var(--space-4) var(--space-5)",
+          boxShadow: "none",
+        }}
+      >
         <span
+          aria-hidden
           style={{
-            width: 22,
-            height: 22,
+            width: 28,
+            height: 28,
             borderRadius: "50%",
             border: "2px dashed var(--accent)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flex: "none",
-            font: "700 11px/1 var(--font-plex-mono)",
+            font: "700 13px/1 var(--font-plex-sans)",
             color: "var(--accent)",
           }}
         >
           ?
         </span>
-        <p style={{ font: "400 12.5px/1.4 var(--font-plex-sans)", color: "var(--muted)", flex: 1 }}>
-          Detections at or below the {CONFIDENCE_THRESHOLD} confidence threshold are held out of the ranking — never
-          force-classified — until a reviewer confirms, changes or discards them. Not-a-fire
-          images go to the Archive; extinguished fires leave this order and are listed under
-          Resolved.
-          {flaggedCount > 0 ? ` ${flaggedCount} currently waiting.` : ""}
+        <p style={{ font: "400 var(--text-sm)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-2)", flex: "1 1 240px" }}>
+          Detections at or below the {CONFIDENCE_THRESHOLD} confidence threshold stay out of this order until a
+          reviewer confirms, changes or discards them. Not-a-fire images go to the Archive, and
+          extinguished fires move to Resolved.
+          {flaggedCount > 0 ? ` ${flaggedCount} waiting now.` : ""}
         </p>
         {flaggedCount > 0 ? (
-          <Button variant="dashed" small onClick={() => router.push("/review")}>
+          <Button variant="pending" small onClick={() => router.push("/review")}>
             Open review queue
           </Button>
         ) : null}
@@ -122,44 +134,36 @@ export default function DispatchOrderPage() {
   );
 }
 
-function SectionBar({ tone, title, note }: { tone: "accent" | "ok"; title: string; note: string }) {
+function SectionBar({ tone, title, count, note }: { tone: "accent" | "ok"; title: string; count: number; note?: string }) {
+  const color = tone === "accent" ? "var(--accent-fg)" : "var(--ok-fg)";
   return (
     <div
       style={{
         display: "flex",
+        flexWrap: "wrap",
         alignItems: "center",
-        gap: 10,
-        padding: "9px 18px",
-        background: tone === "accent" ? "var(--acc-06)" : "var(--grn-09)",
-        borderBottom: "1px solid var(--border-5)",
+        gap: "var(--space-3)",
+        padding: "10px var(--space-5)",
+        borderBottom: "1px solid var(--border)",
+        background: tone === "accent" ? "var(--accent-soft)" : "var(--ok-soft)",
       }}
     >
+      <h2 style={{ font: "600 var(--text-sm)/1 var(--font-plex-sans)", color }}>{title}</h2>
       <span
-        style={{
-          width: 7,
-          height: 7,
-          background: tone === "accent" ? "var(--accent)" : "var(--ok-fg)",
-        }}
-      />
-      <span
-        style={{
-          font: "600 10px/1 var(--font-plex-mono)",
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: tone === "accent" ? "var(--accent)" : "var(--ok-fg)",
-        }}
+        className="chip chip--pill data"
+        style={{ height: 20, color, background: "var(--panel)", borderColor: "currentColor", fontFamily: "var(--font-plex-mono)", fontSize: 11 }}
       >
-        {title}
+        {count}
       </span>
-      <span style={{ font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>{note}</span>
+      {note ? <span className="caption">{note}</span> : null}
     </div>
   );
 }
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <div style={{ padding: "22px 18px", font: "400 13px/1.5 var(--font-plex-sans)", color: "var(--muted)" }}>
+    <p className="caption" style={{ padding: "var(--space-5)", fontSize: "var(--text-sm)" }}>
       {text}
-    </div>
+    </p>
   );
 }

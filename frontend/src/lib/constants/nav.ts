@@ -1,13 +1,13 @@
-/** Single source of truth for the six top-level tab routes — used by the header (tab list +
- * active-tab highlight), the last-visited-tab tracker, and any click-through page (e.g.
+/** Single source of truth for the six top-level tab routes, used by the header (tab list +
+ * active-tab highlight), the last-visited-tab tracker, and any click-through page (such as
  * incident detail) that needs to know which tab it was reached from. */
 export const TABS = [
   { href: "/", label: "Map", short: "Map", backLabel: "Back to map" },
-  { href: "/dispatch", label: "Dispatch Order", short: "Order", backLabel: "Back to dispatch order" },
-  { href: "/review", label: "Manual Review", short: "Review", backLabel: "Back to manual review" },
-  { href: "/archive", label: "Archive", short: "Archive", backLabel: "Back to archive" },
+  { href: "/dispatch", label: "Dispatch order", short: "Order", backLabel: "Back to dispatch order" },
+  { href: "/review", label: "Manual review", short: "Review", backLabel: "Back to manual review" },
   { href: "/resolved", label: "Resolved", short: "Resolved", backLabel: "Back to resolved" },
-  { href: "/submit", label: "Submit Image", short: "Submit", backLabel: "Back to submit image" },
+  { href: "/archive", label: "Archive", short: "Archive", backLabel: "Back to archive" },
+  { href: "/submit", label: "Submit image", short: "Submit", backLabel: "Back to submit image" },
 ] as const;
 
 export type TabHref = (typeof TABS)[number]["href"];

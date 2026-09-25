@@ -1,31 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import L from "leaflet";
-import { useIncidentStore, type ZoomTier } from "@/lib/store/useIncidentStore";
-import {
-  extinguishedMarkers,
-  legendCounts,
-  mapMarkers,
-} from "@/lib/store/selectors";
+import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import { filteredIncidents, legendCounts, mapMarkers } from "@/lib/store/selectors";
 import { SEVERITY } from "@/lib/constants/severity";
 import { STAGING_COORDS, distanceKm } from "@/lib/utils/geo";
 import { clusterByProximity } from "@/lib/utils/project";
 import { SeverityLegend } from "@/components/map/SeverityLegend";
+import { SOURCE_META } from "@/components/primitives/SourceChip";
+import { dataSource } from "@/lib/data-source";
+import { relativeTime } from "@/lib/utils/time";
 import type { Incident, SeverityBand } from "@/lib/types";
 
 /**
  * Leaflet is imperative and touches `window` on import, so this module is only ever loaded
  * client-side (see the `ssr: false` dynamic import in the Map page). Everything the map draws
- * is derived from the incident store on each change — Leaflet owns the viewport, the store owns
- * the data — and the store's coarse `zoom` tier / `mapView` are written back from Leaflet's
+ * is derived from the incident store on each change (Leaflet owns the viewport, the store owns
+ * the data), and the store's coarse `zoom` tier / `mapView` are written back from Leaflet's
  * events so the rest of the UI (legend header, tab-return) stays in step.
  */
 
-const ZOOM_LABEL = { 1: "REGIONAL · CLUSTERED", 2: "DISTRICT", 3: "SITE · ALL MARKERS" } as const;
+type ZoomTier = 1 | 2 | 3; // regional (clustered) / district / site
 const CLUSTER_THRESHOLD_PX = { 1: 64, 2: 0, 3: 0 } as const; // screen px; 0 disables clustering
-const MIN_ZOOM = 8;
 const MAX_ZOOM = 19;
 const INITIAL_MAX_ZOOM = 12;
 
@@ -47,15 +45,15 @@ function incidentIcon(incident: Incident): L.DivIcon {
   const meta = SEVERITY[incident.band as SeverityBand];
   const d = meta.dotDiameter;
   return L.divIcon({
-    className: "embera-marker",
+    className: "fori-marker",
     iconSize: [d, d],
     iconAnchor: [d / 2, d / 2],
     html:
-      `<div class="embera-pin">` +
-      `<div class="embera-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
+      `<div class="fori-pin">` +
+      `<div class="fori-dot" style="background:${meta.fillVar};color:${meta.textVar};` +
       `border:${meta.ringWidth}px solid ${meta.ringVar};font-size:${meta.numeralFont}px">` +
       `${incident.band}</div>` +
-      `<span class="embera-label">${escapeHtml(incident.id)}</span>` +
+      `<span class="fori-label">${escapeHtml(incident.place)}</span>` +
       `</div>`,
   });
 }
@@ -64,39 +62,71 @@ function clusterIcon(count: number, maxBand: SeverityBand): L.DivIcon {
   const size = 40 + count * 4;
   const ring = SEVERITY[maxBand].ringVar;
   return L.divIcon({
-    className: "embera-marker",
+    className: "fori-marker",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     html:
-      `<div class="embera-cluster" style="border-color:${ring}">` +
-      `<span class="embera-cluster-count" style="color:${ring}">${count}</span>` +
-      `<span class="embera-cluster-caption">SITES</span>` +
+      `<div class="fori-cluster" style="border-color:${ring}">` +
+      `<span class="fori-cluster-count" style="color:${ring}">${count}</span>` +
+      `<span class="fori-cluster-caption">sites</span>` +
       `</div>`,
   });
 }
 
+const HOVER_DELAY_MS = 350; // long enough that sweeping the cursor across the map doesn't flash cards
+
+function div(className: string, text?: string): HTMLDivElement {
+  const el = document.createElement("div");
+  el.className = className;
+  if (text) el.textContent = text;
+  return el;
+}
+
+/** Hover card for a marker: the field image (already in the browser cache, see preloadImages)
+ * and the basics. Built as DOM rather than an HTML string, so no field needs escaping. */
+function hoverCard(incident: Incident): HTMLElement {
+  const card = div("hover-card");
+  const src = dataSource.getImagePreviewUrl(incident.file, 240);
+  if (src) {
+    const img = document.createElement("img");
+    img.className = "hover-card__img";
+    img.alt = "";
+    img.src = src;
+    img.addEventListener("error", () => img.remove());
+    card.append(img);
+  }
+  const meta = SEVERITY[incident.band as SeverityBand];
+  const severity = div("hover-card__severity");
+  const dot = document.createElement("span");
+  dot.className = "hover-card__dot";
+  dot.style.background = meta.fillVar;
+  dot.style.borderColor = meta.ringVar;
+  severity.append(dot, `${meta.label} · level ${incident.band}`);
+  const status = incident.dispatch === "live" ? "Crew dispatched" : "Awaiting dispatch";
+  const confidence = incident.confidence != null ? ` · conf ${incident.confidence.toFixed(2)}` : "";
+  const body = div("hover-card__body");
+  body.append(
+    div("hover-card__title", incident.place),
+    severity,
+    div("hover-card__meta", `${incident.ref} · ${status}`),
+    div("hover-card__meta", `${relativeTime(incident.capturedAtIso)} · ${SOURCE_META[incident.source].abbr}${confidence}`)
+  );
+  card.append(body);
+  return card;
+}
+
 const extinguishedIcon = () =>
   L.divIcon({
-    className: "embera-marker embera-marker-out",
+    className: "fori-marker fori-marker-out",
     iconSize: [34, 34],
     iconAnchor: [17, 17],
-    html: `<div class="embera-out">OUT</div>`,
-  });
-
-const stagingIcon = () =>
-  L.divIcon({
-    className: "embera-marker embera-marker-staging",
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    html: `<div class="embera-staging"></div><span class="embera-staging-label">STAGING</span>`,
+    html: `<div class="fori-out">Out</div>`,
   });
 
 export function MapCanvas() {
   const router = useRouter();
   const incidents = useIncidentStore((s) => s.incidents);
   const order = useIncidentStore((s) => s.order);
-  const zoom = useIncidentStore((s) => s.zoom);
-  const setZoom = useIncidentStore((s) => s.setZoom);
   const setMapView = useIncidentStore((s) => s.setMapView);
   const mapFilter = useIncidentStore((s) => s.mapFilter);
   const mapHoverId = useIncidentStore((s) => s.mapHoverId);
@@ -123,7 +153,6 @@ export function MapCanvas() {
 
     const map = L.map(container, {
       zoomControl: false,
-      minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
       attributionControl: true,
     });
@@ -135,7 +164,8 @@ export function MapCanvas() {
       const coords = mapMarkers(state.incidents, state.order).map(
         (i) => [i.coords.lat, i.coords.lng] as [number, number]
       );
-      coords.push([STAGING_COORDS.lat, STAGING_COORDS.lng]);
+      // nothing to frame yet: centre on the staging ground rather than an empty (invalid) bounds
+      if (coords.length === 0) coords.push([STAGING_COORDS.lat, STAGING_COORDS.lng]);
       map.fitBounds(L.latLngBounds(coords), { padding: [56, 56], maxZoom: INITIAL_MAX_ZOOM });
     }
 
@@ -143,17 +173,7 @@ export function MapCanvas() {
     overlayLayerRef.current = L.layerGroup().addTo(map);
     markerLayerRef.current = L.layerGroup().addTo(map);
 
-    L.marker([STAGING_COORDS.lat, STAGING_COORDS.lng], {
-      icon: stagingIcon(),
-      interactive: false,
-      keyboard: false,
-      zIndexOffset: -1000,
-    }).addTo(map);
-
-    const syncZoom = () => {
-      setLeafletZoom(map.getZoom());
-      setZoom(tierFor(map.getZoom()));
-    };
+    const syncZoom = () => setLeafletZoom(map.getZoom());
     const syncView = () => {
       const c = map.getCenter();
       setMapView({ center: [c.lat, c.lng], zoom: map.getZoom() });
@@ -163,7 +183,7 @@ export function MapCanvas() {
     syncZoom();
     syncView();
 
-    // The canvas is a flex child — keep Leaflet's cached size in step with the layout.
+    // The canvas is a flex child, so keep Leaflet's cached size in step with the layout.
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
     resizeObserver.observe(container);
 
@@ -177,7 +197,7 @@ export function MapCanvas() {
       markerByIdRef.current = new Map();
       useIncidentStore.getState().setMapHoverId(null);
     };
-  }, [setZoom, setMapView]);
+  }, [setMapView]);
 
   // Incident markers: rebuilt from the store whenever the data, filter or zoom level changes.
   useEffect(() => {
@@ -188,10 +208,8 @@ export function MapCanvas() {
     layer.clearLayers();
     const markerById = new Map<string, L.Marker>();
 
-    const markers = mapMarkers(incidents, order).filter((i) => {
-      if (mapFilter === "sev34") return i.band === 3 || i.band === 4;
-      return true;
-    });
+    const shown = filteredIncidents(incidents, order, mapFilter);
+    const markers = shown.filter((i) => i.dispatch !== "extinguished");
     const points = markers.map((incident) => {
       const p = map.project([incident.coords.lat, incident.coords.lng], leafletZoom);
       return { id: incident.id, x: p.x, y: p.y, incident };
@@ -199,21 +217,49 @@ export function MapCanvas() {
     const threshold = CLUSTER_THRESHOLD_PX[tierFor(leafletZoom)];
     const clusters = threshold > 0 ? clusterByProximity(points, threshold) : points.map((p) => [p]);
 
-    const wireHover = (marker: L.Marker, id: string) => {
-      marker.on("mouseover", () => setMapHoverId(id));
-      marker.on("mouseout", () => setMapHoverId(null));
+    // One hover card at a time, opened after a short pause over (or keyboard focus on) a marker.
+    let cardTimer: ReturnType<typeof setTimeout> | undefined;
+    let card: L.Tooltip | null = null;
+    const hideCard = () => {
+      clearTimeout(cardTimer);
+      card?.remove();
+      card = null;
+    };
+    const showCardSoon = (incident: Incident) => {
+      hideCard();
+      cardTimer = setTimeout(() => {
+        const offset = SEVERITY[incident.band as SeverityBand].dotDiameter / 2 + 6;
+        card = L.tooltip({ direction: "top", offset: [0, -offset], className: "fori-hover-card", opacity: 1 })
+          .setLatLng([incident.coords.lat, incident.coords.lng])
+          .setContent(hoverCard(incident))
+          .addTo(map);
+      }, HOVER_DELAY_MS);
+    };
+
+    const wireHover = (marker: L.Marker, id: string, incident?: Incident) => {
+      const enter = () => {
+        setMapHoverId(id);
+        if (incident) showCardSoon(incident);
+      };
+      const leave = () => {
+        setMapHoverId(null);
+        hideCard();
+      };
+      marker.on("mouseover", enter);
+      marker.on("mouseout", leave);
+      marker.on("click", hideCard);
       const el = marker.getElement();
-      el?.addEventListener("focus", () => setMapHoverId(id));
-      el?.addEventListener("blur", () => setMapHoverId(null));
+      el?.addEventListener("focus", enter);
+      el?.addEventListener("blur", leave);
     };
 
     for (const cluster of clusters) {
       if (cluster.length === 1) {
         const incident = cluster[0].incident;
-        const label = `${incident.id} · ${incident.place}`;
+        const label = `${incident.place} · ${incident.ref}`;
+        // no `title`: the browser's own tooltip would pop up over the hover card
         const marker = L.marker([incident.coords.lat, incident.coords.lng], {
           icon: incidentIcon(incident),
-          title: label,
           riseOnHover: true,
           zIndexOffset: (incident.band as number) * 100,
         })
@@ -221,7 +267,7 @@ export function MapCanvas() {
           .addTo(layer);
         marker.getElement()?.setAttribute("aria-label", `${label}, ${SEVERITY[incident.band as SeverityBand].label}`);
         if (incident.id === newIncidentId) marker.getElement()?.classList.add("is-new");
-        wireHover(marker, incident.id);
+        wireHover(marker, incident.id, incident);
         markerById.set(incident.id, marker);
         continue;
       }
@@ -247,19 +293,18 @@ export function MapCanvas() {
       for (const incident of members) markerById.set(incident.id, marker);
     }
 
-    if (mapFilter === "extinguished") {
-      for (const incident of extinguishedMarkers(incidents, order)) {
-        L.marker([incident.coords.lat, incident.coords.lng], {
-          icon: extinguishedIcon(),
-          interactive: false,
-          keyboard: false,
-          zIndexOffset: -500,
-        }).addTo(layer);
-      }
+    for (const incident of shown.filter((i) => i.dispatch === "extinguished")) {
+      L.marker([incident.coords.lat, incident.coords.lng], {
+        icon: extinguishedIcon(),
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: -500,
+      }).addTo(layer);
     }
 
     markerByIdRef.current = markerById;
     applyHover(markerById, useIncidentStore.getState().mapHoverId);
+    return hideCard;
   }, [leafletZoom, incidents, order, mapFilter, newIncidentId, router, setMapHoverId]);
 
   // Pending grouping suggestion: a dashed ring around its members that opens the proposal card.
@@ -269,7 +314,7 @@ export function MapCanvas() {
     layer.clearLayers();
     if (!group || group.state !== "suggested") return;
 
-    // only members already drawn on the map — a ring centred partly on a flagged image would
+    // only members already drawn on the map: a ring centred partly on a flagged image would
     // leak the location the "never drawn on the map" rule is keeping off it
     const onMap = new Set(mapMarkers(incidents, order).map((i) => i.id));
     const members = group.memberIds.filter((id) => onMap.has(id)).map((id) => incidents[id]);
@@ -282,12 +327,12 @@ export function MapCanvas() {
 
     L.circle([center.lat, center.lng], {
       radius: radiusM,
-      className: "embera-group-ring",
+      className: "fori-group-ring",
       bubblingMouseEvents: false,
     })
       .bindTooltip(`Grouping suggested · ${members.length} images · click to review`, {
         direction: "top",
-        className: "embera-tooltip",
+        className: "fori-tooltip",
       })
       .on("click", () => setAlertsPanelOpen(true))
       .addTo(layer);
@@ -298,15 +343,14 @@ export function MapCanvas() {
     applyHover(markerByIdRef.current, mapHoverId);
   }, [mapHoverId]);
 
-  const atMin = leafletZoom !== null && leafletZoom <= MIN_ZOOM;
+  const atMin = leafletZoom !== null && leafletZoom <= 0;
   const atMax = leafletZoom !== null && leafletZoom >= MAX_ZOOM;
 
   return (
     <div
+      className="map-pane"
       style={{
         position: "relative",
-        flex: 1,
-        minWidth: 0,
         background: "var(--map-bg)",
         overflow: "hidden",
         // keeps Leaflet's internal z-indexes (panes at 400+, controls at 800+) below the
@@ -316,55 +360,53 @@ export function MapCanvas() {
     >
       <div
         ref={containerRef}
-        className="embera-map"
+        className="fori-map"
         aria-label="Incident map. Arrow keys pan, plus and minus zoom."
         style={{ position: "absolute", inset: 0, zIndex: 0 }}
       />
 
       <div
+        className="card"
         style={{
           position: "absolute",
-          left: 12,
-          top: 12,
+          right: "var(--space-4)",
+          top: "var(--space-4)",
           zIndex: 1,
-          background: "var(--halo)",
-          border: "1px solid var(--border-3)",
-          padding: "7px 11px",
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          font: "600 10px/1 var(--font-plex-mono)",
+          gap: 2,
+          padding: 3,
+          borderRadius: "var(--radius-md)",
+          boxShadow: "var(--shadow-pop)",
         }}
       >
-        <span style={{ letterSpacing: "0.16em", color: "var(--accent)" }}>SECTOR 7 · VIC</span>
-        <span style={{ borderLeft: "1px solid var(--border-6)", height: 12 }} />
-        <span style={{ letterSpacing: "0.1em", color: "var(--muted)", fontWeight: 500 }}>
-          {ZOOM_LABEL[zoom]}
-        </span>
-      </div>
-
-      <div style={{ position: "absolute", right: 12, top: 12, zIndex: 1, display: "flex", gap: 6 }}>
         <button
           type="button"
+          className="icon-btn icon-btn--bare"
           onClick={() => mapRef.current?.zoomOut()}
           disabled={atMin}
           aria-label="Zoom out"
-          style={{ ...zoomBtnStyle, opacity: atMin ? 0.4 : 1 }}
+          style={{ fontSize: 18 }}
         >
           −
         </button>
+        <span
+          className="data"
+          aria-label={`Zoom level ${leafletZoom ?? "unknown"}`}
+          style={{ minWidth: 34, textAlign: "center", font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}
+        >
+          Z{leafletZoom ?? "–"}
+        </span>
         <button
           type="button"
+          className="icon-btn icon-btn--bare"
           onClick={() => mapRef.current?.zoomIn()}
           disabled={atMax}
           aria-label="Zoom in"
-          style={{ ...zoomBtnStyle, opacity: atMax ? 0.4 : 1 }}
+          style={{ fontSize: 18 }}
         >
           +
         </button>
-        <div style={{ ...zoomBtnStyle, cursor: "default", color: "var(--muted)" }}>
-          Z{leafletZoom ?? "–"}
-        </div>
       </div>
 
       <SeverityLegend counts={counts} />
@@ -378,15 +420,3 @@ function applyHover(markerById: Map<string, L.Marker>, hoverId: string | null) {
     marker.getElement()?.classList.toggle("is-hover", marker === hovered);
   }
 }
-
-const zoomBtnStyle: CSSProperties = {
-  width: 30,
-  height: 30,
-  background: "var(--halo)",
-  border: "1px solid var(--border-2)",
-  color: "var(--fg-4)",
-  font: "500 15px/1 var(--font-plex-mono)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};

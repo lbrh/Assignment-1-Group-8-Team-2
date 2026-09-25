@@ -5,13 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { liveDispatched, reviewQueue } from "@/lib/store/selectors";
-import { TABS } from "@/lib/constants/nav";
+import { TABS, type TabHref } from "@/lib/constants/nav";
+
+// Tab icons, shown only in the phone's bottom tab bar (layout.css), where labels are too short to scan alone.
+const TAB_ICONS: Record<TabHref, string> = {
+  "/": "M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14",
+  "/dispatch": "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
+  "/review": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01",
+  "/resolved": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12l3 3 5-6",
+  "/archive": "M3 5h18v4H3zM5 9v10h14V9M10 13h4",
+  "/submit": "M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",
+};
 
 export function Header() {
   const theme = useIncidentStore((s) => s.theme);
   const toggleTheme = useIncidentStore((s) => s.toggleTheme);
-  const notesOn = useIncidentStore((s) => s.notesOn);
-  const toggleNotes = useIncidentStore((s) => s.toggleNotes);
   const keysOpen = useIncidentStore((s) => s.keysOpen);
   const setKeysOpen = useIncidentStore((s) => s.setKeysOpen);
   const incidents = useIncidentStore((s) => s.incidents);
@@ -21,8 +29,8 @@ export function Header() {
 
   const lastTabPath = useIncidentStore((s) => s.lastTabPath);
   const pathname = usePathname();
-  // Incident Detail is reached by click-through, not a tab — whichever tab the user came
-  // from (map, dispatch order, ...) stays visually active there.
+  // Incident Detail is reached by click-through, not a tab: whichever tab the user came from
+  // stays marked as current there.
   const activeHref = pathname?.startsWith("/incident/") ? lastTabPath : pathname;
 
   const [now, setNow] = useState<string | null>(null);
@@ -35,95 +43,73 @@ export function Header() {
   }, []);
 
   return (
-    <header
-      style={{
-        height: 52,
-        flex: "none",
-        display: "flex",
-        alignItems: "center",
-        gap: 0,
-        background: "var(--bg-header)",
-        borderBottom: "1px solid var(--header-border)",
-        padding: "0 12px",
-        color: "var(--header-fg)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 12, flex: "none" }}>
-        <div
+    <header className="app-header">
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }} aria-label="EMBERA home, map">
+        <span
+          aria-hidden
           style={{
-            width: 20,
-            height: 20,
-            background: "var(--header-accent)",
-            flex: "none",
+            width: 28,
+            height: 28,
+            borderRadius: "var(--radius-md)",
+            background: "var(--grad-primary)",
+            boxShadow: "var(--shadow-btn)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            font: "700 11px/1 var(--font-plex-mono)",
-            color: "var(--header-on-accent)",
+            font: "700 15px/1 var(--font-plex-sans)",
+            color: "var(--on-primary)",
           }}
-          aria-hidden
         >
           E
-        </div>
+        </span>
         <span
+          className="app-brand__word"
           style={{
-            font: "600 13px/1 var(--font-plex-mono)",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
+            font: "700 var(--text-base)/1 var(--font-plex-sans)",
+            letterSpacing: "var(--tracking-tight)",
+            color: "var(--fg)",
           }}
         >
           EMBERA
         </span>
-      </div>
+      </Link>
 
-      <nav
-        role="tablist"
-        aria-label="Screens"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: "100%",
-          flex: "0 1 auto",
-          minWidth: 0,
-          overflowX: "auto",
-          overflowY: "hidden",
-        }}
-      >
+      {/* one nav for every width: a top tab row, or the bottom tab bar on a phone (layout.css) */}
+      <nav aria-label="Screens" className="app-nav">
         {TABS.map((tab) => {
           const active = activeHref === tab.href;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              role="tab"
-              aria-selected={active}
               id={`tab-${tab.short.toLowerCase()}`}
-              className="chrome-tab"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flex: "none",
-                whiteSpace: "nowrap",
-                padding: "0 14px",
-                height: "100%",
-                font: "600 11px/1 var(--font-plex-mono)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: active ? "var(--header-fg)" : "var(--header-muted)",
-                background: active ? "var(--header-surface)" : "transparent",
-                boxShadow: active ? "inset 0 -2px 0 var(--header-accent)" : undefined,
-              }}
+              className="nav-tab chrome-tab"
+              aria-current={active ? "page" : undefined}
             >
-              {tab.label}
+              <svg
+                className="nav-tab__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d={TAB_ICONS[tab.href]} />
+              </svg>
+              <span className="nav-tab__full">{tab.label}</span>
+              <span className="nav-tab__short">{tab.short}</span>
               {tab.short === "Review" && flaggedCount > 0 ? (
                 <span
+                  className="chip chip--pill data nav-tab__badge"
+                  aria-label={`${flaggedCount} waiting`}
                   style={{
-                    font: "700 9px/1 var(--font-plex-mono)",
-                    color: "var(--header-accent)",
-                    background: "var(--acc-12)",
-                    border: "1px solid var(--header-accent)",
-                    padding: "2px 5px",
+                    height: 18,
+                    padding: "0 7px",
+                    fontSize: 11,
+                    color: "var(--on-primary)",
+                    background: "var(--grad-primary)",
                   }}
                 >
                   {flaggedCount}
@@ -136,125 +122,75 @@ export function Header() {
 
       <div style={{ flex: 1 }} />
 
-      <div className="header-live" style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flex: "none" }}>
         {now ? (
-          <span
-            style={{
-              font: "500 11px/1 var(--font-plex-mono)",
-              color: "var(--header-muted)",
-              borderRight: "1px solid var(--header-border)",
-              paddingRight: 10,
-            }}
-          >
+          <span className="data app-clock" style={{ font: "500 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
             {now} AEST
           </span>
         ) : null}
         {liveCount > 0 ? (
           <span
-            style={{
-              font: "600 10px/1 var(--font-plex-mono)",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "var(--header-ok-fg)",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              borderRight: "1px solid var(--header-border)",
-              paddingRight: 10,
-            }}
+            className="chip chip--pill"
+            style={{ color: "var(--ok-fg)", background: "var(--ok-soft)", borderColor: "var(--ok-border)" }}
           >
-            <span
-              style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--header-ok-fg)" }}
-            />
-            {liveCount} LIVE
+            <span className="chip__dot" aria-hidden />
+            {liveCount} live
           </span>
         ) : null}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 10, flex: "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: "none" }}>
         <button
           type="button"
-          onClick={toggleNotes}
-          title="Toggle prototype change notes"
-          style={{
-            font: "600 10px/1 var(--font-plex-mono)",
-            letterSpacing: "0.1em",
-            color: notesOn ? "var(--header-accent)" : "var(--header-muted)",
-            background: notesOn ? "var(--acc-08)" : "transparent",
-            border: "1px solid var(--header-border)",
-            padding: "6px 9px",
-          }}
-        >
-          Δ {notesOn ? "ON" : "OFF"}
-        </button>
-
-        <button
-          type="button"
+          className="icon-btn app-keys-btn"
           onClick={() => setKeysOpen(!keysOpen)}
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts (?)"
-          style={{
-            width: 26,
-            height: 26,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            font: "700 11px/1 var(--font-plex-mono)",
-            color: "var(--header-muted)",
-            border: "1px solid var(--header-border)",
-            padding: 0,
-          }}
+          style={{ fontWeight: 700 }}
         >
-          K
+          ?
         </button>
 
-        <div style={{ display: "flex", border: "1px solid var(--header-border)" }}>
-          <button
-            type="button"
-            onClick={() => theme !== "dark" && toggleTheme()}
-            style={{
-              font: "600 10px/1 var(--font-plex-mono)",
-              letterSpacing: "0.08em",
-              padding: "6px 10px",
-              background: theme === "dark" ? "var(--header-accent)" : "transparent",
-              color: theme === "dark" ? "var(--header-on-accent)" : "var(--header-muted)",
-            }}
-          >
-            DARK
+        <div className="seg app-theme-seg" role="group" aria-label="Colour theme">
+          <button type="button" className="seg__btn" aria-pressed={theme === "light"} onClick={() => theme !== "light" && toggleTheme()}>
+            Light
           </button>
-          <button
-            type="button"
-            onClick={() => theme !== "light" && toggleTheme()}
-            style={{
-              font: "600 10px/1 var(--font-plex-mono)",
-              letterSpacing: "0.08em",
-              padding: "6px 10px",
-              background: theme === "light" ? "var(--header-accent)" : "transparent",
-              color: theme === "light" ? "var(--header-on-accent)" : "var(--header-muted)",
-            }}
-          >
-            LIGHT
+          <button type="button" className="seg__btn" aria-pressed={theme === "dark"} onClick={() => theme !== "dark" && toggleTheme()}>
+            Dark
           </button>
         </div>
+        {/* below 1024px the Light / Dark pair folds into one toggle */}
+        <button
+          type="button"
+          className="icon-btn app-theme-btn"
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+            <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" />
+          </svg>
+        </button>
 
-        <div
-          aria-hidden
+        <span
+          className="app-avatar"
+          aria-label="Signed in as Emergency Coordinator"
+          role="img"
           style={{
-            width: 26,
-            height: 26,
+            width: 32,
+            height: 32,
             borderRadius: "50%",
-            background: "var(--header-surface)",
-            border: "1px solid var(--header-border)",
-            display: "flex",
+            background: "var(--accent-soft)",
+            border: "1px solid var(--accent-border)",
             alignItems: "center",
             justifyContent: "center",
-            font: "600 10px/1 var(--font-plex-mono)",
-            color: "var(--header-muted)",
+            font: "600 12px/1 var(--font-plex-sans)",
+            color: "var(--accent-fg)",
             marginLeft: 4,
           }}
         >
           EC
-        </div>
+        </span>
       </div>
     </header>
   );

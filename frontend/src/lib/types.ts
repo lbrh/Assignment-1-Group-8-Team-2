@@ -77,11 +77,17 @@ export interface ApiIncidentRecord {
   uploadStatus: UploadStatus;
   ingestionError: string | null;
   contentHash: string | null;
+  /** Locality at the coordinates ("Kinglake"), reverse geocoded after ingest; null until then. */
+  placeName?: string | null;
   /** Incident reads only (GET /incidents, /incidents/:id, /order); null = no coordinator dispatch yet. */
   dispatchState?: BackendDispatchState | null;
+  /** Who set the current dispatch state, and when (incident reads only). */
+  dispatchUpdatedBy?: string | null;
+  dispatchUpdatedAt?: string | null;
 }
 
-export type BackendDispatchState = "awaiting" | "live" | "extinguished";
+/** archived = an extinguished fire the coordinator has filed away (Resolved -> Archive). */
+export type BackendDispatchState = "awaiting" | "live" | "extinguished" | "archived";
 
 /** The coordinator-editable values as the backend currently holds them — what Undo sends back. */
 export interface BackendReviewState {
@@ -98,7 +104,7 @@ export type SeverityBand = 1 | 2 | 3 | 4;
 export type PipelineFlag = "processed" | "flagged_review" | "not_a_fire";
 
 /** Dispatch lifecycle, tracked separately from the pipeline flag. */
-export type DispatchState = "unranked" | "awaiting" | "live" | "extinguished";
+export type DispatchState = "unranked" | "awaiting" | "live" | "extinguished" | "archived";
 
 export type SeverityProvenance =
   | "ai_classified"
@@ -141,6 +147,8 @@ export interface IncidentGroup {
 /** UI view model — what every component actually consumes. */
 export interface Incident {
   id: string;
+  /** Short display reference ("INC-K7Q2MX") derived from `id`; `id` stays the real key. */
+  ref: string;
   place: string;
   coords: { lat: number; lng: number };
   capturedAtIso: string;

@@ -1,122 +1,94 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { resolvedList } from "@/lib/store/selectors";
 import { SeverityDot } from "@/components/primitives/SeverityDot";
 import { SeverityChip } from "@/components/primitives/SeverityChip";
+import { SOURCE_META } from "@/components/primitives/SourceChip";
 import { Button } from "@/components/primitives/Button";
+import { PageHeader } from "@/components/chrome/PageHeader";
 import { formatClock } from "@/lib/utils/time";
 
-const GRID = "minmax(96px, auto) 1.4fr auto auto 1.6fr 1fr auto";
+// one grid for the whole table (rows are subgrids, see .data-table), so columns line up; below
+// 1024px each row is a card and the dt-* cells carry their own labels (layout.css)
+const GRID = "auto minmax(160px, 1.2fr) auto auto minmax(180px, 1.5fr) minmax(140px, 1fr) auto";
 
 export default function ResolvedPage() {
-  const router = useRouter();
   const incidents = useIncidentStore((s) => s.incidents);
   const order = useIncidentStore((s) => s.order);
   const reopenIncident = useIncidentStore((s) => s.reopenIncident);
+  const archiveIncident = useIncidentStore((s) => s.archiveIncident);
 
   const list = resolvedList(incidents, order);
 
   return (
-    <div style={{ maxWidth: 1240, margin: "0 auto", padding: "20px 24px 40px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ font: "600 22px/1.2 var(--font-plex-sans)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--fg)" }}>
-            Resolved · Extinguished
-          </h1>
-          <p style={{ font: "400 12.5px/1.4 var(--font-plex-sans)", color: "var(--muted)", marginTop: 6, maxWidth: 620 }}>
-            Fires a dispatched crew has reported out. Off the dispatch order, shown on the map
-            only under the Extinguished filter, and reopenable if a later image shows re-ignition.
-          </p>
-        </div>
-        <span
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "var(--panel)",
-            border: "1px solid var(--border-3)",
-            padding: "8px 13px",
-            font: "500 11px/1 var(--font-plex-mono)",
-            color: "var(--muted)",
-          }}
-        >
-          <span style={{ width: 7, height: 7, background: "var(--ok-fg)" }} />
-          {list.length} resolved this shift
-        </span>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Resolved: extinguished"
+        lede="Fires a dispatched crew has reported out. They leave the dispatch order, can be reopened if a later image shows re-ignition, and can be archived once they no longer need watching."
+        stat={`${list.length} resolved this shift`}
+        statTone="ok"
+      />
 
-      <div style={{ border: "var(--border-w) solid var(--border)", background: "var(--panel)", marginTop: 18 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: GRID,
-            gap: 14,
-            padding: "11px 18px",
-            background: "var(--surface)",
-            borderBottom: "1px solid var(--border)",
-            font: "600 10px/1 var(--font-plex-mono)",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-          }}
-        >
-          <span>Incident</span>
-          <span>Location</span>
-          <span>Peak sev</span>
-          <span>Dispatched</span>
-          <span>Extinguished</span>
-          <span>Reported by</span>
-          <span />
+      <div className="card data-table" role="table" aria-label="Resolved incidents" style={{ marginTop: "var(--space-5)", gridTemplateColumns: GRID }}>
+        <div role="row" className="caption data-table__row data-table__head">
+          <span role="columnheader">Incident</span>
+          <span role="columnheader">Location</span>
+          <span role="columnheader">Peak severity</span>
+          <span role="columnheader">Dispatched</span>
+          <span role="columnheader">Extinguished</span>
+          <span role="columnheader">Reported by</span>
+          <span role="columnheader" aria-label="Actions" />
         </div>
 
         {list.length === 0 ? (
-          <div style={{ padding: "40px 18px", font: "400 13.5px/1.6 var(--font-plex-sans)", color: "var(--muted)" }}>
+          <p className="caption" style={{ gridColumn: "1 / -1", padding: "var(--space-7) var(--space-5)", fontSize: "var(--text-sm)" }}>
             Nothing resolved yet. Dispatch a crew, then mark the incident extinguished from the
             dispatch order or its detail screen when the crew reports it out.
-          </div>
+          </p>
         ) : (
           list.map((incident) => (
-            <div
-              key={incident.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: GRID,
-                gap: 14,
-                padding: "14px 18px",
-                borderBottom: "1px solid var(--border-5)",
-                alignItems: "center",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => router.push(`/incident/${incident.id}`)}
-                style={{ font: "600 12px/1 var(--font-plex-mono)", color: "var(--accent)", textAlign: "left" }}
-              >
-                {incident.id}
-              </button>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ font: "500 13.5px/1.35 var(--font-plex-sans)", color: "var(--fg-3)" }}>{incident.place}</span>
-                <span style={{ font: "400 11px/1 var(--font-plex-mono)", color: "var(--muted)" }}>
-                  {incident.coords.lat.toFixed(2)},{incident.coords.lng.toFixed(2)} · {incident.source}
+            <div key={incident.id} role="row" className="data-table__row">
+              <div role="cell" className="dt-id">
+                <Link
+                  href={`/incident/${incident.id}`}
+                  className="btn btn--link data"
+                  style={{ fontFamily: "var(--font-plex-mono)", fontSize: "var(--text-xs)" }}
+                >
+                  {incident.ref}
+                </Link>
+              </div>
+              <div role="cell" className="dt-main" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ font: "600 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--fg)" }}>{incident.place}</span>
+                <span className="data" style={{ font: "400 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
+                  {incident.coords.lat.toFixed(2)}, {incident.coords.lng.toFixed(2)} · {SOURCE_META[incident.source].abbr}
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, opacity: 0.7 }}>
+              <div role="cell" className="dt-field" data-label="Peak severity" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-2)", opacity: 0.8 }}>
                 <SeverityDot band={incident.band} size={24} />
                 <SeverityChip band={incident.band} />
               </div>
-              <span style={{ font: "500 12px/1.4 var(--font-plex-mono)", color: "var(--fg-2)" }}>this shift</span>
-              <span style={{ font: "400 13px/1.45 var(--font-plex-sans)", color: "var(--fg-3)" }}>
-                {incident.extinguishedAtIso ? formatClock(incident.extinguishedAtIso) : "—"} AEST ·{" "}
-                {incident.extinguishedNote}
+              <span role="cell" className="dt-field" data-label="Dispatched" style={{ font: "400 var(--text-sm)/1.4 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+                This shift
               </span>
-              <span style={{ font: "500 12px/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
-                {incident.extinguishedBy}
+              <span role="cell" className="dt-field dt-field--wide" data-label="Extinguished" style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+                <span className="data" style={{ fontFamily: "var(--font-plex-mono)", fontSize: "var(--text-xs)" }}>
+                  {incident.extinguishedAtIso ? `${formatClock(incident.extinguishedAtIso)} AEST` : "–"}
+                </span>
+                {incident.extinguishedNote ? `. ${incident.extinguishedNote}` : ""}
               </span>
-              <Button variant="dashed" small onClick={() => reopenIncident(incident.id)}>
-                Reopen
-              </Button>
+              <span role="cell" className="dt-field" data-label="Reported by" style={{ font: "500 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+                {incident.extinguishedBy ?? "–"}
+              </span>
+              <div role="cell" className="dt-actions" style={{ justifySelf: "end", display: "flex", gap: "var(--space-2)" }}>
+                <Button variant="pending" small ack onClick={() => reopenIncident(incident.id)}>
+                  Reopen
+                </Button>
+                <Button variant="secondary" small ack onClick={() => archiveIncident(incident.id)}>
+                  Archive
+                </Button>
+              </div>
             </div>
           ))
         )}

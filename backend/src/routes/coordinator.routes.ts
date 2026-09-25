@@ -13,7 +13,7 @@ export const coordinatorRouter: Router = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LABELS = new Set<ClassificationLabel>(['fire', 'non_fire', 'extinguished', 'uncertain']);
 const REVIEW_STATUSES = new Set(['assessed', 'unable_to_assess']);
-const DISPATCH_STATES = new Set<DispatchState>(['awaiting', 'live', 'extinguished']);
+const DISPATCH_STATES = new Set<DispatchState>(['awaiting', 'live', 'extinguished', 'archived']);
 
 // ponytail: "who" is whatever the frontend sends until user auth exists — it's recorded, not verified.
 function parseBy(body: Record<string, unknown>): string {
@@ -92,8 +92,8 @@ coordinatorRouter.patch(
     }),
 );
 
-// Dispatch lifecycle for an incident: awaiting -> live (crew dispatched) -> extinguished,
-// and back (cancel dispatch, reopen on re-ignition).
+// Dispatch lifecycle for an incident: awaiting -> live (crew dispatched) -> extinguished ->
+// archived, and back (cancel dispatch, reopen on re-ignition, restore from the archive).
 coordinatorRouter.put(
     '/incidents/:id/dispatch',
     requireCaller('frontend'),

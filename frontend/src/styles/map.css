@@ -1,53 +1,53 @@
 /*
  * Leaflet map (components/map/MapCanvas.tsx). Leaflet builds its own DOM, so this is the one
- * place the map is styled by class instead of inline style. Colours still come from tokens —
+ * place the map is styled by class instead of inline style. Colours still come from tokens:
  * markers read the CSS custom properties; the OpenStreetMap basemap is the same in both themes.
- * Square-cornered like the rest of the system; only severity dots are circles.
+ * Map chrome follows the card system: rounded labels, Blue 60 tinted elevation.
  */
 
-.embera-map.leaflet-container {
+.fori-map.leaflet-container {
   background: var(--map-bg);
   font-family: var(--font-plex-mono), monospace;
 }
 
-.embera-map.leaflet-container:focus-visible {
+.fori-map.leaflet-container:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-.embera-map .leaflet-control-attribution {
+.fori-map .leaflet-control-attribution {
   background: var(--halo);
   color: var(--muted);
-  font: 400 9px/1.5 var(--font-plex-mono), monospace;
-  border-top: 1px solid var(--border-3);
-  border-left: 1px solid var(--border-3);
-  padding: 1px 6px;
+  font: 400 10px/1.6 var(--font-plex-sans), sans-serif;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm) 0 0 0;
+  padding: 1px 8px;
 }
 
-.embera-map .leaflet-control-attribution a {
+.fori-map .leaflet-control-attribution a {
   color: var(--fg-4);
 }
 
 /* ---- markers ---- */
 
-.embera-marker {
+.fori-marker {
   background: none;
   border: none;
 }
 
-/* Hovered here or on the Active Incidents rail — lift above neighbours (Leaflet sets
+/* Hovered here or on the Active incidents rail: lift above neighbours (Leaflet sets
    z-index inline, hence !important). */
-.embera-marker.is-hover {
+.fori-marker.is-hover {
   z-index: 10000 !important;
 }
 
-.embera-pin {
+.fori-pin {
   position: relative;
   width: 100%;
   height: 100%;
 }
 
-.embera-dot {
+.fori-dot {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -57,11 +57,11 @@
   font-family: var(--font-plex-mono), monospace;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 0 0 4px var(--halo);
-  transition: box-shadow 0.12s;
+  box-shadow: 0 0 0 4px var(--halo), 0 6px 16px -4px var(--shadow-color);
+  transition: box-shadow var(--dur) var(--ease);
 }
 
-.embera-label {
+.fori-label {
   position: absolute;
   left: 50%;
   top: calc(100% + 6px);
@@ -70,54 +70,56 @@
   font: 500 10px/1 var(--font-plex-mono), monospace;
   color: var(--fg-4);
   background: var(--halo);
-  border: 1px solid var(--border-3);
-  padding: 2px 5px;
-  transition: color 0.12s, border-color 0.12s;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  padding: 3px 6px;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
-.embera-marker.is-hover .embera-dot {
+.fori-marker.is-hover .fori-dot {
   box-shadow: 0 0 0 4px var(--halo), 0 0 0 6px var(--accent);
 }
 
-.embera-marker.is-hover .embera-label {
+.fori-marker.is-hover .fori-label {
   color: var(--accent);
   border-color: var(--accent);
 }
 
-/* Marker pulse on insert (redline motion table) — a freshly submitted incident. */
-.embera-marker.is-new .embera-dot {
+/* Marker pulse on insert (redline motion table): a freshly submitted incident. */
+.fori-marker.is-new .fori-dot {
   animation: pulseRing 1.2s ease-out 3;
 }
 
-.embera-cluster {
+.fori-cluster {
   width: 100%;
   height: 100%;
-  background: var(--map-bg);
+  background: var(--halo);
   border: 2px solid;
-  box-shadow: 0 0 0 4px var(--halo), 0 3px 12px var(--shadow-color);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--halo), var(--shadow-card-hover);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  transition: box-shadow 0.12s;
+  transition: box-shadow var(--dur) var(--ease);
 }
 
-.embera-marker.is-hover .embera-cluster {
+.fori-marker.is-hover .fori-cluster {
   box-shadow: 0 0 0 4px var(--halo), 0 0 0 6px var(--accent);
 }
 
-.embera-cluster-count {
+.fori-cluster-count {
   font: 700 17px/1 var(--font-plex-mono), monospace;
 }
 
-.embera-cluster-caption {
-  font: 600 9px/1 var(--font-plex-mono), monospace;
-  letter-spacing: 0.12em;
+.fori-cluster-caption {
+  font: 500 10px/1 var(--font-plex-sans), sans-serif;
   color: var(--muted);
 }
 
-.embera-out {
+.fori-out {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -127,34 +129,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 700 9px/1 var(--font-plex-mono), monospace;
-  color: var(--faint);
-}
-
-.embera-staging {
-  width: 100%;
-  height: 100%;
-  background: var(--accent);
-  border: 2px solid var(--halo);
-}
-
-.embera-staging-label {
-  position: absolute;
-  left: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
-  font: 600 9px/1 var(--font-plex-mono), monospace;
-  letter-spacing: 0.14em;
-  color: var(--accent);
-  background: var(--halo);
-  padding: 2px 4px;
+  font: 600 10px/1 var(--font-plex-sans), sans-serif;
+  color: var(--muted);
 }
 
 /* ---- overlays ---- */
 
 /* Leaflet writes stroke/fill as SVG attributes; CSS properties take precedence. */
-.embera-group-ring {
+.fori-group-ring {
   stroke: var(--accent);
   stroke-width: 1.5;
   stroke-dasharray: 6 5;
@@ -162,16 +144,168 @@
   fill-opacity: 0.07;
 }
 
-.embera-tooltip.leaflet-tooltip {
+.fori-tooltip.leaflet-tooltip {
   background: var(--panel);
   color: var(--fg-3);
   border: 1px solid var(--accent-border);
-  border-radius: 0;
-  box-shadow: 0 3px 12px var(--shadow-color);
-  font: 500 11px/1.3 var(--font-plex-mono), monospace;
-  padding: 5px 8px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  font: 500 12px/1.35 var(--font-plex-sans), sans-serif;
+  padding: 6px 10px;
 }
 
-.embera-tooltip.leaflet-tooltip-top::before {
+.fori-tooltip.leaflet-tooltip-top::before {
   border-top-color: var(--accent-border);
+}
+
+/* ---- marker hover card (MapCanvas hoverCard) ---- */
+
+.fori-hover-card.leaflet-tooltip {
+  width: 240px;
+  padding: 0;
+  overflow: hidden;
+  white-space: normal;
+  background: var(--panel);
+  color: var(--fg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+}
+
+.fori-hover-card.leaflet-tooltip-top::before {
+  border-top-color: var(--panel);
+}
+
+.hover-card__img {
+  display: block;
+  width: 100%;
+  height: 135px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.hover-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+}
+
+.hover-card__title {
+  font: 600 var(--text-sm) / 1.3 var(--font-plex-sans), sans-serif;
+  color: var(--fg);
+}
+
+.hover-card__severity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 var(--text-xs) / 1.3 var(--font-plex-sans), sans-serif;
+  color: var(--fg-2);
+}
+
+.hover-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex: none;
+}
+
+.hover-card__meta {
+  font: 400 var(--text-2xs) / 1.4 var(--font-plex-mono), monospace;
+  color: var(--muted);
+}
+
+/* ---- incidents list beside the map: resizable, shows more as it widens ---- */
+
+.rail-resizer {
+  position: relative;
+  flex: none;
+  width: 9px;
+  margin: 0 -4px; /* wide hit area, 1px visible line */
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.rail-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 4px;
+  background: var(--border);
+  transition: background-color var(--dur) var(--ease), inset var(--dur) var(--ease);
+}
+
+.rail-resizer:hover::before,
+.rail-resizer:focus-visible::before,
+.rail-resizer.is-dragging::before {
+  inset: 0 3px;
+  background: var(--accent);
+}
+
+.rail-resizer.is-dragging {
+  cursor: col-resize;
+}
+
+.incident-rail {
+  container: rail / inline-size;
+}
+
+.rail-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: 14px var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.rail-row__id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-row__thumb,
+.rail-row__detail {
+  display: none;
+}
+
+.rail-row__detail {
+  flex-direction: column;
+  gap: 4px;
+  font: 400 var(--text-2xs) / 1.4 var(--font-plex-mono);
+  color: var(--muted);
+}
+
+.rail-row__explanation {
+  font: 400 var(--text-xs) / 1.45 var(--font-plex-sans);
+  color: var(--fg-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@container rail (min-width: 480px) {
+  .rail-row__detail {
+    display: flex;
+  }
+}
+
+@container rail (min-width: 600px) {
+  .rail-row:has(.rail-row__thumb) {
+    grid-template-columns: 128px 32px minmax(0, 1fr);
+  }
+
+  .rail-row__thumb {
+    display: block;
+    width: 128px;
+    height: 86px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+  }
 }

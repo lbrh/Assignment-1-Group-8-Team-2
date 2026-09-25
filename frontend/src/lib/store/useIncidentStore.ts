@@ -4,6 +4,9 @@ import { create } from "zustand";
 import { COORDINATOR_NAME, dataSource, getSeedDecisionLog, getSeedGroup, useMock } from "@/lib/data-source";
 import type { SubmitImagePayload } from "@/lib/data-source";
 import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
+import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
+import { ARCHIVED_REASON } from "@/lib/normalize";
+import { preloadImages } from "@/lib/utils/preload";
 import type {
   DecisionLogEntry,
   DispatchState,
@@ -22,9 +25,9 @@ export interface Toast {
   createdAt: number;
 }
 
-export type MapFilter = "all" | "sev34" | "extinguished";
+/** Map page filter by dispatch state: active = awaiting a crew, dispatched = crew on scene. */
+export type MapFilter = "all" | "active" | "dispatched" | "extinguished";
 export type DispatchFilter = "all" | "awaiting" | "live";
-export type ZoomTier = 1 | 2 | 3;
 
 /** Last Leaflet viewport on the Map tab, so returning to it restores where the coordinator was
  * looking instead of re-fitting to every marker. */
@@ -41,13 +44,10 @@ interface IncidentStoreState {
   toasts: Toast[];
 
   theme: "dark" | "light";
-  notesOn: boolean;
   clockTick: number;
   keysOpen: boolean;
-  /** Coarse zoom tier (regional / district / site), derived from the Leaflet zoom level. */
-  zoom: ZoomTier;
   mapView: MapView | null;
-  /** Incident hovered/focused on either the map or the Active Incidents rail — each side
+  /** Incident hovered/focused on either the map or the Active incidents rail; each side
    * highlights it so the two stay visually linked. */
   mapHoverId: string | null;
   mapFilter: MapFilter;
@@ -55,7 +55,7 @@ interface IncidentStoreState {
   alertsPanelOpen: boolean;
   reviewSelectedId: string | null;
   newIncidentId: string | null;
-  /** Last top-level tab route visited — lets pages reached by click-through (incident detail)
+  /** Last top-level tab route visited. Lets pages reached by click-through (incident detail)
    * know which tab to show as active and where "back" should go, instead of assuming Map. */
   lastTabPath: string;
 
@@ -64,10 +64,10 @@ interface IncidentStoreState {
 
   init: () => Promise<void>;
   toggleTheme: () => void;
-  toggleNotes: () => void;
+  /** Adopts the theme the pre-paint script in the root layout already applied. */
+  syncThemeFromDocument: () => void;
   tickClock: () => void;
   setKeysOpen: (open: boolean) => void;
-  setZoom: (zoom: ZoomTier) => void;
   setMapView: (view: MapView) => void;
   setMapHoverId: (id: string | null) => void;
   setMapFilter: (f: MapFilter) => void;
@@ -85,6 +85,7 @@ interface IncidentStoreState {
   cancelDispatch: (id: string) => Promise<void>;
   markExtinguished: (id: string) => Promise<void>;
   reopenIncident: (id: string) => Promise<void>;
+  archiveIncident: (id: string) => Promise<void>;
   sendToManualReview: (id: string) => Promise<void>;
   restoreFromArchive: (id: string) => Promise<void>;
   confirmGrouping: () => Promise<void>;
@@ -116,6 +117,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         [incidentId]: [entry, ...(s.decisionLogs[incidentId] ?? [])],
       },
     }));
+    return entry.id;
   }
 
   function pushToast(toast: Omit<Toast, "id" | "createdAt">) {
@@ -153,14 +155,48 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     }
   }
 
-  // Undo = put the server back to the pre-action snapshot, then the store.
-  function undoTo(id: string, prev: Incident, note: string) {
-    return () =>
-      attempt(`Undo failed · ${id}`, async () => {
-        await dataSource.undo(prev, get().incidents[id]);
-        patchIncident(id, prev);
-        pushLog(id, note);
+  // Optimistic UI: apply the expected result, log it and toast it straight away, then merge in
+  // the server's answer. A failed call rolls the incident back and swaps the toast for an error.
+  // ponytail: rollback restores the whole pre-action snapshot, so an action taken while an earlier
+  // one is still in flight is reverted with it; roll back per field if that ever bites.
+  async function optimistic(
+    prev: Incident,
+    failTitle: string,
+    guess: Partial<Incident>,
+    call: () => Promise<Partial<Incident>>,
+    log: string,
+    toast?: Omit<Toast, "id" | "createdAt">
+  ): Promise<void> {
+    const id = prev.id;
+    patchIncident(id, guess);
+    const logId = pushLog(id, log);
+    const toastId = toast ? pushToast(toast) : null;
+    try {
+      patchIncident(id, await call());
+    } catch (err) {
+      patchIncident(id, prev);
+      set((s) => ({
+        toasts: s.toasts.filter((t) => t.id !== toastId),
+        decisionLogs: { ...s.decisionLogs, [id]: (s.decisionLogs[id] ?? []).filter((e) => e.id !== logId) },
+      }));
+      pushToast({
+        title: failTitle,
+        body: err instanceof Error ? err.message : "The request failed.",
+        severityBand: 0,
+        cta: "dismiss",
       });
+    }
+  }
+
+  // Undo = put the store back to the pre-action snapshot now, and the server behind it.
+  function undoTo(id: string, prev: Incident, note: string) {
+    return () => {
+      const current = snapshot(id);
+      return optimistic(current, `Undo failed · ${prev.ref}`, prev, async () => {
+        await dataSource.undo(prev, current);
+        return {};
+      }, note);
+    };
   }
 
   return {
@@ -170,11 +206,9 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     group: null,
     toasts: [],
 
-    theme: "dark",
-    notesOn: true,
+    theme: "light",
     clockTick: 0,
     keysOpen: false,
-    zoom: 2,
     mapView: null,
     mapHoverId: null,
     mapFilter: "all",
@@ -210,8 +244,13 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         order.push(incident.id);
       }
       if (!useMock) {
-        // TODO(api): decision log, grouping and dispatch state have no backend endpoint yet.
+        // TODO(api): grouping has no backend endpoint yet.
         set({ incidents, order, initialized: true, loading: false });
+        // thumbnails first (list, map hover cards), then the larger previews (incident, review)
+        preloadImages([
+          ...list.map((i) => dataSource.getImagePreviewUrl(i.file, 240)),
+          ...list.map((i) => dataSource.getImagePreviewUrl(i.file, 800)),
+        ]);
         return;
       }
       const decisionLogs: Record<string, DecisionLogEntry[]> = {};
@@ -267,13 +306,20 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         const next = s.theme === "dark" ? "light" : "dark";
         if (typeof document !== "undefined") {
           document.documentElement.setAttribute("data-theme", next);
+          try {
+            localStorage.setItem(THEME_STORAGE_KEY, next);
+          } catch {
+            // storage blocked: the theme still applies for this session
+          }
         }
         return { theme: next };
       }),
-    toggleNotes: () => set((s) => ({ notesOn: !s.notesOn })),
+    syncThemeFromDocument: () =>
+      set({
+        theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light",
+      }),
     tickClock: () => set((s) => ({ clockTick: s.clockTick + 1 })),
     setKeysOpen: (open) => set({ keysOpen: open }),
-    setZoom: (zoom) => set({ zoom }),
     setMapView: (mapView) => set({ mapView }),
     setMapHoverId: (mapHoverId) => set({ mapHoverId }),
     setMapFilter: (mapFilter) => set({ mapFilter }),
@@ -283,162 +329,248 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     selectReview: (id) => set({ reviewSelectedId: id }),
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-    confirmReview: (id) =>
-      attempt(`Couldn't confirm · ${id}`, async () => {
-        const prev = snapshot(id);
-        // apply the band the AI provisionally read, now that the coordinator has confirmed it
-        const provisionalBand = prev.sum ? bandFromSum(prev.sum) : prev.band;
-        const patch = await dataSource.confirmReview(prev);
-        patchIncident(id, { band: provisionalBand, dispatch: "awaiting", ...patch });
-        pushLog(id, `AI provisional tag confirmed: ${bandLabel(provisionalBand)}, scored ${prev.sum ?? "—"} of 16`);
-        pushToast({
-          title: `AI tag confirmed · ${id}`,
+    confirmReview: (id) => {
+      const prev = snapshot(id);
+      // apply the band the AI provisionally read, now that the coordinator has confirmed it
+      const band = prev.sum ? bandFromSum(prev.sum) : prev.band;
+      return optimistic(
+        prev,
+        `Couldn't confirm · ${prev.ref}`,
+        { flag: "processed", provenance: "ai_confirmed_by_coordinator", band, dispatch: "awaiting" },
+        () => dataSource.confirmReview(prev),
+        `AI provisional tag confirmed: ${bandLabel(band)}, scored ${prev.sum ?? "–"} of 16`,
+        {
+          title: `AI tag confirmed · ${prev.ref}`,
           body: "Promoted to an active incident with the provisional score applied.",
-          severityBand: provisionalBand,
+          severityBand: band,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reverted to the AI assessment (undo)"),
-        });
-      }),
+        }
+      );
+    },
 
-    changeReview: (id, level) =>
-      attempt(`Couldn't assign severity · ${id}`, async () => {
-        const prev = snapshot(id);
-        const patch = await dataSource.changeReview(prev, level);
-        patchIncident(id, { dispatch: "awaiting", ...patch });
-        pushLog(
-          id,
-          `Severity assigned manually: ${bandLabel(level)}` +
-            (prev.sum ? ` — AI had provisionally read ${bandLabel(bandFromSum(prev.sum))}` : " — no AI tag had been applied")
-        );
-        pushToast({
-          title: `Severity assigned manually · ${id}`,
+    changeReview: (id, level) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't assign severity · ${prev.ref}`,
+        { flag: "processed", provenance: "coordinator_assigned", band: level, dispatch: "awaiting" },
+        () => dataSource.changeReview(prev, level),
+        `Severity assigned manually: ${bandLabel(level)}` +
+          (prev.sum ? `. AI had provisionally read ${bandLabel(bandFromSum(prev.sum))}` : ". No AI tag had been applied"),
+        {
+          title: `Severity assigned manually · ${prev.ref}`,
           body: "Now on the dispatch order, labelled as coordinator-assigned.",
           severityBand: level,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reverted to the AI assessment (undo)"),
-        });
-      }),
+        }
+      );
+    },
 
-    discardReview: (id) =>
-      attempt(`Couldn't discard · ${id}`, async () => {
-        const prev = snapshot(id);
-        const patch = await dataSource.discardReview(prev);
-        patchIncident(id, patch);
-        pushLog(id, "Discarded as not a fire — no fire present in the image.");
-        pushToast({
-          title: `Discarded as not a fire · ${id}`,
+    discardReview: (id) => {
+      const prev = snapshot(id);
+      // advance the reviewer to the next queued item, mirroring the prototype's flow
+      const remainingFlagged = get().order.filter(
+        (oid) => oid !== id && get().incidents[oid]?.flag === "flagged_review"
+      );
+      set({ reviewSelectedId: remainingFlagged[0] ?? null });
+      return optimistic(
+        prev,
+        `Couldn't discard · ${prev.ref}`,
+        {
+          flag: "not_a_fire",
+          dismissedReason: "Discarded by reviewer — no fire present in the image.",
+          dismissedBy: COORDINATOR_NAME,
+          dismissedAtIso: new Date().toISOString(),
+        },
+        () => dataSource.discardReview(prev),
+        "Discarded as not a fire. No fire present in the image.",
+        {
+          title: `Discarded as not a fire · ${prev.ref}`,
           body: "Off the map and the dispatch order, retrievable in the Archive.",
           severityBand: "not_a_fire",
           cta: "undo",
           onUndo: undoTo(id, prev, "Restored from the archive to manual review (undo)"),
-        });
-        // advance the reviewer to the next queued item, mirroring the prototype's flow
-        const remainingFlagged = get().order.filter(
-          (oid) => oid !== id && get().incidents[oid]?.flag === "flagged_review"
-        );
-        set({ reviewSelectedId: remainingFlagged[0] ?? null });
-      }),
+        }
+      );
+    },
 
-    overrideSeverity: (id, level) =>
-      attempt(`Couldn't override severity · ${id}`, async () => {
-        const prev = snapshot(id);
-        const patch = await dataSource.overrideSeverity(prev, level);
-        patchIncident(id, patch);
-        pushLog(id, `Severity changed from ${bandLabel(prev.band)} to ${bandLabel(level)}`);
-        pushToast({
-          title: `Severity overridden · ${id}`,
+    overrideSeverity: (id, level) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't override severity · ${prev.ref}`,
+        { band: level, provenance: "coordinator_override" },
+        () => dataSource.overrideSeverity(prev, level),
+        `Severity changed from ${bandLabel(prev.band)} to ${bandLabel(level)}`,
+        {
+          title: `Severity overridden · ${prev.ref}`,
           body: "Applied and logged as a coordinator decision. The ranking has been recalculated.",
           severityBand: level,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reverted to the AI assessment (undo)"),
-        });
-      }),
+        }
+      );
+    },
 
-    dispatchCrew: (id) =>
-      attempt(`Couldn't dispatch · ${id}`, async () => {
-        const patch = await dataSource.dispatchCrew(snapshot(id));
-        patchIncident(id, patch);
-        pushLog(id, `Crew dispatched to ${id} — Tanker 12 en route.`);
-        pushToast({
-          title: `Crew dispatched · ${id}`,
-          body: `Crew dispatched to ${id} — Tanker 12 en route.`,
-          severityBand: get().incidents[id]?.band ?? 0,
+    dispatchCrew: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't dispatch · ${prev.ref}`,
+        { dispatch: "live", flag: "processed" },
+        () => dataSource.dispatchCrew(prev),
+        `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
+        {
+          title: `Crew dispatched · ${prev.ref}`,
+          body: `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
+          severityBand: prev.band,
           cta: "dismiss",
-        });
-      }),
+        }
+      );
+    },
 
-    cancelDispatch: (id) =>
-      attempt(`Couldn't cancel dispatch · ${id}`, async () => {
-        const patch = await dataSource.cancelDispatch(snapshot(id));
-        patchIncident(id, patch);
-        pushLog(id, "Dispatch cancelled — crew stood down, back on the ranked queue.");
-        pushToast({
-          title: `Dispatch cancelled · ${id}`,
+    cancelDispatch: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't cancel dispatch · ${prev.ref}`,
+        { dispatch: "awaiting" },
+        () => dataSource.cancelDispatch(prev),
+        "Dispatch cancelled. Crew stood down, back on the ranked queue.",
+        {
+          title: `Dispatch cancelled · ${prev.ref}`,
           body: "Crew stood down. Back on the ranked dispatch queue.",
-          severityBand: get().incidents[id]?.band ?? 0,
+          severityBand: prev.band,
           cta: "dismiss",
-        });
-      }),
+        }
+      );
+    },
 
-    markExtinguished: (id) =>
-      attempt(`Couldn't mark extinguished · ${id}`, async () => {
-        const prev = snapshot(id);
-        const patch = await dataSource.markExtinguished(prev);
-        patchIncident(id, patch);
-        pushLog(id, "Marked extinguished — crew reported the fire out.");
-        pushToast({
-          title: `Marked extinguished · ${id}`,
+    markExtinguished: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't mark extinguished · ${prev.ref}`,
+        {
+          dispatch: "extinguished",
+          extinguishedNote: "Crew reported the fire out",
+          extinguishedBy: COORDINATOR_NAME,
+          extinguishedAtIso: new Date().toISOString(),
+        },
+        () => dataSource.markExtinguished(prev),
+        "Marked extinguished. Crew reported the fire out.",
+        {
+          title: `Marked extinguished · ${prev.ref}`,
           body: "Crew reported the fire out. Moved to Resolved.",
-          severityBand: get().incidents[id]?.band ?? 0,
+          severityBand: prev.band,
           cta: "undo",
-          onUndo: undoTo(id, prev, "Reopened — back on the dispatch order under Live / Dispatched (undo)"),
-        });
-      }),
+          onUndo: undoTo(id, prev, "Reopened. Back on the dispatch order under Live (undo)"),
+        }
+      );
+    },
 
-    reopenIncident: (id) =>
-      attempt(`Couldn't reopen · ${id}`, async () => {
-        const prev = snapshot(id);
-        const patch = await dataSource.reopenIncident(prev);
-        patchIncident(id, patch);
-        pushLog(id, "Reopened — back on the dispatch order under Live / Dispatched");
-        pushToast({
-          title: `Reopened · ${id}`,
+    reopenIncident: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't reopen · ${prev.ref}`,
+        { dispatch: "live", extinguishedNote: null, extinguishedBy: null, extinguishedAtIso: null },
+        () => dataSource.reopenIncident(prev),
+        "Reopened. Back on the dispatch order under Live",
+        {
+          title: `Reopened · ${prev.ref}`,
           body: "Back on the dispatch order under Live / Dispatched.",
-          severityBand: get().incidents[id]?.band ?? 0,
+          severityBand: prev.band,
           cta: "undo",
           onUndo: undoTo(id, prev, "Marked extinguished again (undo)"),
-        });
-      }),
+        }
+      );
+    },
 
-    sendToManualReview: (id) =>
-      attempt(`Couldn't send to review · ${id}`, async () => {
-        const prev = snapshot(id);
-        const patch = await dataSource.sendToManualReview(prev);
-        patchIncident(id, patch);
-        pushLog(id, "Sent to manual review by coordinator — AI tag withdrawn.");
-        pushToast({
-          title: `Sent for a human check · ${id}`,
+    sendToManualReview: (id) => {
+      const prev = snapshot(id);
+      set({ reviewSelectedId: id });
+      return optimistic(
+        prev,
+        `Couldn't send to review · ${prev.ref}`,
+        { flag: "flagged_review", band: 0, dispatch: "unranked", reviewReason: "sent_by_coordinator" },
+        () => dataSource.sendToManualReview(prev),
+        "Sent to manual review by coordinator. AI tag withdrawn.",
+        {
+          title: `Sent for a human check · ${prev.ref}`,
           body: "Withdrawn from the map and the dispatch order until reviewed.",
           severityBand: 0,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reverted to the AI assessment (undo)"),
-        });
-        set({ reviewSelectedId: id });
-      }),
+        }
+      );
+    },
 
-    restoreFromArchive: (id) =>
-      attempt(`Couldn't restore · ${id}`, async () => {
-        const patch = await dataSource.restoreFromArchive(snapshot(id));
-        patchIncident(id, patch);
-        pushLog(id, "Restored from the archive to manual review");
-        pushToast({
-          title: `Restored for re-check · ${id}`,
+    archiveIncident: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't archive · ${prev.ref}`,
+        {
+          dispatch: "archived",
+          dismissedReason: ARCHIVED_REASON,
+          dismissedBy: COORDINATOR_NAME,
+          dismissedAtIso: new Date().toISOString(),
+        },
+        () => dataSource.archiveIncident(prev),
+        "Archived. Extinguished fire filed away",
+        {
+          title: `Archived · ${prev.ref}`,
+          body: "Moved from Resolved to the Archive. Restore it from there if needed.",
+          severityBand: prev.band,
+          cta: "undo",
+          onUndo: undoTo(id, prev, "Restored to Resolved (undo)"),
+        }
+      );
+    },
+
+    restoreFromArchive: (id) => {
+      const prev = snapshot(id);
+      // an archived fire goes back to Resolved; a dismissed image goes back to manual review
+      if (prev.dispatch === "archived") {
+        return optimistic(
+          prev,
+          `Couldn't restore · ${prev.ref}`,
+          { dispatch: "extinguished", dismissedReason: null, dismissedBy: null, dismissedAtIso: null },
+          () => dataSource.markExtinguished(prev),
+          "Restored from the archive to Resolved",
+          {
+            title: `Restored to Resolved · ${prev.ref}`,
+            body: "Back on the Resolved list as an extinguished fire.",
+            severityBand: prev.band,
+            cta: "dismiss",
+          }
+        );
+      }
+      set({ reviewSelectedId: id });
+      return optimistic(
+        prev,
+        `Couldn't restore · ${prev.ref}`,
+        {
+          flag: "flagged_review",
+          dispatch: "unranked",
+          reviewReason: "restored_not_fire",
+          dismissedReason: null,
+          dismissedBy: null,
+          dismissedAtIso: null,
+        },
+        () => dataSource.restoreFromArchive(prev),
+        "Restored from the archive to manual review",
+        {
+          title: `Restored for re-check · ${prev.ref}`,
           body: "Back in the manual review queue with its provisional tag intact.",
           severityBand: 0,
           cta: "dismiss",
-        });
-        set({ reviewSelectedId: id });
-      }),
+        }
+      );
+    },
 
     loadDecisionLog: async (id) => {
       try {
@@ -457,7 +589,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         set((s) => ({ group: s.group ? { ...s.group, state: "confirmed" } : s.group }));
         pushLog(
           group.memberIds[0],
-          `Grouping confirmed — ${group.memberIds.length} images treated as one incident (${group.id})`
+          `Grouping confirmed: ${group.memberIds.length} images treated as one incident (${group.id})`
         );
         pushToast({
           title: `Grouping confirmed · ${group.id}`,
@@ -479,7 +611,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         set((s) => ({ group: s.group ? { ...s.group, state: "kept_separate" } : s.group }));
         pushLog(
           group.memberIds[0],
-          `Grouping rejected — images kept as separate incidents (${group.id})`
+          `Grouping rejected. Images kept as separate incidents (${group.id})`
         );
         pushToast({
           title: `Kept separate · ${group.id}`,

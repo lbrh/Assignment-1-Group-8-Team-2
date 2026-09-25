@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { DispatchState, PipelineFlag } from "@/lib/types";
 
 interface Props {
@@ -5,55 +6,40 @@ interface Props {
   dispatch: DispatchState;
 }
 
-/** One flag per image at any time — Dispatched is shown in place of Processed once a crew is
- * assigned (redline: "dispatch state is shown separately so it no longer overwrites the
- * pipeline flag"). */
+/** One flag per image at any time. Dispatched replaces Processed once a crew is assigned, so the
+ * dispatch state never overwrites the pipeline flag. */
 export function StatusFlagChip({ flag, dispatch }: Props) {
   let label: string;
-  let color: string;
-  let bg: string;
-  let border: string;
+  let style: CSSProperties;
 
-  if (dispatch === "extinguished") {
+  if (dispatch === "archived") {
+    label = "Archived";
+    style = { color: "var(--muted)", background: "var(--surface-2)", borderColor: "var(--border-2)" };
+  } else if (dispatch === "extinguished") {
     label = "Extinguished";
-    color = "var(--fg-3)";
-    bg = "var(--surface-3)";
-    border = "1px solid var(--border-7)";
+    style = { color: "var(--fg-4)", background: "var(--surface-2)", borderColor: "var(--border-2)" };
   } else if (dispatch === "live") {
     label = "Dispatched";
-    color = "var(--ok-fg)";
-    bg = "var(--grn-10)";
-    border = "1px solid var(--ok-border)";
+    style = { color: "var(--ok-fg)", background: "var(--ok-soft)", borderColor: "var(--ok-border)" };
   } else if (flag === "flagged_review") {
-    label = "Flagged · review";
-    color = "var(--accent)";
-    bg = "var(--acc-10)";
-    border = "1px dashed var(--accent)";
+    label = "Flagged for review";
+    style = {
+      color: "var(--accent-fg)",
+      background: "var(--accent-soft)",
+      borderColor: "var(--accent-border)",
+      borderStyle: "dashed",
+    };
   } else if (flag === "not_a_fire") {
     label = "Not a fire";
-    color = "var(--faint)";
-    bg = "var(--surface-3)";
-    border = "1px solid var(--border-2)";
+    style = { color: "var(--muted)", background: "var(--surface-2)", borderColor: "var(--border-2)" };
   } else {
     label = "Processed";
-    color = "var(--fg-2)";
-    bg = "var(--surface-2)";
-    border = "1px solid var(--border-3)";
+    style = { color: "var(--fg-2)", background: "var(--surface-2)", borderColor: "var(--border)" };
   }
 
   return (
-    <span
-      style={{
-        font: "600 10px/1 var(--font-plex-mono)",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color,
-        background: bg,
-        border,
-        padding: "5px 9px",
-        whiteSpace: "nowrap",
-      }}
-    >
+    <span className="chip chip--pill" style={style}>
+      <span className="chip__dot" aria-hidden />
       {label}
     </span>
   );

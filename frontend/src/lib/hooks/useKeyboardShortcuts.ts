@@ -3,11 +3,12 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import { TABS } from "@/lib/constants/nav";
 
-const ROUTES = ["/", "/dispatch", "/review", "/archive", "/resolved", "/submit"] as const;
+const ROUTES = TABS.map((t) => t.href);
 
 /** Alt/Option+1-6 jump to a tab, ←/→ step between tabs, ? opens the shortcut panel, Esc closes
- * it — matches the redline's keyboard model (section: Geometry, spacing, motion > Focus). */
+ * it. Matches the redline's keyboard model (section: Geometry, spacing, motion > Focus). */
 export function useKeyboardShortcuts() {
   const router = useRouter();
   const pathname = usePathname();
@@ -33,9 +34,17 @@ export function useKeyboardShortcuts() {
         setKeysOpen(!keysOpen);
         return;
       }
+      // Focus follows the route when it starts on a tab, so the focus ring never points at the
+      // tab the user just navigated away from.
+      const go = (href: string) => {
+        router.push(href);
+        if (target?.classList.contains("chrome-tab")) {
+          document.querySelector<HTMLElement>(`.chrome-tab[href="${href}"]`)?.focus();
+        }
+      };
       if (e.altKey && /^[1-6]$/.test(e.key)) {
         const idx = Number(e.key) - 1;
-        if (ROUTES[idx]) router.push(ROUTES[idx]);
+        if (ROUTES[idx]) go(ROUTES[idx]);
         return;
       }
       // a focused map uses the arrows to pan (Leaflet's keyboard handler), not to switch tabs
@@ -47,7 +56,7 @@ export function useKeyboardShortcuts() {
           e.key === "ArrowRight"
             ? Math.min(ROUTES.length - 1, base + 1)
             : Math.max(0, base - 1);
-        router.push(ROUTES[nextIdx]);
+        go(ROUTES[nextIdx]);
       }
     }
 

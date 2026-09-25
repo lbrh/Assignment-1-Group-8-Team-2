@@ -1,92 +1,45 @@
 "use client";
 
-import { useState } from "react";
 import type { Incident, SeverityBand } from "@/lib/types";
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/constants/severity";
 import { RubricExplainer } from "@/components/primitives/RubricExplainer";
+import { SectionHeading } from "@/components/primitives/Card";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
+import { useAck } from "@/components/primitives/Button";
 
 export function OverrideSeverityCard({ incident }: { incident: Incident }) {
   const overrideSeverity = useIncidentStore((s) => s.overrideSeverity);
-  const [pending, setPending] = useState<SeverityBand | null>(null);
+  const [ackedBand, ackBand] = useAck<SeverityBand>();
 
   const stateNote =
     incident.provenance === "coordinator_override"
-      ? "overridden by you"
+      ? "Overridden by you."
       : incident.band
-        ? `currently AI level ${incident.band}`
-        : "no severity applied yet";
+        ? `Currently AI level ${incident.band}.`
+        : "No severity applied yet.";
 
-  async function apply(level: SeverityBand) {
-    setPending(level);
-    await overrideSeverity(incident.id, level);
-    setPending(null);
+  function apply(level: SeverityBand) {
+    ackBand(level);
+    overrideSeverity(incident.id, level);
   }
 
   return (
-    <div
-      style={{
-        border: "var(--border-w) solid var(--border-3)",
-        background: "var(--map-bg)",
-        padding: "15px 18px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <span
-          style={{
-            font: "600 10px/1 var(--font-plex-mono)",
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            color: "var(--fg)",
-          }}
-        >
-          Override severity
-        </span>
-        <span style={{ font: "400 10px/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
-          one click applies immediately · {stateNote}
-        </span>
-      </div>
+    <section className="card card--inset" style={{ padding: "var(--space-4) var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      <SectionHeading note={`One click applies immediately. ${stateNote}`}>Override severity</SectionHeading>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
         {SEVERITY_ORDER.map((band) => {
           const meta = SEVERITY[band];
-          const active = incident.band === band;
           return (
             <div key={band} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
                 type="button"
-                disabled={pending !== null}
+                className={ackedBand === band ? "sev-option ack" : "sev-option"}
+                aria-pressed={incident.band === band}
                 onClick={() => apply(band)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  background: active ? "var(--acc-12)" : "var(--panel)",
-                  border: active ? "var(--border-w) solid var(--accent)" : "var(--border-w) solid var(--border-2)",
-                  padding: "7px 10px",
-                  opacity: pending && pending !== band ? 0.6 : 1,
-                }}
               >
-                <span
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    background: meta.fillVar,
-                    border: `2px solid ${meta.ringVar}`,
-                  }}
-                />
-                <span
-                  style={{
-                    font: "600 11px/1 var(--font-plex-mono)",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: active ? "var(--accent-hi)" : "var(--fg-2)",
-                  }}
-                >
+                <span className="ack__label">
+                  <span className="sev-option__dot" style={{ background: meta.fillVar, borderColor: meta.ringVar }} />
                   {meta.label}
                 </span>
               </button>
@@ -99,25 +52,20 @@ export function OverrideSeverityCard({ incident }: { incident: Incident }) {
       {incident.provenance === "coordinator_override" ? (
         <button
           type="button"
+          className="btn btn--pending btn--sm"
+          style={{ alignSelf: "flex-start" }}
           onClick={() => {
-            // Undo is exposed as the toast's CTA for 5s; the inline version here re-applies the
-            // AI's own original band by re-deriving it from the stored elements/sum.
-            const original = incident.sum ? SEVERITY_ORDER.find((b) => SEVERITY[b].sumRange[0] <= (incident.sum ?? 0) && (incident.sum ?? 0) <= SEVERITY[b].sumRange[1]) : null;
+            // Undo is also the toast's action for 5 s; this inline version re-applies the AI's
+            // original band by re-deriving it from the stored sum.
+            const original = incident.sum
+              ? SEVERITY_ORDER.find((b) => SEVERITY[b].sumRange[0] <= (incident.sum ?? 0) && (incident.sum ?? 0) <= SEVERITY[b].sumRange[1])
+              : null;
             if (original) apply(original);
           }}
-          style={{
-            alignSelf: "flex-start",
-            font: "600 10px/1 var(--font-plex-mono)",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-            border: "1px solid var(--border-2)",
-            padding: "9px 12px",
-          }}
         >
-          Undo · back to AI level
+          Undo, back to AI level
         </button>
       ) : null}
-    </div>
+    </section>
   );
 }

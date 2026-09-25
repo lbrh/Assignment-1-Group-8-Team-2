@@ -31,6 +31,16 @@ export async function getIncident(id: string): Promise<Incident | null> {
   return delay(normalizeIncident(record, { discarded: overlay?.discarded, place: overlay?.place }));
 }
 
+/** Mock incidents have no stored files, so previews fall back to the filename placeholder. */
+export function getImagePreviewUrl(_imageId: string, _width: 240 | 800 = 800): string | null {
+  return null;
+}
+
+/** Mock incidents have no stored files, so the incident screen keeps its filename placeholder. */
+export async function getImageUrl(_imageId: string): Promise<string | null> {
+  return null;
+}
+
 export interface SubmitImagePayload {
   file?: File;
   fileName: string;
@@ -168,6 +178,10 @@ export async function markExtinguished(_incident: Incident): Promise<Partial<Inc
 
 export async function reopenIncident(_incident: Incident): Promise<Partial<Incident>> {
   return delay({ dispatch: "live", extinguishedNote: null, extinguishedBy: null, extinguishedAtIso: null });
+}
+
+export async function archiveIncident(_incident: Incident): Promise<Partial<Incident>> {
+  return delay({ dispatch: "archived" });
 }
 
 export async function sendToManualReview(_incident: Incident): Promise<Partial<Incident>> {

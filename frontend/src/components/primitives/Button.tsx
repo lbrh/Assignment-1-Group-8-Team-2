@@ -1,60 +1,63 @@
 "use client";
 
-import type { ButtonHTMLAttributes } from "react";
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 
-type Variant = "solid" | "outline" | "dashed" | "ghost";
+export type ButtonVariant = "primary" | "secondary" | "pending" | "link";
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
+  variant?: ButtonVariant;
   small?: boolean;
+  /** Show a ✓ in place of the label for a second after a click. For actions the store applies
+   * optimistically, so the click reads as done instead of the button greying out while it waits. */
+  ack?: boolean;
 }
 
-/** Square-cornered mono-uppercase action button, per the redline's single button treatment
- * (solid = primary, outline = secondary, dashed = "undecided" affordance like Restore/Undo). */
-export function Button({ variant = "outline", small = false, style, ...rest }: Props) {
-  const base = {
-    font: `600 ${small ? 10 : 11}px/1 var(--font-plex-mono)`,
-    letterSpacing: small ? "0.1em" : "0.12em",
-    textTransform: "uppercase" as const,
-    padding: small ? "9px 12px" : "11px 20px",
-    transition: "background .12s, color .12s, border-color .12s",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-  };
+/** Which item (key) is showing its ✓ right now; `ack(key)` starts a one-second flash. The label
+ * stays in the layout underneath (see .ack in components.css), so the button keeps its size and
+ * comes back showing whatever its label has become. */
+export function useAck<K = true>(ms = 1000) {
+  const [acked, setAcked] = useState<K | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const ack = useCallback(
+    (key: K) => {
+      clearTimeout(timer.current);
+      setAcked(key);
+      timer.current = setTimeout(() => setAcked(null), ms);
+    },
+    [ms]
+  );
+  return [acked, ack] as const;
+}
 
-  const variants: Record<Variant, React.CSSProperties> = {
-    solid: {
-      background: "var(--accent)",
-      color: "var(--on-accent)",
-      border: "var(--border-w) solid var(--accent)",
-    },
-    outline: {
-      background: "transparent",
-      color: "var(--fg-2)",
-      border: "var(--border-w) solid var(--border-2)",
-    },
-    dashed: {
-      background: "transparent",
-      color: "var(--accent)",
-      border: "var(--border-w) dashed var(--accent)",
-    },
-    ghost: {
-      background: "transparent",
-      color: "var(--muted)",
-      border: "none",
-      padding: 0,
-    },
-  };
-
+/** One primary action per view (gradient, lifts on hover); secondary for everything else;
+ * pending (dashed) for reversible, still-undecided actions such as Restore, Reopen or opening
+ * the review queue; link for inline text actions. States live in styles/components.css. */
+export function Button({
+  variant = "secondary",
+  small = false,
+  ack = false,
+  className,
+  type = "button",
+  onClick,
+  children,
+  ...rest
+}: Props) {
+  const [acked, flash] = useAck();
+  const classes = ["btn", `btn--${variant}`, small && variant !== "link" ? "btn--sm" : null, acked ? "ack" : null, className]
+    .filter(Boolean)
+    .join(" ");
   return (
     <button
-      {...rest}
-      style={{ ...base, ...variants[variant], ...style }}
-      onMouseDown={(e) => {
-        if (variant === "solid") e.currentTarget.style.background = "var(--accent-deep)";
-        rest.onMouseDown?.(e);
+      type={type}
+      className={classes}
+      onClick={(e) => {
+        if (ack) flash(true);
+        onClick?.(e);
       }}
-    />
+      {...rest}
+    >
+      <span className="ack__label">{children}</span>
+    </button>
   );
 }

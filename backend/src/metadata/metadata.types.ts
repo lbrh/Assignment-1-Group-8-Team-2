@@ -4,7 +4,8 @@ export type SourceType = 'drone' | 'cctv' | 'citizen' | 'satellite';
 export type UploadStatus = 'pending' | 'stored' | 'failed';
 export type AssessmentStatus = 'assessed' | 'unable_to_assess' | 'pending_review';
 export type ClassificationLabel = 'fire' | 'non_fire' | 'extinguished' | 'uncertain';
-export type DispatchState = 'awaiting' | 'live' | 'extinguished';
+// archived: an extinguished fire the coordinator has filed away (moves from Resolved to Archive).
+export type DispatchState = 'awaiting' | 'live' | 'extinguished' | 'archived';
 
 export type SmokeDensity = 'none_or_haze' | 'moderate' | 'dense_dark' | 'very_dense_blocking_vision';
 export type FlameVisibility =
@@ -44,12 +45,16 @@ export interface ImageMetadata {
     uploadStatus: UploadStatus;
     ingestionError: string | null;
     contentHash: string | null;
+    // Locality at the image's coordinates ("Kinglake"), looked up after ingest; null until then.
+    placeName: string | null;
 }
 
 // Read shape for the incident queries: an image plus its incident's dispatch state
 // (null = no coordinator dispatch decision yet).
 export interface IncidentImage extends ImageMetadata {
     dispatchState: DispatchState | null;
+    dispatchUpdatedBy: string | null; // who set the current dispatch state, and when
+    dispatchUpdatedAt: string | null;
 }
 
 // The fields a coordinator may change on an image. null clears an override (used by undo).

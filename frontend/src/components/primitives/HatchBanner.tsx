@@ -1,20 +1,22 @@
 import type { CSSProperties, ReactNode } from "react";
 
-/** 135° diagonal hatch over a dashed accent border — the prototype's visual signature for
- * "a human decision is outstanding" (review queue header, review banner, grouping banner). */
+/** Marks a surface where a human decision is outstanding (review queue header, review banner):
+ * a Blue 10 wash fading down, over a dashed Blue 30 edge. */
 export function HatchBanner({
   children,
   style,
+  className,
 }: {
   children: ReactNode;
   style?: CSSProperties;
+  className?: string;
 }) {
   return (
     <div
+      className={className}
       style={{
-        background:
-          "repeating-linear-gradient(135deg, var(--acc-07) 0 10px, var(--acc-02) 10px 20px)",
-        borderBottom: "var(--border-w) dashed var(--accent-border)",
+        background: "var(--grad-pending)",
+        borderBottom: "1px dashed var(--accent-border)",
         ...style,
       }}
     >

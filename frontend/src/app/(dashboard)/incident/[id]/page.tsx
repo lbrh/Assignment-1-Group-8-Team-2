@@ -10,9 +10,10 @@ import { DetailActionsBar } from "@/components/detail/DetailActionsBar";
 import { OverrideSeverityCard } from "@/components/detail/OverrideSeverityCard";
 import { HowScoredExplainer } from "@/components/detail/HowScoredExplainer";
 import { NearbyStrip } from "@/components/detail/NearbyStrip";
+import { IncidentImage } from "@/components/detail/IncidentImage";
 import { MetaList } from "@/components/primitives/MetaField";
 import { DecisionLogList } from "@/components/primitives/DecisionLogList";
-import { Card, SectionHeading } from "@/components/primitives/Card";
+import { SectionHeading } from "@/components/primitives/Card";
 import type { DecisionLogEntry } from "@/lib/types";
 import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
@@ -38,10 +39,12 @@ export default function IncidentDetailPage() {
 
   if (!incident) {
     return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        <p style={{ font: "400 13.5px/1.5 var(--font-plex-sans)", color: "var(--muted)" }}>
-          Incident not found.
-        </p>
+      <div style={{ padding: "var(--space-8) var(--space-5)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-3)" }}>
+        <p style={{ font: "600 var(--text-base)/1.4 var(--font-plex-sans)", color: "var(--fg)" }}>Incident {id} not found</p>
+        <p className="caption">Check the ID, or go back and open it from the list.</p>
+        <button type="button" className="btn btn--secondary btn--sm" onClick={() => router.push(lastTabPath)}>
+          {backLabelForPath(lastTabPath)}
+        </button>
       </div>
     );
   }
@@ -49,7 +52,7 @@ export default function IncidentDetailPage() {
   const priorityLabel =
     incident.dispatch === "live"
       ? "live · crew dispatched"
-      : incident.dispatch === "extinguished"
+      : incident.dispatch === "extinguished" || incident.dispatch === "archived"
         ? "resolved · not ranked"
         : incident.band === 0
           ? "not ranked until reviewed"
@@ -58,7 +61,7 @@ export default function IncidentDetailPage() {
   const classificationLabel =
     incident.flag === "not_a_fire"
       ? "Non-Fire"
-      : incident.dispatch === "extinguished"
+      : incident.dispatch === "extinguished" || incident.dispatch === "archived"
         ? "Extinguished"
         : incident.band === 0
           ? "Uncertain"
@@ -83,145 +86,118 @@ export default function IncidentDetailPage() {
   ].join(" ");
 
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "20px 24px 40px" }}>
+    <div className="page" style={{ maxWidth: 1200, paddingTop: "var(--space-5)" }}>
       <button
         type="button"
+        className="btn btn--link"
         onClick={() => router.push(lastTabPath)}
-        style={{
-          font: "600 11px/1 var(--font-plex-mono)",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "var(--accent)",
-          marginBottom: 14,
-        }}
+        style={{ marginBottom: "var(--space-4)", fontSize: "var(--text-xs)" }}
       >
-        ← {backLabelForPath(lastTabPath)}
+        <span aria-hidden>‹</span> {backLabelForPath(lastTabPath)}
       </button>
 
-      <div style={{ border: "var(--border-w) solid var(--border)", background: "var(--panel)" }}>
+      <article className="card" style={{ overflow: "hidden" }}>
         <SeverityHeader incident={incident} />
 
-        <div style={{ display: "grid", gridTemplateColumns: "308px 1fr", gap: 22, padding: "0 22px 22px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-            <div
-              style={{
-                height: 186,
-                border: "var(--border-w) dashed var(--border-4)",
-                background:
-                  "repeating-linear-gradient(135deg, var(--surface-2) 0 8px, var(--surface) 8px 16px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                font: "500 10px/1 var(--font-plex-mono)",
-                color: "var(--muted)",
-              }}
-            >
-              {incident.file}
+        {/* Two columns on desktop. Below 1024px the columns dissolve (layout.css) so the actions lead,
+            image and metadata follow, and the exportable record goes last. */}
+        <div className="detail-grid">
+          <div className="detail-col" style={{ gap: "var(--space-4)" }}>
+            <div className="d-image">
+              <IncidentImage key={incident.file} imageId={incident.file} alt={`Field image for ${incident.place}`} />
             </div>
+            <div className="d-meta">
             <MetaList
               rows={[
                 { label: "Location", value: incident.place },
-                { label: "Captured", value: `${relativeTime(incident.capturedAtIso, tick)}` },
+                { label: "Captured", value: relativeTime(incident.capturedAtIso, tick) },
                 { label: "Distance", value: `${incident.distanceKm.toFixed(1)} km from staging` },
                 { label: "Class", value: classificationLabel },
                 { label: "Priority", value: priorityLabel },
-                { label: "Group", value: incident.groupId ?? "none" },
+                { label: "Group", value: incident.groupId ?? "None", mono: !!incident.groupId },
               ]}
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span
+            </div>
+            <details className="card card--inset d-record" style={{ padding: "var(--space-3) var(--space-4)" }}>
+              <summary className="label" style={{ cursor: "pointer" }}>
+                Exportable record
+              </summary>
+              <p
+                className="data"
                 style={{
-                  font: "600 10px/1 var(--font-plex-mono)",
-                  letterSpacing: "0.16em",
-                  color: "var(--muted)",
-                }}
-              >
-                Record (exportable)
-              </span>
-              <div
-                style={{
-                  font: "400 11px/1.6 var(--font-plex-mono)",
-                  color: "var(--muted)",
+                  marginTop: "var(--space-2)",
+                  font: "400 var(--text-2xs)/1.7 var(--font-plex-mono)",
+                  color: "var(--fg-4)",
                   wordBreak: "break-word",
                 }}
               >
                 {record}
-              </div>
-            </div>
+              </p>
+            </details>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="detail-col" style={{ gap: "var(--space-5)" }}>
             <DetailActionsBar incident={incident} />
-            <OverrideSeverityCard incident={incident} />
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <SectionHeading note="original tag, new value, who changed it and when">
-                Decision log
-              </SectionHeading>
-              <DecisionLogList entries={decisionLogs} />
-            </div>
 
             {incident.recommendedAction ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <SectionHeading>Recommended action</SectionHeading>
-                <p style={{ font: "400 15px/1.5 var(--font-plex-sans)", color: "var(--fg-3)" }}>
+              <section style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <SectionHeading as="h2">Recommended action</SectionHeading>
+                <p
+                  style={{
+                    font: "500 var(--text-lg)/1.45 var(--font-plex-sans)",
+                    letterSpacing: "-0.01em",
+                    color: "var(--fg)",
+                    maxWidth: "60ch",
+                  }}
+                >
                   {incident.recommendedAction}
                 </p>
-              </div>
+              </section>
             ) : null}
 
             {incident.explanation ? (
-              <Card
-                dashed
-                tone="surface"
-                style={{
-                  padding: "16px 18px",
-                  borderLeft: "3px solid var(--accent)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <SectionHeading accent note="read-only explanation">
+              <section className="card card--inset" style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                <SectionHeading as="h2" note="Read-only explanation from the assessment.">
                   Why this severity
                 </SectionHeading>
-                <p style={{ font: "400 15px/1.55 var(--font-plex-sans)", color: "var(--fg-3)" }}>
+                <p style={{ font: "400 var(--text-base)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-2)", maxWidth: "70ch" }}>
                   {incident.explanation}
                 </p>
                 {incident.reasonBullets.length > 0 ? (
-                  <ul style={{ display: "flex", flexDirection: "column", gap: 6, listStyle: "none" }}>
+                  <ul style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", listStyle: "none", margin: 0, padding: 0 }}>
                     {incident.reasonBullets.map((b) => (
-                      <li key={b} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <li key={b} style={{ display: "flex", gap: "var(--space-3)", alignItems: "flex-start" }}>
                         <span
-                          style={{
-                            width: 5,
-                            height: 5,
-                            background: "var(--accent)",
-                            marginTop: 6,
-                            flex: "none",
-                          }}
+                          aria-hidden
+                          style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", marginTop: 8, flex: "none" }}
                         />
-                        <span style={{ font: "400 13.5px/1.55 var(--font-plex-sans)", color: "var(--fg-4)" }}>
-                          {b}
-                        </span>
+                        <span style={{ font: "400 var(--text-sm)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-2)" }}>{b}</span>
                       </li>
                     ))}
                   </ul>
                 ) : null}
-                <span style={{ font: "400 11px/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
-                  confidence {incident.confidence?.toFixed(2) ?? "—"} · assessed{" "}
-                  {relativeTime(incident.capturedAtIso, tick)} ·{" "}
+                <span className="data" style={{ font: "400 var(--text-2xs)/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
+                  conf {incident.confidence?.toFixed(2) ?? "–"} · assessed {relativeTime(incident.capturedAtIso, tick)} ·{" "}
                   {incident.provenance.replace(/_/g, " ")}
                 </span>
-              </Card>
+              </section>
             ) : null}
+
+            <OverrideSeverityCard incident={incident} />
+
+            <section style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              <SectionHeading as="h2" note="Original tag, new value, who changed it and when.">
+                Decision log
+              </SectionHeading>
+              <DecisionLogList entries={decisionLogs} />
+            </section>
 
             <HowScoredExplainer incident={incident} />
           </div>
         </div>
 
         <NearbyStrip currentId={incident.id} />
-      </div>
+      </article>
     </div>
   );
 }

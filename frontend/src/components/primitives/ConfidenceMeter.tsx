@@ -25,51 +25,37 @@ export function ConfidenceMeter({ confidence, size = "sm", note }: Props) {
 
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        paddingLeft: 20,
-        borderLeft: "1px solid var(--border)",
-      }}
+      role="group"
+      aria-label={`${confidenceLabel(confidence)}, ${confidence.toFixed(2)}`}
+      className="conf-meter" // beside its heading, or under it on a phone (layout.css)
     >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span
-          style={{
-            font: `700 ${big ? 20 : 12}px/1 var(--font-plex-mono)`,
-            color,
-          }}
-        >
-          {confidence.toFixed(2)}
-        </span>
-      </div>
-      <div
+      <span
+        className="data"
         style={{
-          font: "600 10px/1.4 var(--font-plex-mono)",
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          font: `700 ${big ? "var(--text-xl)" : "var(--text-sm)"}/1 var(--font-plex-mono)`,
+          letterSpacing: "var(--tracking-tight)",
           color,
         }}
       >
+        {confidence.toFixed(2)}
+      </span>
+      <span style={{ font: "600 var(--text-xs)/1.3 var(--font-plex-sans)", color }}>
         {confidenceLabel(confidence)}
-      </div>
-      <div style={{ display: "flex", gap: 3 }}>
+      </span>
+      <div style={{ display: "flex", gap: 3 }} aria-hidden>
         {Array.from({ length: 5 }).map((_, i) => (
           <span
             key={i}
             style={{
               width: 22,
               height: 6,
-              background: i < filled ? color : "var(--border-2)",
+              borderRadius: "var(--radius-full)",
+              background: i < filled ? color : "var(--surface-3)",
             }}
           />
         ))}
       </div>
-      {note ? (
-        <div style={{ font: "400 10px/1.4 var(--font-plex-mono)", color: "var(--muted)" }}>
-          {note}
-        </div>
-      ) : null}
+      {note ? <span className="caption">{note}</span> : null}
     </div>
   );
 }

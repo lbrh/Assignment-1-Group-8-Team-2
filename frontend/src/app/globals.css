@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/components.css";
 @import "../styles/animations.css";
 @import "../styles/map.css";
+@import "../styles/layout.css";
 
 @theme inline {
   --font-sans: var(--font-plex-sans);
@@ -20,20 +22,20 @@ body {
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  font: 400 var(--text-sm) / var(--lh-body) var(--font-plex-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Square-cornered design system: no rounded panels, cards, chips, buttons or
-   inputs anywhere. The only curves are circles (severity dots, avatars, "?"
-   hint buttons) declared per-component with border-radius: 50%. */
+p {
+  text-wrap: pretty;
+}
+
 button,
 input,
 select,
 textarea {
   font-family: inherit;
   color: inherit;
-  border-radius: 0;
 }
 
 button {
@@ -51,27 +53,17 @@ a {
 .skip-link {
   position: absolute;
   left: 12px;
-  top: -48px;
+  top: -56px;
   z-index: 100;
-  background: var(--accent);
-  color: var(--on-accent);
-  padding: 10px 16px;
-  font: 600 11px/1 var(--font-plex-mono), monospace;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  transition: top 0.12s;
+  background: var(--grad-primary);
+  color: var(--on-primary);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-btn);
+  font: 600 var(--text-sm) / 1 var(--font-plex-sans);
+  transition: top var(--dur) var(--ease);
 }
 
 .skip-link:focus {
   top: 12px;
-}
-
-/* Chrome tab links: keyboard shortcuts (←/→, Alt+1-6) move the route without
-   moving DOM focus, so a focus ring would linger on whichever tab was last
-   clicked even after navigating away to a different tab. The active tab's
-   own background/underline already shows current location, so suppress the
-   ring entirely rather than have it point at a stale tab. */
-.chrome-tab:focus,
-.chrome-tab:focus-visible {
-  outline: none;
 }
