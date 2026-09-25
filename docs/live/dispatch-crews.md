@@ -109,8 +109,8 @@ Most crew actions reuse endpoints that already exist. Every action is also writt
 | Dispatch crew(s) | Coordinator | `POST /incidents/:id/assignments` `{crewIds}`. Sets the incident to `live` in the same transaction. 409 if a crew already has an open assignment; nothing is kept. | New |
 | En route / On scene | Crew | `PATCH /assignments/:id` `{status}` | New |
 | Recall crew | Coordinator | `PATCH /assignments/:id` `{status: cleared}`. Recalling the last crew puts the incident back to `awaiting`. | New |
-| Mark extinguished | Crew only | Clears every assignment on the incident, `PUT /incidents/:id/dispatch` → `extinguished` | Reuse |
-| False alarm | Crew only | `PATCH /images/:id/decision` `{classificationLabelOverride: non_fire}` on the latest image, then `PUT /incidents/:id/dispatch` → `archived`, which clears every assignment. Undo restores both. | Reuse |
+| Mark extinguished | Crew only | Clears every assignment on the incident, `PUT /incidents/:id/dispatch` → `extinguished`. Undo (5 s toast) reopens it and sends the same crews back at the step they'd reached. | Reuse |
+| False alarm | Crew only | `PATCH /images/:id/decision` `{classificationLabelOverride: non_fire}` on the latest image, then `PUT /incidents/:id/dispatch` → `archived`, which clears every assignment. Undo restores the label, the dispatch state and the crews, each at the step it had reached. | Reuse |
 | Reopen (re-ignition) | Coordinator | Existing reopen → `live`. A crew has to be dispatched again. | Reuse |
 | Update severity | Crew or coordinator | `PATCH /images/:id/decision` `{severityScoreOverride}` on the latest image | Reuse |
 | Request support | Crew | `POST /incidents/:id/support-requests` `{crewId, crewType, note}`. 409 unless the crew is assigned to that incident. | New |

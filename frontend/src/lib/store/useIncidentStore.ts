@@ -240,6 +240,31 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     };
   }
 
+  // Undo for a crew closing a fire (extinguished, false alarm): closing freed every crew on it, so
+  // besides putting the incident back, send the same crews back at the step each had reached.
+  // Call when the action is taken, before its crews are freed.
+  function undoClose(id: string, prev: Incident, note: string) {
+    const onFire = get()
+      .crews.filter((c) => c.assignment?.incidentId === id)
+      .map((c) => ({ crewId: c.id, status: c.assignment!.status }));
+    const restoreIncident = undoTo(id, prev, note);
+    return async () => {
+      await restoreIncident();
+      if (onFire.length === 0 || get().incidents[id]?.dispatch !== "live") return; // the undo itself failed
+      await attempt(`Couldn't send the crews back · ${prev.ref}`, async () => {
+        await dataSource.dispatchCrews(snapshot(id), onFire.map((c) => c.crewId));
+        await get().loadCrews();
+        for (const { crewId, status } of onFire) {
+          const assignmentId = get().crews.find((c) => c.id === crewId)?.assignment?.id;
+          if (!assignmentId) continue;
+          if (status === "en_route" || status === "on_scene") await dataSource.setCrewStatus(assignmentId, "en_route");
+          if (status === "on_scene") await dataSource.setCrewStatus(assignmentId, "on_scene");
+        }
+      });
+      syncCrews();
+    };
+  }
+
   return {
     incidents: {},
     order: [],
@@ -524,7 +549,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           body: "No fire found. Moved to the Archive and every crew freed.",
           severityBand: "not_a_fire",
           cta: "undo",
-          onUndo: undoTo(id, prev, "False alarm undone (the crew must be dispatched again)"),
+          onUndo: undoClose(id, prev, "False alarm undone. Crews back where they were."),
         }
       );
     },
@@ -648,7 +673,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           body: "Crew reported the fire out. Moved to Resolved.",
           severityBand: prev.band,
           cta: "undo",
-          onUndo: undoTo(id, prev, "Reopened. Back on the dispatch order under Live (undo)"),
+          onUndo: undoClose(id, prev, "Reopened. Crews back where they were (undo)"),
         }
       );
     },
