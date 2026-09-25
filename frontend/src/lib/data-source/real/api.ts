@@ -7,6 +7,7 @@ import type {
   ClassificationLabel,
   DecisionLogEntry,
   Incident,
+  IncidentComment,
   SeverityBand,
 } from "@/lib/types";
 import type { SubmitImagePayload } from "../mock/mockApi";
@@ -205,6 +206,33 @@ export async function getDecisionLog(incidentId: string): Promise<DecisionLogEnt
     who: d.decidedBy,
     whenIso: d.decidedAt,
   }));
+}
+
+interface ApiComment {
+  id: number;
+  incidentId: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+const toComment = (c: ApiComment): IncidentComment => ({
+  id: String(c.id),
+  incidentId: c.incidentId,
+  body: c.body,
+  who: c.author,
+  whenIso: c.createdAt,
+});
+
+/** Comments on an incident, newest first. */
+export async function getComments(incidentId: string): Promise<IncidentComment[]> {
+  const comments = await request<ApiComment[]>(`/incidents/${encodeURIComponent(incidentId)}/comments`);
+  return comments.map(toComment);
+}
+
+export async function addComment(incidentId: string, body: string): Promise<IncidentComment> {
+  const comment = await request<ApiComment>(`/incidents/${encodeURIComponent(incidentId)}/comments`, jsonInit("POST", { body }));
+  return toComment(comment);
 }
 
 export async function setGrouping(

@@ -2,7 +2,7 @@
 
 **Status:** Live. Mirrors `backend/src/metadata/schema.sql`. If this document and the SQL disagree, the SQL is right; fix this document.
 **Owner:** Liam Robinson Hounsell (Dev 2)
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 **Supersedes:** [Storage and metadata V2](../archive/sprint-1/storage/Storage_and_metadata_V2.md) §2, 4, 5 · [Finalisation addendum](../archive/sprint-1/storage/Storage_and_Metadata_Finalisation_Addendum.md) · [Original structure doc](../archive/sprint-1/storage/Storage_and_metadata_structure.md)
 
 ---
@@ -38,12 +38,13 @@ One row per submitted image. An incident is a group of rows sharing `incident_id
 
 Indexes: `incident_id`, `(latitude, longitude)`, `priority_rank`.
 
-Two coordinator tables sit alongside `images`:
+Three coordinator tables sit alongside `images`:
 
 | Table | Columns | Purpose |
 |---|---|---|
 | `incident_dispatch` | `incident_id` PK, `state` (`awaiting`/`live`/`extinguished`), `updated_by`, `updated_at` | Per-incident dispatch state. No row = no coordinator decision yet |
 | `decisions` | `id`, `incident_id`, `image_id` (null for dispatch), `field`, `from_value`, `to_value`, `decided_by`, `decided_at` | Append-only history of every coordinator change, including undos. Indexed on `(incident_id, decided_at)` |
+| `comments` | `id`, `incident_id`, `author`, `body` (1–1000 chars), `created_at` | Comments on an incident from coordinators (and crews, later). Append-only: no edit or delete. Indexed on `(incident_id, created_at)` |
 
 Not yet in the schema, but required: the separate gate confidence figure.
 

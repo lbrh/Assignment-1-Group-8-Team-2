@@ -11,6 +11,7 @@ import type {
   DecisionLogEntry,
   DispatchState,
   Incident,
+  IncidentComment,
   IncidentGroup,
   SeverityBand,
 } from "@/lib/types";
@@ -40,6 +41,7 @@ interface IncidentStoreState {
   incidents: Record<string, Incident>;
   order: string[]; // insertion order, for stable iteration
   decisionLogs: Record<string, DecisionLogEntry[]>;
+  comments: Record<string, IncidentComment[]>;
   group: IncidentGroup | null;
   toasts: Toast[];
 
@@ -63,6 +65,8 @@ interface IncidentStoreState {
   loading: boolean;
 
   init: () => Promise<void>;
+  /** Re-reads every incident from the server (live updates). Skips incidents with an action in flight. */
+  refresh: () => Promise<void>;
   toggleTheme: () => void;
   /** Adopts the theme the pre-paint script in the root layout already applied. */
   syncThemeFromDocument: () => void;
@@ -91,6 +95,9 @@ interface IncidentStoreState {
   confirmGrouping: () => Promise<void>;
   keepGroupSeparate: () => Promise<void>;
   loadDecisionLog: (id: string) => Promise<void>;
+  loadComments: (id: string) => Promise<void>;
+  /** Resolves true once the comment is saved, false if it failed (a toast says why). */
+  addComment: (id: string, body: string) => Promise<boolean>;
   submitImage: (payload: SubmitImagePayload) => Promise<{ ref: string; incidentId: string }>;
 }
 
@@ -100,6 +107,9 @@ function bandLabel(band: SeverityBand | 0): string {
 }
 
 let toastCounter = 0;
+// Incidents with an optimistic action still waiting on the server: a refresh leaves them alone,
+// or the poll could briefly put back the value the click just changed.
+const inFlight = new Set<string>();
 let logCounter = 0;
 
 export const useIncidentStore = create<IncidentStoreState>((set, get) => {
@@ -168,6 +178,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     toast?: Omit<Toast, "id" | "createdAt">
   ): Promise<void> {
     const id = prev.id;
+    inFlight.add(id);
     patchIncident(id, guess);
     const logId = pushLog(id, log);
     const toastId = toast ? pushToast(toast) : null;
@@ -185,6 +196,8 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         severityBand: 0,
         cta: "dismiss",
       });
+    } finally {
+      inFlight.delete(id);
     }
   }
 
@@ -203,6 +216,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     incidents: {},
     order: [],
     decisionLogs: {},
+    comments: {},
     group: null,
     toasts: [],
 
@@ -570,6 +584,51 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           cta: "dismiss",
         }
       );
+    },
+
+    refresh: async () => {
+      // Mock incidents live only in the store, so re-reading the seed would undo every action.
+      if (useMock || !get().initialized) return;
+      let list: Incident[];
+      try {
+        list = await dataSource.listIncidents();
+      } catch {
+        return; // keep what's shown; the next poll tries again
+      }
+      const added = list.filter((i) => !get().incidents[i.id]);
+      set((s) => {
+        const incidents = { ...s.incidents };
+        for (const incident of list) {
+          if (!inFlight.has(incident.id)) incidents[incident.id] = incident;
+        }
+        return { incidents, order: [...added.map((i) => i.id), ...s.order] };
+      });
+      preloadImages(added.map((i) => dataSource.getImagePreviewUrl(i.file, 240)));
+    },
+
+    loadComments: async (id) => {
+      try {
+        const comments = await dataSource.getComments(id);
+        set((s) => ({ comments: { ...s.comments, [id]: comments } }));
+      } catch {
+        // keep whatever is already shown; the next poll tries again
+      }
+    },
+
+    addComment: async (id, body) => {
+      try {
+        const comment = await dataSource.addComment(id, body);
+        set((s) => ({ comments: { ...s.comments, [id]: [comment, ...(s.comments[id] ?? []).filter((c) => c.id !== comment.id)] } }));
+        return true;
+      } catch (err) {
+        pushToast({
+          title: "Comment not saved",
+          body: err instanceof Error ? err.message : "The request failed.",
+          severityBand: 0,
+          cta: "dismiss",
+        });
+        return false;
+      }
     },
 
     loadDecisionLog: async (id) => {

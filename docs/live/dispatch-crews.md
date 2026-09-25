@@ -39,7 +39,7 @@ Goals:
 - **Dispatch crew** opens a crew picker instead of flipping the state. The picker shows each available crew's label, type (light, heavy or aerial), station and distance to the fire. Crews already on another incident are not listed. You can pick one crew or several.
 - Rows in the Live section show the assigned crews, each with a status chip (Dispatched / En route / On scene) and how long ago it changed. The existing **Mark extinguished** button is removed, because only crews close a fire. The coordinator keeps **Recall crew** and **Reopen** (for re-ignition).
 - A **Crews** panel lists every crew with its status, station and current incident.
-- Incident detail gets a live **activity feed**: comments, crew status changes, crew reports and new photos in one timeline, with a comment box at the bottom.
+- Incident detail gets a live **Activity** feed: comments and decisions (later, crew status changes and reports) in one timeline, newest first, with a comment box above it.
 - **Support requests** from crews appear in the header alerts panel and as a badge on the incident. The coordinator responds by dispatching another crew or by dismissing the request.
 
 ### Response crew (new **Crew** tab in the header, `/crew`)
@@ -185,7 +185,9 @@ Assignment status changes are also written to `decisions`, so the audit trail st
 
 ## 9. Live updates: polling
 
-Decision: **poll every 5 s** from one endpoint, `GET /activity?since=<iso>`. It returns every comment, assignment change, decision and new image since that time. The store merges these in. Only the open page polls.
+Decision: **poll the existing endpoints every 5 s**, only while the tab is visible (`usePoll`). The dashboard re-reads `GET /incidents`. Incident detail also re-reads that incident's `/decisions` and `/comments`. That's 2–3 small requests per 5 s, about 36 reads/min against the 600/min budget. A refresh skips any incident with an action still waiting on the server, so a poll can't briefly undo a click.
+
+A `GET /activity?since=` endpoint was considered and dropped. Images only store when the photo was taken, not when it arrived, so a late upload with an old EXIF time would never count as a change. Making it work would need an `ingested_at` column and change tracking on four tables. Add it only if the incident count grows into the hundreds.
 
 Why not WebSockets:
 
@@ -194,7 +196,7 @@ Why not WebSockets:
 - **The backend runs several instances.** Code Engine runs up to 5 backend instances. An update written on one instance has to reach a browser connected to another, which needs Postgres `LISTEN/NOTIFY` or similar. Long-lived connections are also cut by Code Engine's request timeout, so they need reconnect logic.
 - **In a demo it looks the same.** Within 5 s is live enough with a coordinator tab and a crew tab side by side.
 
-Upgrade path if 5 s ever feels slow: SSE through the proxy plus `LISTEN/NOTIFY`, with the same `/activity` payload.
+Upgrade path if 5 s ever feels slow: SSE through the proxy plus `LISTEN/NOTIFY`.
 
 ## 10. Decisions
 
@@ -219,7 +221,7 @@ The work is split into four PRs. Each one works on its own.
 | # | Scope | Size |
 |---|---|---|
 | 1 | Split the rate limit (600 reads / 60 writes per minute). Add the image gallery and each image's rating to incident detail. | S |
-| 2 | Comments table and endpoint, `/activity` polling, and the activity feed on incident detail | M |
+| 2 | Comments table and endpoints, 5 s polling, and the Activity feed (comments + decisions) on incident detail | M |
 | 3 | `stations`, `crews` and `assignments` tables, a seed script, the crew picker on Dispatch, and crew chips on Live rows | M |
 | 4 | Crew tab (`/crew`): status buttons, extinguish, false alarm, severity, photo upload, support requests and alerts | L |
 

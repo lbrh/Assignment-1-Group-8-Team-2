@@ -128,6 +128,15 @@ export interface DecisionLogEntry {
   whenIso: string;
 }
 
+/** A comment on an incident. Permanent: comments are never edited or deleted. */
+export interface IncidentComment {
+  id: string;
+  incidentId: string;
+  body: string;
+  who: string;
+  whenIso: string;
+}
+
 export type ReviewReason =
   | "below_threshold"
   | "sent_by_coordinator"

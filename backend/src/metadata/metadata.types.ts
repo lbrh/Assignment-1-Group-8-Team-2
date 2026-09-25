@@ -75,6 +75,14 @@ export interface Decision {
     decidedAt: string;
 }
 
+export interface Comment {
+    id: number;
+    incidentId: string;
+    author: string;
+    body: string;
+    createdAt: string;
+}
+
 export interface IngestionInput {
     sourceType: SourceType;
     latitude?: number;

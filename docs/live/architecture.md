@@ -72,6 +72,8 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 | PATCH | `/images/:imageId/decision` | Coordinator review/override: any of `severityScoreOverride` (1–4 or null), `classificationLabelOverride` (label or null), `assessmentStatus` (`assessed`/`unable_to_assess`), plus `by`. Each changed field is logged. **`frontend` caller only.** |
 | PUT | `/incidents/:incidentId/dispatch` | `{state: awaiting \| live \| extinguished, by}`: dispatch, cancel, extinguish, reopen. Logged. **`frontend` caller only.** |
 | GET | `/incidents/:incidentId/decisions` | Decision log, newest first: field, from, to, who, when. **`frontend` caller only.** |
+| GET | `/incidents/:incidentId/comments` | Comments, newest first: author, body, when. **`frontend` caller only.** |
+| POST | `/incidents/:incidentId/comments` | `{ body, by }` adds a comment (1–1000 chars, trimmed). 201 with the comment; 404 for an unknown incident. Append-only. **`frontend` caller only.** |
 
 Cross-cutting:
 

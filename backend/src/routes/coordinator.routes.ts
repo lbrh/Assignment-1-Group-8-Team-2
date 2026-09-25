@@ -55,6 +55,18 @@ export function parseCoordinatorPatch(body: unknown): { patch: CoordinatorPatch;
     return { patch, by: parseBy(b) };
 }
 
+const MAX_COMMENT_LENGTH = 1000;
+
+export function parseComment(body: unknown): { body: string; by: string } {
+    if (typeof body !== 'object' || body === null) throw new ValidationError('request body must be a JSON object');
+    const b = body as Record<string, unknown>;
+    const text = typeof b.body === 'string' ? b.body.trim() : '';
+    if (text === '' || text.length > MAX_COMMENT_LENGTH) {
+        throw new ValidationError(`body is required: the comment text (max ${MAX_COMMENT_LENGTH} chars)`);
+    }
+    return { body: text, by: parseBy(b) };
+}
+
 function handle(fn: (req: Request<{ id: string }>, res: Response) => Promise<void>) {
     return async (req: Request<{ id: string }>, res: Response) => {
         if (!UUID.test(req.params.id)) {
@@ -117,5 +129,28 @@ coordinatorRouter.get(
     requireCaller('frontend'),
     handle(async (req, res) => {
         res.json(await metadataRepository.findDecisions(req.params.id));
+    }),
+);
+
+// Comments on an incident, newest first. Append-only: there is no edit or delete.
+coordinatorRouter.get(
+    '/incidents/:id/comments',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        res.json(await metadataRepository.findComments(req.params.id));
+    }),
+);
+
+coordinatorRouter.post(
+    '/incidents/:id/comments',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        const { body, by } = parseComment(req.body);
+        const comment = await metadataRepository.addComment(req.params.id, by, body);
+        if (!comment) {
+            res.status(404).json({ error: 'incident not found' });
+            return;
+        }
+        res.status(201).json(comment);
     }),
 );

@@ -1,6 +1,7 @@
 import '../utils/load-env.ts';
 import { Pool, type PoolClient } from 'pg';
 import type {
+    Comment,
     CoordinatorPatch,
     Decision,
     DispatchState,
@@ -312,4 +313,34 @@ export async function findDecisions(incidentId: string): Promise<Decision[]> {
         decidedBy: row.decided_by,
         decidedAt: row.decided_at instanceof Date ? row.decided_at.toISOString() : row.decided_at,
     }));
+}
+
+function fromCommentRow(row: Record<string, unknown>): Comment {
+    const createdAt = row.created_at;
+    return {
+        id: Number(row.id),
+        incidentId: row.incident_id as string,
+        author: row.author as string,
+        body: row.body as string,
+        createdAt: createdAt instanceof Date ? createdAt.toISOString() : (createdAt as string),
+    };
+}
+
+// Adds a comment to an incident. Returns undefined if no image belongs to that incident.
+export async function addComment(incidentId: string, author: string, body: string): Promise<Comment | undefined> {
+    const { rows } = await pool.query(
+        `INSERT INTO comments (incident_id, author, body)
+         SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM images WHERE incident_id = $1)
+         RETURNING *`,
+        [incidentId, author, body],
+    );
+    return rows[0] ? fromCommentRow(rows[0]) : undefined;
+}
+
+export async function findComments(incidentId: string): Promise<Comment[]> {
+    const { rows } = await pool.query(
+        'SELECT * FROM comments WHERE incident_id = $1 ORDER BY created_at DESC, id DESC',
+        [incidentId],
+    );
+    return rows.map(fromCommentRow);
 }

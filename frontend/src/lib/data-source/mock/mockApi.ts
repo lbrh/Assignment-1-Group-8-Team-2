@@ -1,5 +1,6 @@
 import { normalizeIncident } from "@/lib/normalize";
-import type { ApiIncidentRecord, DecisionLogEntry, Incident, SeverityBand, SourceType } from "@/lib/types";
+import type { ApiIncidentRecord, DecisionLogEntry, Incident, IncidentComment, SeverityBand, SourceType } from "@/lib/types";
+import { COORDINATOR_NAME } from "../real/api";
 import { seedDecisionLog, seedGroup, seedOverlay, seedRecords } from "./seed";
 
 const LATENCY_MS = 350;
@@ -211,6 +212,20 @@ export async function undo(_prev: Incident, _current: Incident): Promise<void> {
 /** null = keep the store's local log (mock has no server-side log). */
 export async function getDecisionLog(_incidentId: string): Promise<DecisionLogEntry[] | null> {
   return null;
+}
+
+// In-memory only: mock comments last until the page reloads.
+const mockComments: IncidentComment[] = [];
+let mockCommentId = 0;
+
+export async function getComments(incidentId: string): Promise<IncidentComment[]> {
+  return delay(mockComments.filter((c) => c.incidentId === incidentId));
+}
+
+export async function addComment(incidentId: string, body: string): Promise<IncidentComment> {
+  const comment = { id: `c-${++mockCommentId}`, incidentId, body, who: COORDINATOR_NAME, whenIso: new Date().toISOString() };
+  mockComments.unshift(comment);
+  return delay(comment);
 }
 
 export type GroupAction = "confirmed" | "kept_separate";

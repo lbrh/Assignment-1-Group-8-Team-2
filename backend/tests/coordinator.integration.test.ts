@@ -42,6 +42,7 @@ async function seedFlaggedImage() {
 
 async function cleanup(incidentId: string) {
     await pool.query('DELETE FROM decisions WHERE incident_id = $1', [incidentId]);
+    await pool.query('DELETE FROM comments WHERE incident_id = $1', [incidentId]);
     await pool.query('DELETE FROM incident_dispatch WHERE incident_id = $1', [incidentId]);
     await pool.query('DELETE FROM images WHERE incident_id = $1', [incidentId]);
 }
@@ -126,6 +127,28 @@ test('only the frontend caller may make coordinator decisions', async () => {
     try {
         const res = await fetch(`${url}/images/${imageId}/decision`, json('PATCH', { assessmentStatus: 'assessed', by: 'EC' }));
         assert.equal(res.status, 403);
+    } finally {
+        close();
+        await cleanup(incidentId);
+    }
+});
+
+test('comments are added to an incident and listed newest first', async () => {
+    const { close, url } = await startServer('frontend');
+    const { incidentId } = await seedFlaggedImage();
+    try {
+        for (const body of ['Crew en route', 'Wind has changed to the north']) {
+            const res = await fetch(`${url}/incidents/${incidentId}/comments`, json('POST', { body, by: 'EC' }));
+            assert.equal(res.status, 201);
+        }
+        const comments = await fetch(`${url}/incidents/${incidentId}/comments`).then((r) => r.json());
+        assert.deepEqual(
+            comments.map((c: { body: string; author: string }) => [c.body, c.author]),
+            [['Wind has changed to the north', 'EC'], ['Crew en route', 'EC']],
+        );
+
+        assert.equal((await fetch(`${url}/incidents/${randomUUID()}/comments`, json('POST', { body: 'hi', by: 'EC' }))).status, 404);
+        assert.equal((await fetch(`${url}/incidents/${incidentId}/comments`, json('POST', { body: '', by: 'EC' }))).status, 400);
     } finally {
         close();
         await cleanup(incidentId);

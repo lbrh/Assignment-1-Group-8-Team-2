@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCoordinatorPatch } from '../src/routes/coordinator.routes.ts';
+import { parseComment, parseCoordinatorPatch } from '../src/routes/coordinator.routes.ts';
 import { ValidationError } from '../src/pipeline/validate.ts';
 
 test('accepts a review confirm and trims who', () => {
@@ -31,5 +31,12 @@ test('rejects bad values, empty patches and a missing author', () => {
         null,
     ]) {
         assert.throws(() => parseCoordinatorPatch(body), ValidationError, JSON.stringify(body));
+    }
+});
+
+test('a comment is trimmed and needs text and an author', () => {
+    assert.deepEqual(parseComment({ body: '  Crew reports wind change  ', by: 'EC' }), { body: 'Crew reports wind change', by: 'EC' });
+    for (const body of [{ body: '   ', by: 'EC' }, { body: 'x'.repeat(1001), by: 'EC' }, { body: 42, by: 'EC' }, { body: 'hi' }, null]) {
+        assert.throws(() => parseComment(body), ValidationError, JSON.stringify(body));
     }
 });

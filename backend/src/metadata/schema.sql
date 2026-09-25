@@ -82,3 +82,14 @@ CREATE TABLE IF NOT EXISTS decisions (
     decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS decisions_incident_idx ON decisions (incident_id, decided_at DESC);
+
+-- Comments on an incident from coordinators and crews: an operational log, so append-only
+-- like `decisions` (no update or delete endpoint).
+CREATE TABLE IF NOT EXISTS comments (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id UUID NOT NULL,
+    author TEXT NOT NULL,
+    body TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 1000),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS comments_incident_idx ON comments (incident_id, created_at DESC);
