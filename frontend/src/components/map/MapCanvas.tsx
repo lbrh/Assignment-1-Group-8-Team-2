@@ -115,6 +115,21 @@ function hoverCard(incident: Incident): HTMLElement {
   return card;
 }
 
+/** The one image under review a reviewer asked to see ("Locate on map"): a dashed pending ring,
+ * never a severity colour, since it has no applied severity yet. */
+function reviewIcon(incident: Incident): L.DivIcon {
+  return L.divIcon({
+    className: "fori-marker is-new",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    html:
+      `<div class="fori-pin">` +
+      `<div class="fori-review">?</div>` +
+      `<span class="fori-label">Under review · ${escapeHtml(incident.place)}</span>` +
+      `</div>`,
+  });
+}
+
 const extinguishedIcon = () =>
   L.divIcon({
     className: "fori-marker fori-marker-out",
@@ -134,11 +149,18 @@ export function MapCanvas() {
   const setAlertsPanelOpen = useIncidentStore((s) => s.setAlertsPanelOpen);
   const newIncidentId = useIncidentStore((s) => s.newIncidentId);
   const group = useIncidentStore((s) => s.group);
+  const mapFocusId = useIncidentStore((s) => s.mapFocusId);
+  const clearMapFocus = useIncidentStore((s) => s.clearMapFocus);
+  const selectReview = useIncidentStore((s) => s.selectReview);
+  // shown as its own pin only while it's still under review; once decided it's an ordinary marker
+  const focus = mapFocusId ? incidents[mapFocusId] : undefined;
+  const focusUnderReview = focus?.flag === "flagged_review" ? focus : undefined;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const overlayLayerRef = useRef<L.LayerGroup | null>(null);
+  const focusLayerRef = useRef<L.LayerGroup | null>(null);
   /** incident id -> the marker currently representing it (its own pin, or its cluster). */
   const markerByIdRef = useRef<Map<string, L.Marker>>(new Map());
   const [leafletZoom, setLeafletZoom] = useState<number | null>(null);
@@ -172,6 +194,7 @@ export function MapCanvas() {
     L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: MAX_ZOOM }).addTo(map);
     overlayLayerRef.current = L.layerGroup().addTo(map);
     markerLayerRef.current = L.layerGroup().addTo(map);
+    focusLayerRef.current = L.layerGroup().addTo(map);
 
     const syncZoom = () => setLeafletZoom(map.getZoom());
     const syncView = () => {
@@ -194,6 +217,7 @@ export function MapCanvas() {
       mapRef.current = null;
       markerLayerRef.current = null;
       overlayLayerRef.current = null;
+      focusLayerRef.current = null;
       markerByIdRef.current = new Map();
       useIncidentStore.getState().setMapHoverId(null);
     };
@@ -338,6 +362,24 @@ export function MapCanvas() {
       .addTo(layer);
   }, [group, incidents, order, setAlertsPanelOpen]);
 
+  // "Locate on map" from Manual review: that one image's pin, which opens it back in review.
+  useEffect(() => {
+    const layer = focusLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!focusUnderReview) return;
+    const marker = L.marker([focusUnderReview.coords.lat, focusUnderReview.coords.lng], {
+      icon: reviewIcon(focusUnderReview),
+      zIndexOffset: 2000,
+    })
+      .on("click", () => {
+        selectReview(focusUnderReview.id);
+        router.push("/review");
+      })
+      .addTo(layer);
+    marker.getElement()?.setAttribute("aria-label", `${focusUnderReview.place}, under review. Open in manual review`);
+  }, [focusUnderReview, router, selectReview]);
+
   // Hover linkage with the Active Incidents rail.
   useEffect(() => {
     applyHover(markerByIdRef.current, mapHoverId);
@@ -408,6 +450,27 @@ export function MapCanvas() {
           +
         </button>
       </div>
+
+      {focusUnderReview ? (
+        <div className="card map-focus-bar" role="status">
+          <span style={{ flex: "1 1 auto", minWidth: 0 }}>
+            <strong>{focusUnderReview.ref}</strong> · under review<span className="map-focus-bar__more">, shown only for you</span>
+          </span>
+          <button
+            type="button"
+            className="btn btn--link btn--sm"
+            onClick={() => {
+              selectReview(focusUnderReview.id);
+              router.push("/review");
+            }}
+          >
+            Back to review
+          </button>
+          <button type="button" className="icon-btn icon-btn--bare" aria-label="Hide this image from the map" onClick={clearMapFocus}>
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       <SeverityLegend counts={counts} />
     </div>

@@ -2,7 +2,7 @@
 
 **Status:** Live. Consolidates every requirements doc from Sprint 1 and Sprint 2 Week 1 into the current set. Build status is as of the date below.
 **Owner:** Aryaveer Singh (BA). Consolidated by Liam Robinson Hounsell (Dev 2); items marked **(pending BA)** changed after the BA's last document and need sign-off.
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 **Project:** EMBERA (Emergency Monitoring for Bushfire Evaluation, Response and Awareness) · **Client:** IBM (Naresh Olladapu, technical supervisor; Emily Chin, non-technical supervisor) · **Team:** Team 8, Team B
 
 Sources: [Week 1 users & requirements](../archive/sprint-1/requirements/week-1/Define_Target_Users_&_Core_Requirements.md) · [Week 2 user stories](../archive/sprint-1/requirements/week-2/Refine%20User%20Stories%2C%20Requirements%20%26%20Traceability.md) · [Sprint 1 final](../archive/sprint-1/requirements/final/Sprint1_AI_Req_Acceptance_Criteria.md) · [Sprint 2 W1](../archive/sprint-2/week-1/Sprint2_Implementation_Requirements_&_Acceptance_Criteria.md)
@@ -87,7 +87,7 @@ Build status: `classification_label` supports all four values. Archive (discard)
 | Override | Immediate, undo available | Built. |
 | Map clarity | Zero overlapping markers at default zoom | Not built. |
 | No data loss | Nothing lost between submission and storage | Record written before upload; failed uploads kept with `ingestion_error`. |
-| Load tolerance | Survive a spike of simultaneous submissions | Grouping is locked against races; rate limit 30 req/min per API key (see open questions). |
+| Load tolerance | Survive a spike of simultaneous submissions | Grouping is locked against races; rate limit 600 reads + 60 writes per minute per caller and client IP (D-29). |
 | Graceful degradation | Clear error rather than silent failure | Classification failures leave the record in `pending_review` and are logged. |
 
 All targets are team-proposed and not client-confirmed.

@@ -1,18 +1,23 @@
 "use client";
 
 import { create } from "zustand";
-import { COORDINATOR_NAME, dataSource, getSeedDecisionLog, getSeedGroup, useMock } from "@/lib/data-source";
+import { currentActor, dataSource, getSeedDecisionLog, getSeedGroup, useMock } from "@/lib/data-source";
 import type { SubmitImagePayload } from "@/lib/data-source";
 import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
 import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
+import { crewAsk } from "@/lib/constants/crews";
 import { ARCHIVED_REASON } from "@/lib/normalize";
 import { preloadImages } from "@/lib/utils/preload";
 import type {
+  Crew,
+  CrewType,
   DecisionLogEntry,
   DispatchState,
   Incident,
+  IncidentComment,
   IncidentGroup,
   SeverityBand,
+  SupportRequest,
 } from "@/lib/types";
 
 export interface Toast {
@@ -40,6 +45,14 @@ interface IncidentStoreState {
   incidents: Record<string, Incident>;
   order: string[]; // insertion order, for stable iteration
   decisionLogs: Record<string, DecisionLogEntry[]>;
+  comments: Record<string, IncidentComment[]>;
+  crews: Crew[];
+  /** Open requests for more help from crews on scene, newest first. */
+  supportRequests: SupportRequest[];
+  /** Incident the crew picker is open for; null = closed. */
+  crewPickerFor: string | null;
+  /** Bumped on every opening, so the picker starts with nothing ticked each time. */
+  crewPickerSession: number;
   group: IncidentGroup | null;
   toasts: Toast[];
 
@@ -50,6 +63,9 @@ interface IncidentStoreState {
   /** Incident hovered/focused on either the map or the Active incidents rail; each side
    * highlights it so the two stay visually linked. */
   mapHoverId: string | null;
+  /** An image under review the reviewer asked to see on the map ("Locate on map"). Flagged images
+   * are never drawn on the map; this one is, as a dashed "under review" pin, until dismissed. */
+  mapFocusId: string | null;
   mapFilter: MapFilter;
   dispatchFilter: DispatchFilter;
   alertsPanelOpen: boolean;
@@ -63,6 +79,8 @@ interface IncidentStoreState {
   loading: boolean;
 
   init: () => Promise<void>;
+  /** Re-reads every incident from the server (live updates). Skips incidents with an action in flight. */
+  refresh: () => Promise<void>;
   toggleTheme: () => void;
   /** Adopts the theme the pre-paint script in the root layout already applied. */
   syncThemeFromDocument: () => void;
@@ -70,6 +88,9 @@ interface IncidentStoreState {
   setKeysOpen: (open: boolean) => void;
   setMapView: (view: MapView) => void;
   setMapHoverId: (id: string | null) => void;
+  /** Centres the map on this incident and shows it there, even if it's under review. */
+  locateOnMap: (id: string) => void;
+  clearMapFocus: () => void;
   setMapFilter: (f: MapFilter) => void;
   setDispatchFilter: (f: DispatchFilter) => void;
   setAlertsPanelOpen: (open: boolean) => void;
@@ -81,7 +102,18 @@ interface IncidentStoreState {
   changeReview: (id: string, level: SeverityBand) => Promise<void>;
   discardReview: (id: string) => Promise<void>;
   overrideSeverity: (id: string, level: SeverityBand) => Promise<void>;
-  dispatchCrew: (id: string) => Promise<void>;
+  openCrewPicker: (id: string | null) => void;
+  loadCrews: () => Promise<void>;
+  dispatchCrews: (id: string, crewIds: string[]) => Promise<void>;
+  recallCrew: (incidentId: string, assignmentId: string) => Promise<void>;
+  /** Crew tab: the crew moves itself along. */
+  setCrewStatus: (assignmentId: string, status: "en_route" | "on_scene") => Promise<void>;
+  /** Crew tab: no fire here. Marks the image not a fire, archives the incident, frees its crews. */
+  falseAlarm: (id: string) => Promise<void>;
+  loadSupportRequests: () => Promise<void>;
+  /** Resolves true once sent. */
+  requestSupport: (incidentId: string, crewId: string, crewType: CrewType | null, note: string) => Promise<boolean>;
+  dismissSupportRequest: (id: string) => Promise<void>;
   cancelDispatch: (id: string) => Promise<void>;
   markExtinguished: (id: string) => Promise<void>;
   reopenIncident: (id: string) => Promise<void>;
@@ -91,6 +123,9 @@ interface IncidentStoreState {
   confirmGrouping: () => Promise<void>;
   keepGroupSeparate: () => Promise<void>;
   loadDecisionLog: (id: string) => Promise<void>;
+  loadComments: (id: string) => Promise<void>;
+  /** Resolves true once the comment is saved, false if it failed (a toast says why). */
+  addComment: (id: string, body: string) => Promise<boolean>;
   submitImage: (payload: SubmitImagePayload) => Promise<{ ref: string; incidentId: string }>;
 }
 
@@ -100,6 +135,11 @@ function bandLabel(band: SeverityBand | 0): string {
 }
 
 let toastCounter = 0;
+// The first load of support requests only fills the list; later ones toast what's new.
+let supportLoaded = false;
+// Incidents with an optimistic action still waiting on the server: a refresh leaves them alone,
+// or the poll could briefly put back the value the click just changed.
+const inFlight = new Set<string>();
 let logCounter = 0;
 
 export const useIncidentStore = create<IncidentStoreState>((set, get) => {
@@ -108,7 +148,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       id: `log-${++logCounter}`,
       incidentId,
       summary,
-      who: COORDINATOR_NAME,
+      who: currentActor(),
       whenIso: new Date().toISOString(),
     };
     set((s) => ({
@@ -168,6 +208,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     toast?: Omit<Toast, "id" | "createdAt">
   ): Promise<void> {
     const id = prev.id;
+    inFlight.add(id);
     patchIncident(id, guess);
     const logId = pushLog(id, log);
     const toastId = toast ? pushToast(toast) : null;
@@ -185,7 +226,15 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         severityBand: 0,
         cta: "dismiss",
       });
+    } finally {
+      inFlight.delete(id);
     }
+  }
+
+  // Crews and their support requests change together (dispatch, recall, extinguish, false alarm).
+  function syncCrews() {
+    get().loadCrews();
+    get().loadSupportRequests();
   }
 
   // Undo = put the store back to the pre-action snapshot now, and the server behind it.
@@ -194,8 +243,34 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const current = snapshot(id);
       return optimistic(current, `Undo failed · ${prev.ref}`, prev, async () => {
         await dataSource.undo(prev, current);
+        syncCrews(); // undoing a dispatch change can free crews
         return {};
       }, note);
+    };
+  }
+
+  // Undo for a crew closing a fire (extinguished, false alarm): closing freed every crew on it, so
+  // besides putting the incident back, send the same crews back at the step each had reached.
+  // Call when the action is taken, before its crews are freed.
+  function undoClose(id: string, prev: Incident, note: string) {
+    const onFire = get()
+      .crews.filter((c) => c.assignment?.incidentId === id)
+      .map((c) => ({ crewId: c.id, status: c.assignment!.status }));
+    const restoreIncident = undoTo(id, prev, note);
+    return async () => {
+      await restoreIncident();
+      if (onFire.length === 0 || get().incidents[id]?.dispatch !== "live") return; // the undo itself failed
+      await attempt(`Couldn't send the crews back · ${prev.ref}`, async () => {
+        await dataSource.dispatchCrews(snapshot(id), onFire.map((c) => c.crewId));
+        await get().loadCrews();
+        for (const { crewId, status } of onFire) {
+          const assignmentId = get().crews.find((c) => c.id === crewId)?.assignment?.id;
+          if (!assignmentId) continue;
+          if (status === "en_route" || status === "on_scene") await dataSource.setCrewStatus(assignmentId, "en_route");
+          if (status === "on_scene") await dataSource.setCrewStatus(assignmentId, "on_scene");
+        }
+      });
+      syncCrews();
     };
   }
 
@@ -203,6 +278,11 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     incidents: {},
     order: [],
     decisionLogs: {},
+    comments: {},
+    crews: [],
+    supportRequests: [],
+    crewPickerFor: null,
+    crewPickerSession: 0,
     group: null,
     toasts: [],
 
@@ -211,6 +291,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     keysOpen: false,
     mapView: null,
     mapHoverId: null,
+    mapFocusId: null,
     mapFilter: "all",
     dispatchFilter: "all",
     alertsPanelOpen: false,
@@ -243,6 +324,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         incidents[incident.id] = incident;
         order.push(incident.id);
       }
+      syncCrews();
       if (!useMock) {
         // TODO(api): grouping has no backend endpoint yet.
         set({ incidents, order, initialized: true, loading: false });
@@ -322,6 +404,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     setKeysOpen: (open) => set({ keysOpen: open }),
     setMapView: (mapView) => set({ mapView }),
     setMapHoverId: (mapHoverId) => set({ mapHoverId }),
+    locateOnMap: (id) => {
+      const incident = get().incidents[id];
+      if (!incident) return;
+      set({ mapFocusId: id, mapView: { center: [incident.coords.lat, incident.coords.lng], zoom: 13 } });
+    },
+    clearMapFocus: () => set({ mapFocusId: null }),
     setMapFilter: (mapFilter) => set({ mapFilter }),
     setDispatchFilter: (dispatchFilter) => set({ dispatchFilter }),
     setAlertsPanelOpen: (alertsPanelOpen) => set({ alertsPanelOpen }),
@@ -381,7 +469,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         {
           flag: "not_a_fire",
           dismissedReason: "Discarded by reviewer — no fire present in the image.",
-          dismissedBy: COORDINATOR_NAME,
+          dismissedBy: currentActor(),
           dismissedAtIso: new Date().toISOString(),
         },
         () => dataSource.discardReview(prev),
@@ -414,17 +502,146 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       );
     },
 
-    dispatchCrew: (id) => {
+    openCrewPicker: (crewPickerFor) =>
+      set((s) => ({ crewPickerFor, crewPickerSession: crewPickerFor ? s.crewPickerSession + 1 : s.crewPickerSession })),
+
+    loadCrews: async () => {
+      try {
+        set({ crews: await dataSource.getCrews() });
+      } catch {
+        // keep what's shown; the next poll tries again
+      }
+    },
+
+    dispatchCrews: (id, crewIds) => {
       const prev = snapshot(id);
+      const names = get()
+        .crews.filter((c) => crewIds.includes(c.id))
+        .map((c) => c.label)
+        .join(", ");
       return optimistic(
         prev,
         `Couldn't dispatch · ${prev.ref}`,
         { dispatch: "live", flag: "processed" },
-        () => dataSource.dispatchCrew(prev),
-        `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
+        async () => {
+          try {
+            return await dataSource.dispatchCrews(prev, crewIds);
+          } finally {
+            syncCrews(); // on success the crews are out; on a clash, show who's really free
+          }
+        },
+        `Dispatched ${names} to ${prev.place}.`,
         {
           title: `Crew dispatched · ${prev.ref}`,
-          body: `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
+          body: `${names} dispatched to ${prev.place}.`,
+          severityBand: prev.band,
+          cta: "dismiss",
+        }
+      );
+    },
+
+    setCrewStatus: async (assignmentId, status) => {
+      set((s) => ({
+        crews: s.crews.map((c) =>
+          c.assignment?.id === assignmentId ? { ...c, assignment: { ...c.assignment, status, updatedAtIso: new Date().toISOString() } } : c
+        ),
+      }));
+      await attempt("Status not updated", () => dataSource.setCrewStatus(assignmentId, status));
+      syncCrews(); // on failure this puts back the real status
+    },
+
+    falseAlarm: (id) => {
+      const prev = snapshot(id);
+      return optimistic(
+        prev,
+        `Couldn't report a false alarm · ${prev.ref}`,
+        { flag: "not_a_fire", dispatch: "archived", dismissedBy: currentActor(), dismissedAtIso: new Date().toISOString() },
+        async () => {
+          const result = await dataSource.falseAlarm(prev);
+          syncCrews(); // the backend frees every crew on the incident
+          return result;
+        },
+        "False alarm: no fire found. Moved to the Archive.",
+        {
+          title: `False alarm · ${prev.ref}`,
+          body: "No fire found. Moved to the Archive and every crew freed.",
+          severityBand: "not_a_fire",
+          cta: "undo",
+          onUndo: undoClose(id, prev, "False alarm undone. Crews back where they were."),
+        }
+      );
+    },
+
+    loadSupportRequests: async () => {
+      let list: SupportRequest[];
+      try {
+        list = await dataSource.getSupportRequests();
+      } catch {
+        return; // keep what's shown; the next poll tries again
+      }
+      const known = new Set(get().supportRequests.map((r) => r.id));
+      set({ supportRequests: list });
+      if (supportLoaded) {
+        for (const r of list) {
+          if (known.has(r.id) || r.crewLabel === currentActor()) continue; // the asking crew knows already
+          const incident = get().incidents[r.incidentId];
+          pushToast({
+            title: `Support requested · ${incident?.ref ?? "incident"}`,
+            body: `${r.crewLabel} asks for ${crewAsk(r.crewType)}${incident ? ` at ${incident.place}` : ""}.${r.note ? ` "${r.note}"` : ""}`,
+            severityBand: incident?.band ?? 0,
+            cta: "dismiss",
+          });
+        }
+      }
+      supportLoaded = true;
+    },
+
+    requestSupport: async (incidentId, crewId, crewType, note) => {
+      try {
+        await dataSource.requestSupport(incidentId, crewId, crewType, note);
+        get().loadSupportRequests();
+        pushToast({ title: "Support requested", body: "The coordinator has been alerted.", severityBand: 0, cta: "dismiss" });
+        return true;
+      } catch (err) {
+        pushToast({
+          title: "Support request not sent",
+          body: err instanceof Error ? err.message : "The request failed.",
+          severityBand: 0,
+          cta: "dismiss",
+        });
+        return false;
+      }
+    },
+
+    dismissSupportRequest: async (id) => {
+      set((s) => ({ supportRequests: s.supportRequests.filter((r) => r.id !== id) }));
+      await attempt("Couldn't dismiss the request", () => dataSource.dismissSupportRequest(id));
+      get().loadSupportRequests();
+    },
+
+    recallCrew: (incidentId, assignmentId) => {
+      const prev = snapshot(incidentId);
+      const crew = get().crews.find((c) => c.assignment?.id === assignmentId);
+      // the backend puts an incident back in the order when its last crew is recalled
+      const last = get().crews.filter((c) => c.assignment?.incidentId === incidentId).length === 1;
+      const back: Partial<Incident> = last ? { dispatch: "awaiting" } : {};
+      set((s) => ({ crews: s.crews.map((c) => (c === crew ? { ...c, assignment: null } : c)) }));
+      return optimistic(
+        prev,
+        `Couldn't recall ${crew?.label ?? "crew"} · ${prev.ref}`,
+        back,
+        async () => {
+          try {
+            await dataSource.recallCrew(assignmentId);
+          } finally {
+            syncCrews();
+          }
+          return last ? { backend: { ...prev.backend, dispatchState: "awaiting" } } : {};
+        },
+        `Recalled ${crew?.label ?? "crew"}.${last ? " No crew left, back on the dispatch order." : ""}`,
+        {
+          title: `Crew recalled · ${prev.ref}`,
+          body: `${crew?.label ?? "Crew"} stood down.${last ? " No crew left, so the fire is back in the dispatch order." : ""}`,
           severityBand: prev.band,
           cta: "dismiss",
         }
@@ -437,7 +654,11 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         prev,
         `Couldn't cancel dispatch · ${prev.ref}`,
         { dispatch: "awaiting" },
-        () => dataSource.cancelDispatch(prev),
+        async () => {
+          const result = await dataSource.cancelDispatch(prev);
+          syncCrews(); // the backend frees every crew on the incident
+          return result;
+        },
         "Dispatch cancelled. Crew stood down, back on the ranked queue.",
         {
           title: `Dispatch cancelled · ${prev.ref}`,
@@ -456,17 +677,21 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         {
           dispatch: "extinguished",
           extinguishedNote: "Crew reported the fire out",
-          extinguishedBy: COORDINATOR_NAME,
+          extinguishedBy: currentActor(),
           extinguishedAtIso: new Date().toISOString(),
         },
-        () => dataSource.markExtinguished(prev),
+        async () => {
+          const result = await dataSource.markExtinguished(prev);
+          syncCrews(); // the backend frees every crew on the incident
+          return result;
+        },
         "Marked extinguished. Crew reported the fire out.",
         {
           title: `Marked extinguished · ${prev.ref}`,
           body: "Crew reported the fire out. Moved to Resolved.",
           severityBand: prev.band,
           cta: "undo",
-          onUndo: undoTo(id, prev, "Reopened. Back on the dispatch order under Live (undo)"),
+          onUndo: undoClose(id, prev, "Reopened. Crews back where they were (undo)"),
         }
       );
     },
@@ -516,7 +741,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         {
           dispatch: "archived",
           dismissedReason: ARCHIVED_REASON,
-          dismissedBy: COORDINATOR_NAME,
+          dismissedBy: currentActor(),
           dismissedAtIso: new Date().toISOString(),
         },
         () => dataSource.archiveIncident(prev),
@@ -539,7 +764,11 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           prev,
           `Couldn't restore · ${prev.ref}`,
           { dispatch: "extinguished", dismissedReason: null, dismissedBy: null, dismissedAtIso: null },
-          () => dataSource.markExtinguished(prev),
+          async () => {
+          const result = await dataSource.markExtinguished(prev);
+          syncCrews(); // the backend frees every crew on the incident
+          return result;
+        },
           "Restored from the archive to Resolved",
           {
             title: `Restored to Resolved · ${prev.ref}`,
@@ -570,6 +799,52 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           cta: "dismiss",
         }
       );
+    },
+
+    refresh: async () => {
+      // Mock incidents live only in the store, so re-reading the seed would undo every action.
+      if (useMock || !get().initialized) return;
+      syncCrews();
+      let list: Incident[];
+      try {
+        list = await dataSource.listIncidents();
+      } catch {
+        return; // keep what's shown; the next poll tries again
+      }
+      const added = list.filter((i) => !get().incidents[i.id]);
+      set((s) => {
+        const incidents = { ...s.incidents };
+        for (const incident of list) {
+          if (!inFlight.has(incident.id)) incidents[incident.id] = incident;
+        }
+        return { incidents, order: [...added.map((i) => i.id), ...s.order] };
+      });
+      preloadImages(added.map((i) => dataSource.getImagePreviewUrl(i.file, 240)));
+    },
+
+    loadComments: async (id) => {
+      try {
+        const comments = await dataSource.getComments(id);
+        set((s) => ({ comments: { ...s.comments, [id]: comments } }));
+      } catch {
+        // keep whatever is already shown; the next poll tries again
+      }
+    },
+
+    addComment: async (id, body) => {
+      try {
+        const comment = await dataSource.addComment(id, body);
+        set((s) => ({ comments: { ...s.comments, [id]: [comment, ...(s.comments[id] ?? []).filter((c) => c.id !== comment.id)] } }));
+        return true;
+      } catch (err) {
+        pushToast({
+          title: "Comment not saved",
+          body: err instanceof Error ? err.message : "The request failed.",
+          severityBand: 0,
+          cta: "dismiss",
+        });
+        return false;
+      }
     },
 
     loadDecisionLog: async (id) => {
@@ -625,6 +900,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const { ref, record } = await dataSource.submitImage(payload);
       const { normalizeIncident } = await import("@/lib/normalize");
       const incident = normalizeIncident(record, {});
+      if (get().incidents[incident.id]) {
+        // A photo added to a known incident (a crew's): the ingest record carries no dispatch state
+        // and isn't scored yet, so re-read the incident instead of overwriting it with that.
+        get().refresh();
+        return { ref, incidentId: incident.id };
+      }
       set((s) => ({
         incidents: { ...s.incidents, [incident.id]: incident },
         order: [incident.id, ...s.order],

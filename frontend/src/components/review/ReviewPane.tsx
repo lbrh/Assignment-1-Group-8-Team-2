@@ -27,6 +27,7 @@ export function ReviewPane({incident}: { incident: Incident }) {
     const confirmReview = useIncidentStore((s) => s.confirmReview);
     const changeReview = useIncidentStore((s) => s.changeReview);
     const discardReview = useIncidentStore((s) => s.discardReview);
+    const locateOnMap = useIncidentStore((s) => s.locateOnMap);
     const tick = useIncidentStore((s) => s.clockTick);
     const [ackedBand, ackBand] = useAck<SeverityBand>();
 
@@ -236,9 +237,15 @@ export function ReviewPane({incident}: { incident: Incident }) {
                         </DecisionBlock>
                     </section>
 
+                    {/* ponytail: "Request second image" removed until there's a camera/drone integration to ask */}
                     <div style={{display: "flex", gap: "var(--space-2)", flexWrap: "wrap"}}>
-                        <Button variant="secondary">Request second image</Button>
-                        <Button variant="secondary" onClick={() => router.push("/")}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                locateOnMap(incident.id);
+                                router.push("/");
+                            }}
+                        >
                             Locate on map
                         </Button>
                     </div>

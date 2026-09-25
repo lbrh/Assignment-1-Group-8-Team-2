@@ -2,7 +2,7 @@
 
 **Status:** Live. Describes what is built and deployed, with planned parts marked.
 **Owner:** Liam Robinson Hounsell (Dev 2), Htet (Dev 1)
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 **Supersedes:** [Storage and metadata V2](../archive/sprint-1/storage/Storage_and_metadata_V2.md) §1, 3, 7 · [Data-flow diagram](../archive/sprint-1/ai-ml/Technical_Data_Flow_Architecture_Finalised.md) · [Integration interface](../archive/sprint-1/ai-ml/Dataset_Integration_Interface_for_Htet.md)
 
 ---
@@ -63,7 +63,7 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 |---|---|---|
 | GET | `/` | Liveness `{status: "ok"}` |
 | GET | `/health` | Readiness, checks the database |
-| POST | `/ingest` | Multipart: `image` (≤ 15 MB), `source_type` (`drone`/`cctv`/`citizen`/`satellite`), `latitude`, `longitude`, `timestamp`, optional `incident_id`. 201 with the new (or existing duplicate) record. |
+| POST | `/ingest` | Multipart: `image` (≤ 15 MB), `source_type` (`drone`/`cctv`/`citizen`/`satellite`/`crew`), `latitude`, `longitude`, `timestamp`, optional `incident_id`. 201 with the new (or existing duplicate) record. |
 | GET | `/incidents?minLat&maxLat&minLon&maxLon` | Records inside a map viewport (latest image per incident), each with the incident's `dispatchState` |
 | GET | `/incidents/:incidentId` | Every image record in an incident, newest first, with `dispatchState` |
 | GET | `/order` | All records by `priority_rank`, nulls last |
@@ -72,11 +72,19 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 | PATCH | `/images/:imageId/decision` | Coordinator review/override: any of `severityScoreOverride` (1–4 or null), `classificationLabelOverride` (label or null), `assessmentStatus` (`assessed`/`unable_to_assess`), plus `by`. Each changed field is logged. **`frontend` caller only.** |
 | PUT | `/incidents/:incidentId/dispatch` | `{state: awaiting \| live \| extinguished, by}`: dispatch, cancel, extinguish, reopen. Logged. **`frontend` caller only.** |
 | GET | `/incidents/:incidentId/decisions` | Decision log, newest first: field, from, to, who, when. **`frontend` caller only.** |
+| GET | `/incidents/:incidentId/comments` | Comments, newest first: author, body, when. **`frontend` caller only.** |
+| GET | `/crews` | Every crew with its station and open assignment (`null` = available), by label. **`frontend` caller only.** |
+| POST | `/incidents/:incidentId/assignments` | `{ crewIds, by }` (1–10 crews) sends crews and sets the incident `live`, all or nothing. 201 with the assignments; 409 if a crew is already out; 400 for an unknown crew. **`frontend` caller only.** |
+| PATCH | `/assignments/:assignmentId` | `{ status, by }`: `en_route`, `on_scene` (one step forward at a time) or `cleared` (recall). 409 for an out-of-order step. Clearing the last crew on a live incident sets it back to `awaiting`. **`frontend` caller only.** |
+| POST | `/incidents/:incidentId/support-requests` | `{ crewId, crewType?, note?, by }`: a crew assigned to the incident asks for more help. 201; 409 if the crew isn't on it. **`frontend` caller only.** |
+| GET | `/support-requests` | Open support requests, newest first, with the asking crew's label. **`frontend` caller only.** |
+| PATCH | `/support-requests/:id` | `{ status, by }`, status `fulfilled` or `dismissed`. **`frontend` caller only.** |
+| POST | `/incidents/:incidentId/comments` | `{ body, by }` adds a comment (1–1000 chars, trimmed). 201 with the comment; 404 for an unknown incident. Append-only. **`frontend` caller only.** |
 
 Cross-cutting:
 
 - **Caller scopes:** a key's name (`frontend`, `classifier`, …) decides which write routes it may use; other keys get 403.
-- **Rate limit:** 30 requests / minute per caller + client IP (the frontend proxy forwards the user's IP as `x-forwarded-for`), in memory per instance (up to 5 instances). Applied once to every keyed route. See open questions.
+- **Rate limit:** per caller + client IP (the frontend proxy forwards the user's IP as `x-forwarded-for`): 600 reads (`GET`) and 60 writes per minute, counted separately, in memory per instance (up to 5 instances). Applied once to every keyed route. See D-29.
 - **CORS:** only `FRONTEND_ORIGIN`; methods GET, POST, PUT, PATCH, OPTIONS.
 - **No client ever holds a COS key.** Writes go through the API; reads use signed URLs.
 
