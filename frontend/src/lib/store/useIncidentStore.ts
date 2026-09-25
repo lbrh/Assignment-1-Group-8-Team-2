@@ -63,6 +63,9 @@ interface IncidentStoreState {
   /** Incident hovered/focused on either the map or the Active incidents rail; each side
    * highlights it so the two stay visually linked. */
   mapHoverId: string | null;
+  /** An image under review the reviewer asked to see on the map ("Locate on map"). Flagged images
+   * are never drawn on the map; this one is, as a dashed "under review" pin, until dismissed. */
+  mapFocusId: string | null;
   mapFilter: MapFilter;
   dispatchFilter: DispatchFilter;
   alertsPanelOpen: boolean;
@@ -85,6 +88,9 @@ interface IncidentStoreState {
   setKeysOpen: (open: boolean) => void;
   setMapView: (view: MapView) => void;
   setMapHoverId: (id: string | null) => void;
+  /** Centres the map on this incident and shows it there, even if it's under review. */
+  locateOnMap: (id: string) => void;
+  clearMapFocus: () => void;
   setMapFilter: (f: MapFilter) => void;
   setDispatchFilter: (f: DispatchFilter) => void;
   setAlertsPanelOpen: (open: boolean) => void;
@@ -285,6 +291,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     keysOpen: false,
     mapView: null,
     mapHoverId: null,
+    mapFocusId: null,
     mapFilter: "all",
     dispatchFilter: "all",
     alertsPanelOpen: false,
@@ -397,6 +404,12 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     setKeysOpen: (open) => set({ keysOpen: open }),
     setMapView: (mapView) => set({ mapView }),
     setMapHoverId: (mapHoverId) => set({ mapHoverId }),
+    locateOnMap: (id) => {
+      const incident = get().incidents[id];
+      if (!incident) return;
+      set({ mapFocusId: id, mapView: { center: [incident.coords.lat, incident.coords.lng], zoom: 13 } });
+    },
+    clearMapFocus: () => set({ mapFocusId: null }),
     setMapFilter: (mapFilter) => set({ mapFilter }),
     setDispatchFilter: (dispatchFilter) => set({ dispatchFilter }),
     setAlertsPanelOpen: (alertsPanelOpen) => set({ alertsPanelOpen }),
