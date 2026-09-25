@@ -36,12 +36,12 @@ function RowBones({ count }: { count: number }) {
   );
 }
 
-function Rail({ width, side, rows }: { width: number; side: "left" | "right"; rows: number }) {
+/** A side rail, sized and stacked by the real rail's class (layout.css). */
+function Rail({ className, side, rows }: { className: string; side: "left" | "right"; rows: number }) {
   return (
     <div
+      className={className}
       style={{
-        width,
-        flex: "none",
         background: "var(--panel)",
         [side === "left" ? "borderRight" : "borderLeft"]: "1px solid var(--border)",
         overflow: "hidden",
@@ -58,17 +58,17 @@ function Rail({ width, side, rows }: { width: number; side: "left" | "right"; ro
 
 function MapSkeleton() {
   return (
-    <div style={{ display: "flex", height: "100%" }}>
-      <div style={{ flex: 1, background: "var(--map-bg)" }} />
-      <Rail width={384} side="right" rows={6} />
+    <div className="map-layout">
+      <div className="map-pane" style={{ background: "var(--map-bg)" }} />
+      <Rail className="incident-rail" side="right" rows={6} />
     </div>
   );
 }
 
 function ReviewSkeleton() {
   return (
-    <div style={{ display: "flex", height: "100%" }}>
-      <Rail width={320} side="left" rows={4} />
+    <div className="review-layout">
+      <Rail className="review-queue" side="left" rows={4} />
       <div style={{ flex: 1, ...column("var(--space-5)"), padding: "var(--space-6)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-5)" }}>
           <Bone w={48} h={48} style={{ borderRadius: "50%" }} />
@@ -77,7 +77,7 @@ function ReviewSkeleton() {
             <Bone w="30%" h={12} />
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 280px", gap: "var(--space-5)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "var(--space-5)" }}>
           <div style={column("var(--space-4)")}>
             <Bone h={220} style={{ borderRadius: "var(--radius-lg)" }} />
             <Bone h={180} style={{ borderRadius: "var(--radius-lg)" }} />
@@ -92,7 +92,7 @@ function ReviewSkeleton() {
 /** Dispatch order, Archive, Resolved (and Submit): page title over a card of rows. */
 function TableSkeleton() {
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "var(--space-6) var(--space-5) var(--space-7)" }}>
+    <div className="page">
       <div style={{ ...column("var(--space-2)"), marginBottom: "var(--space-5)" }}>
         <Bone w={220} h={28} />
         <Bone w={360} h={12} style={{ maxWidth: "100%" }} />
@@ -106,21 +106,14 @@ function TableSkeleton() {
 
 function DetailSkeleton() {
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "var(--space-5) var(--space-5) var(--space-7)" }}>
+    <div className="page" style={{ maxWidth: 1200, paddingTop: "var(--space-5)" }}>
       <Bone w={120} h={12} style={{ marginBottom: "var(--space-4)" }} />
       <div className="card" style={{ overflow: "hidden" }}>
         <div style={{ ...column("var(--space-2)"), padding: "var(--space-6)", borderBottom: "1px solid var(--border)" }}>
           <Bone w="35%" h={28} />
           <Bone w="25%" h={12} />
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(260px, 320px) minmax(0, 1fr)",
-            gap: "var(--space-6)",
-            padding: "var(--space-6)",
-          }}
-        >
+        <div className="detail-grid">
           <div style={column("var(--space-4)")}>
             <Bone h={200} style={{ borderRadius: "var(--radius-lg)" }} />
             {Array.from({ length: 5 }, (_, i) => (

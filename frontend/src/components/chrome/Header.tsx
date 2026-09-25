@@ -5,7 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { liveDispatched, reviewQueue } from "@/lib/store/selectors";
-import { TABS } from "@/lib/constants/nav";
+import { TABS, type TabHref } from "@/lib/constants/nav";
+
+// Tab icons, shown only in the phone's bottom tab bar (layout.css), where labels are too short to scan alone.
+const TAB_ICONS: Record<TabHref, string> = {
+  "/": "M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14",
+  "/dispatch": "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
+  "/review": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01",
+  "/resolved": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12l3 3 5-6",
+  "/archive": "M3 5h18v4H3zM5 9v10h14V9M10 13h4",
+  "/submit": "M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",
+};
 
 export function Header() {
   const theme = useIncidentStore((s) => s.theme);
@@ -33,21 +43,7 @@ export function Header() {
   }, []);
 
   return (
-    <header
-      style={{
-        position: "relative",
-        zIndex: 20,
-        height: 56,
-        flex: "none",
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-4)",
-        padding: "0 var(--space-4)",
-        background: "var(--bg-header)",
-        backdropFilter: "saturate(180%) blur(12px)",
-        borderBottom: "1px solid var(--border)",
-      }}
-    >
+    <header className="app-header">
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }} aria-label="EMBERA home, map">
         <span
           aria-hidden
@@ -67,6 +63,7 @@ export function Header() {
           E
         </span>
         <span
+          className="app-brand__word"
           style={{
             font: "700 var(--text-base)/1 var(--font-plex-sans)",
             letterSpacing: "var(--tracking-tight)",
@@ -77,18 +74,8 @@ export function Header() {
         </span>
       </Link>
 
-      <nav
-        aria-label="Screens"
-        style={{
-          display: "flex",
-          alignItems: "stretch",
-          alignSelf: "stretch",
-          flex: "0 1 auto",
-          minWidth: 0,
-          overflowX: "auto",
-          overflowY: "hidden",
-        }}
-      >
+      {/* one nav for every width: a top tab row, or the bottom tab bar on a phone (layout.css) */}
+      <nav aria-label="Screens" className="app-nav">
         {TABS.map((tab) => {
           const active = activeHref === tab.href;
           return (
@@ -99,10 +86,23 @@ export function Header() {
               className="nav-tab chrome-tab"
               aria-current={active ? "page" : undefined}
             >
-              {tab.label}
+              <svg
+                className="nav-tab__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d={TAB_ICONS[tab.href]} />
+              </svg>
+              <span className="nav-tab__full">{tab.label}</span>
+              <span className="nav-tab__short">{tab.short}</span>
               {tab.short === "Review" && flaggedCount > 0 ? (
                 <span
-                  className="chip chip--pill data"
+                  className="chip chip--pill data nav-tab__badge"
                   aria-label={`${flaggedCount} waiting`}
                   style={{
                     height: 18,
@@ -124,7 +124,7 @@ export function Header() {
 
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flex: "none" }}>
         {now ? (
-          <span className="data" style={{ font: "500 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
+          <span className="data app-clock" style={{ font: "500 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
             {now} AEST
           </span>
         ) : null}
@@ -142,7 +142,7 @@ export function Header() {
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: "none" }}>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn app-keys-btn"
           onClick={() => setKeysOpen(!keysOpen)}
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts (?)"
@@ -151,7 +151,7 @@ export function Header() {
           ?
         </button>
 
-        <div className="seg" role="group" aria-label="Colour theme">
+        <div className="seg app-theme-seg" role="group" aria-label="Colour theme">
           <button type="button" className="seg__btn" aria-pressed={theme === "light"} onClick={() => theme !== "light" && toggleTheme()}>
             Light
           </button>
@@ -159,8 +159,21 @@ export function Header() {
             Dark
           </button>
         </div>
+        {/* below 1024px the Light / Dark pair folds into one toggle */}
+        <button
+          type="button"
+          className="icon-btn app-theme-btn"
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+            <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" />
+          </svg>
+        </button>
 
         <span
+          className="app-avatar"
           aria-label="Signed in as Emergency Coordinator"
           role="img"
           style={{
@@ -169,7 +182,6 @@ export function Header() {
             borderRadius: "50%",
             background: "var(--accent-soft)",
             border: "1px solid var(--accent-border)",
-            display: "flex",
             alignItems: "center",
             justifyContent: "center",
             font: "600 12px/1 var(--font-plex-sans)",

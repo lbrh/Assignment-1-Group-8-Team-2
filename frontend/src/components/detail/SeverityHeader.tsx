@@ -18,33 +18,28 @@ export function SeverityHeader({ incident }: { incident: Incident }) {
   const tint = band ? `var(--sev${band}-tint)` : "var(--accent-soft)";
   return (
     <div
+      className="sev-header"
       style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: "var(--space-5)",
-        padding: "var(--space-6)",
         // a wash of the band's own colour, fading out, so severity reads before any text does
         background: `linear-gradient(180deg, ${tint} 0%, transparent 100%)`,
         borderBottom: "1px solid var(--border)",
       }}
     >
       <SeverityDot band={band} size={64} halo />
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1, minWidth: 240 }}>
+      <div className="sev-header__text" style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
           {incident.ref} · {incident.place}
         </span>
         <h1
+          className="sev-header__title"
           style={{
-            font: "800 var(--text-2xl)/1.1 var(--font-plex-sans)",
-            letterSpacing: "var(--tracking-tight)",
             color: band ? SEVERITY[band].ringVar : "var(--accent-fg)",
           }}
         >
           {band ? SEVERITY[band].label : "Flagged for manual review"}
         </h1>
         <p className="caption">{band === 0 ? PROVENANCE_TEXT.none(incident) : PROVENANCE_TEXT[incident.provenance](incident)}</p>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: 2 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-2)", marginTop: 2 }}>
           <StatusFlagChip flag={incident.flag} dispatch={incident.dispatch} />
           <SourceChip source={incident.source} />
         </div>

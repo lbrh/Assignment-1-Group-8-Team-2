@@ -84,10 +84,9 @@ export default function SubmitImagePage() {
 
   return (
     <div
+      className="page"
       style={{
         maxWidth: 1200,
-        margin: "0 auto",
-        padding: "var(--space-6) var(--space-5) var(--space-7)",
         display: "flex",
         flexDirection: "column",
         gap: "var(--space-5)",
@@ -148,29 +147,20 @@ export default function SubmitImagePage() {
           </div>
         ) : null}
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(240px, 300px) minmax(0, 1fr)" }}>
-          <div
-            style={{
-              borderRight: "1px solid var(--border)",
-              padding: "var(--space-5)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--space-5)",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+        {/* Progress and source sit beside the fields on desktop and across the top on a tablet; a
+            phone puts a compact stepper on top and the source picker after the fields (layout.css). */}
+        <div className="submit-grid">
+          <div className="submit-aside">
+            <div className="submit-progress" style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
               <h2 className="label">Progress</h2>
-              <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <ol className="submit-steps" style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {steps.map((step, i) => {
                   const lit = step.done || step.running;
                   return (
                     <li
                       key={step.label}
+                      className="submit-step"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--space-3)",
-                        padding: "10px var(--space-3)",
                         borderRadius: "var(--radius-md)",
                         background: lit ? "var(--ok-soft)" : "var(--surface)",
                         border: `1px solid ${lit ? "var(--ok-border)" : "var(--border)"}`,
@@ -196,10 +186,8 @@ export default function SubmitImagePage() {
                       >
                         {step.done ? "✓" : i + 1}
                       </span>
-                      <span style={{ font: "500 var(--text-sm)/1.3 var(--font-plex-sans)", color: "var(--fg-2)", flex: 1 }}>
-                        {step.label}
-                      </span>
-                      <span className="caption" style={{ fontSize: 12, color: step.running ? "var(--conf-mid)" : step.done ? "var(--ok-fg)" : undefined }}>
+                      <span className="submit-step__label">{step.label}</span>
+                      <span className="caption submit-step__status" style={{ fontSize: 12, color: step.running ? "var(--conf-mid)" : step.done ? "var(--ok-fg)" : undefined }}>
                         {step.running ? "Running" : step.done ? "Done" : "Waiting"}
                       </span>
                     </li>
@@ -208,11 +196,11 @@ export default function SubmitImagePage() {
               </ol>
             </div>
 
-            <fieldset style={{ border: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+            <fieldset className="submit-source">
               <legend className="label" style={{ padding: 0, marginBottom: "var(--space-2)" }}>
                 Input source
               </legend>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+              <div className="submit-sources">
                 {SOURCES.map((src) => {
                   const on = form.source === src;
                   return (
@@ -243,7 +231,7 @@ export default function SubmitImagePage() {
             </fieldset>
           </div>
 
-          <div style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+          <div className="submit-fields">
             <Field label="Image" required htmlFor="submit-file" error={shown("file")}>
               <label
                 htmlFor="submit-file"
@@ -432,6 +420,7 @@ export default function SubmitImagePage() {
         ) : null}
 
         <div
+          className="submit-footer"
           style={{
             display: "flex",
             alignItems: "center",

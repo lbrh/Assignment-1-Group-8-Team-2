@@ -26,25 +26,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useTrackLastTabPath();
 
   return (
-    <div
-      style={{
-        height: "100dvh",
-        minHeight: "100vh",
-        maxHeight: "100dvh",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--bg)",
-        color: "var(--fg)",
-      }}
-    >
+    <div className="app-shell">
       <SkipLink />
       <Header />
-      <main
-        id="main"
-        tabIndex={-1}
-        style={{ flex: 1, overflow: "auto", outline: "none" }}
-      >
+      <main id="main" tabIndex={-1} className="app-main">
         {initialized ? children : <RouteSkeleton />}
       </main>
       <ShortcutPanel />

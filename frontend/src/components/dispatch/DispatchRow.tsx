@@ -10,8 +10,6 @@ import { relativeTime } from "@/lib/utils/time";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { SOURCE_META } from "@/components/primitives/SourceChip";
 
-export const DISPATCH_GRID = "44px 104px minmax(180px, 1fr) minmax(220px, 1.5fr) 64px 72px 136px";
-
 export function DispatchRow({ incident, rank }: { incident: Incident; rank: number | null }) {
   const router = useRouter();
   const tick = useIncidentStore((s) => s.clockTick);
@@ -25,29 +23,27 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
       role="link"
       tabIndex={0}
       aria-label={`${rank ? `Rank ${rank}, ` : "Live, "}${incident.place}, open incident`}
-      className="row-btn"
+      // a table row on desktop, a card below 1024px (.dispatch-row in layout.css)
+      className="row-btn dispatch-grid dispatch-row"
       onClick={() => router.push(`/incident/${incident.id}`)}
       onKeyDown={(e) => {
         if (e.key === "Enter" && e.target === e.currentTarget) router.push(`/incident/${incident.id}`);
       }}
       style={{
-        display: "grid",
-        gridTemplateColumns: DISPATCH_GRID,
-        gap: "var(--space-4)",
-        alignItems: "center",
-        padding: "var(--space-4) var(--space-5)",
         borderBottom: "1px solid var(--border)",
         cursor: "pointer",
         background: isNext ? "var(--grad-pending)" : undefined,
       }}
     >
       {isLive ? (
-        <span className="chip chip--pill" style={{ color: "var(--ok-fg)", background: "var(--ok-soft)", borderColor: "var(--ok-border)", justifySelf: "start" }}>
-          Live
+        <span className="dr-rank">
+          <span className="chip chip--pill" style={{ color: "var(--ok-fg)", background: "var(--ok-soft)", borderColor: "var(--ok-border)" }}>
+            Live
+          </span>
         </span>
       ) : (
         <span
-          className="data"
+          className="data dr-rank"
           style={{
             font: "700 var(--text-xl)/1 var(--font-plex-mono)",
             letterSpacing: "var(--tracking-tight)",
@@ -57,11 +53,11 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
           {rank ?? "–"}
         </span>
       )}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+      <div className="dr-sev" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
         <SeverityDot band={incident.band} size={30} />
         <SeverityChip band={incident.band} short />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+      <div className="dr-main" style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
         <span
           style={{
             font: "600 var(--text-sm)/1.3 var(--font-plex-sans)",
@@ -80,24 +76,26 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
           Captured {relativeTime(incident.capturedAtIso, tick)}
         </span>
       </div>
-      <span style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+      <span className="dr-reason" style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
         {isLive
           ? "Crew assigned. Stays live until the crew reports the fire out."
           : incident.recommendedAction ?? "Ranked by severity, then distance from staging."}
       </span>
-      <span
-        className="data"
-        style={{
-          font: "600 var(--text-sm)/1 var(--font-plex-mono)",
-          color: incident.confidence ? confidenceColor(incident.confidence) : "var(--muted)",
-        }}
-      >
-        {incident.confidence?.toFixed(2) ?? "–"}
-      </span>
-      <span className="data" style={{ font: "500 var(--text-sm)/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
-        {incident.distanceKm.toFixed(1)} km
-      </span>
-      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ justifySelf: "end" }}>
+      <div className="dr-metrics">
+        <span
+          className="data dr-conf"
+          style={{
+            font: "600 var(--text-sm)/1 var(--font-plex-mono)",
+            color: incident.confidence ? confidenceColor(incident.confidence) : "var(--muted)",
+          }}
+        >
+          {incident.confidence?.toFixed(2) ?? "–"}
+        </span>
+        <span className="data" style={{ font: "500 var(--text-sm)/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
+          {incident.distanceKm.toFixed(1)} km
+        </span>
+      </div>
+      <div className="dr-action" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ justifySelf: "end" }}>
         {isLive ? (
           <Button variant="secondary" small ack onClick={() => markExtinguished(incident.id)}>
             Mark extinguished

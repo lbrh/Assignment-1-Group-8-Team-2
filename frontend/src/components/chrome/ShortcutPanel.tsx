@@ -48,7 +48,8 @@ export function ShortcutPanel() {
         display: "flex",
         alignItems: "flex-start",
         justifyContent: "center",
-        padding: "96px var(--space-4) var(--space-4)",
+        overflowY: "auto", // a phone held sideways is shorter than the panel
+        padding: "clamp(16px, 12vh, 96px) var(--space-4) var(--space-4)",
       }}
       onClick={() => setKeysOpen(false)}
     >

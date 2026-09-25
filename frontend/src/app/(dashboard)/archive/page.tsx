@@ -8,7 +8,8 @@ import { Button } from "@/components/primitives/Button";
 import { relativeTime } from "@/lib/utils/time";
 import { PageHeader } from "@/components/chrome/PageHeader";
 
-// one grid for the whole table (rows are subgrids, see .data-table), so columns line up
+// one grid for the whole table (rows are subgrids, see .data-table), so columns line up; below
+// 1024px each row is a card and the dt-* cells carry their own labels (layout.css)
 const GRID = "auto minmax(160px, 1.2fr) auto auto minmax(200px, 2fr) minmax(140px, 1fr) auto";
 
 export default function ArchivePage() {
@@ -20,7 +21,7 @@ export default function ArchivePage() {
   const list = archiveList(incidents, order);
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "var(--space-6) var(--space-5) var(--space-7)" }}>
+    <div className="page">
       <PageHeader
         title="Archive"
         lede="Images dismissed as not a fire, and extinguished fires filed away from Resolved. Nothing is deleted, and every record can be restored."
@@ -46,34 +47,34 @@ export default function ArchivePage() {
         ) : (
           list.map((incident) => (
             <div key={incident.id} role="row" className="data-table__row">
-              <div role="cell" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <div role="cell" className="dt-id" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                 <SeverityDot band={incident.dispatch === "archived" ? incident.band : "not_a_fire"} size={26} />
                 <span className="data" style={{ font: "600 var(--text-xs)/1 var(--font-plex-mono)", color: "var(--fg-2)" }}>
                   {incident.ref}
                 </span>
               </div>
-              <div role="cell" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div role="cell" className="dt-main" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ font: "600 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--fg)" }}>{incident.place}</span>
                 <span className="data" style={{ font: "400 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>
                   {incident.coords.lat.toFixed(2)}, {incident.coords.lng.toFixed(2)} · conf {incident.confidence?.toFixed(2) ?? "–"}
                 </span>
               </div>
-              <div role="cell">
+              <div role="cell" className="dt-field" data-label="Source">
                 <SourceChip source={incident.source} />
               </div>
-              <span role="cell" style={{ font: "400 var(--text-sm)/1.4 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+              <span role="cell" className="dt-field" data-label="Captured" style={{ font: "400 var(--text-sm)/1.4 var(--font-plex-sans)", color: "var(--fg-2)" }}>
                 {relativeTime(incident.capturedAtIso, tick)}
               </span>
-              <span role="cell" style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+              <span role="cell" className="dt-field dt-field--wide" data-label="Why archived" style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
                 {incident.dismissedReason ?? "–"}
               </span>
-              <div role="cell" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div role="cell" className="dt-field" data-label="Decided by" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ font: "500 var(--text-sm)/1.35 var(--font-plex-sans)", color: "var(--fg-2)" }}>{incident.dismissedBy ?? "–"}</span>
                 <span className="caption" style={{ fontSize: 12 }}>
                   {incident.dismissedAtIso ? relativeTime(incident.dismissedAtIso, tick) : ""}
                 </span>
               </div>
-              <div role="cell" style={{ justifySelf: "end" }}>
+              <div role="cell" className="dt-actions" style={{ justifySelf: "end" }}>
                 <Button variant="pending" small ack onClick={() => restoreFromArchive(incident.id)}>
                   Restore
                 </Button>

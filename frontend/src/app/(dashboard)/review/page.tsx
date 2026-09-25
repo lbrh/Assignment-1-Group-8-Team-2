@@ -22,7 +22,8 @@ export default function ManualReviewPage() {
   }, [selectedId, queue, selectReview]);
 
   return (
-    <div style={{ display: "flex", height: "100%" }}>
+    // queue beside the pane, or a sideways strip above it on narrow portrait screens (layout.css)
+    <div className="review-layout">
       <ReviewQueueRail />
       {selected ? (
         <ReviewPane incident={selected} />

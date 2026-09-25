@@ -348,10 +348,9 @@ export function MapCanvas() {
 
   return (
     <div
+      className="map-pane"
       style={{
         position: "relative",
-        flex: 1,
-        minWidth: 0,
         background: "var(--map-bg)",
         overflow: "hidden",
         // keeps Leaflet's internal z-indexes (panes at 400+, controls at 800+) below the

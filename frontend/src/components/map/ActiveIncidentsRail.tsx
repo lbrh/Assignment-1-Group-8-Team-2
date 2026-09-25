@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useIncidentStore, type MapFilter } from "@/lib/store/useIncidentStore";
 import { filteredIncidents, reviewQueue } from "@/lib/store/selectors";
@@ -34,18 +35,14 @@ export function ActiveIncidentsRail({ width }: { width: number }) {
       aria-label={alertsPanelOpen ? "Alerts and suggestions" : "Active incidents"}
       className="incident-rail"
       style={{
-        width,
-        // a width saved on a wider window never squeezes the map below 320px here
-        maxWidth: "calc(100% - 320px)",
-        minWidth: 320,
-        flex: "none",
+        "--rail-w": `${width}px`, // width limits and the stacked layout live in layout.css
         display: "flex",
         flexDirection: "column",
         background: "var(--panel)",
         overflow: "hidden",
-      }}
+      } as CSSProperties}
     >
-      <div style={{ padding: "var(--space-5) var(--space-5) var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <div className="rail-head">
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-3)" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <h2
@@ -57,7 +54,7 @@ export function ActiveIncidentsRail({ width }: { width: number }) {
             >
               {alertsPanelOpen ? "Alerts and suggestions" : "Active incidents"}
             </h2>
-            <p className="caption">
+            <p className="caption rail-head__caption">
               {alertsPanelOpen
                 ? "System suggestions that need your call. Incidents are hidden."
                 : "Ranked by severity, then distance from staging."}
