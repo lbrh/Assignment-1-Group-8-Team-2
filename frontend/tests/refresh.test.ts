@@ -3,8 +3,8 @@ import { normalizeIncident } from "../src/lib/normalize";
 import { seedRecords } from "../src/lib/data-source/mock/seed";
 
 // The store in real-API mode, with the server stubbed: `listIncidents` is what a poll reads, and
-// `dispatchCrew` never settles so its incident stays "in flight".
-const server = vi.hoisted(() => ({ listIncidents: vi.fn(), dispatchCrew: vi.fn() }));
+// `dispatchCrews` never settles so its incident stays "in flight".
+const server = vi.hoisted(() => ({ listIncidents: vi.fn(), dispatchCrews: vi.fn(), getCrews: vi.fn(async () => []) }));
 vi.mock("@/lib/data-source", () => ({
   dataSource: { ...server, getImagePreviewUrl: () => null },
   useMock: false,
@@ -25,8 +25,8 @@ describe("refresh (live polling)", () => {
   });
 
   it("applies server changes, adds new incidents, and leaves an in-flight action alone", async () => {
-    server.dispatchCrew.mockReturnValue(new Promise(() => {}));
-    useIncidentStore.getState().dispatchCrew(a.id); // optimistic: a is now "live", call still pending
+    server.dispatchCrews.mockReturnValue(new Promise(() => {}));
+    useIncidentStore.getState().dispatchCrews(a.id, ["crew-1"]); // optimistic: a is now "live", call still pending
     expect(useIncidentStore.getState().incidents[a.id].dispatch).toBe("live");
 
     server.listIncidents.mockResolvedValue([

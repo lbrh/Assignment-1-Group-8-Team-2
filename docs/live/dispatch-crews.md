@@ -38,7 +38,8 @@ Goals:
 
 - **Dispatch crew** opens a crew picker instead of flipping the state. The picker shows each available crew's label, type (light, heavy or aerial), station and distance to the fire. Crews already on another incident are not listed. You can pick one crew or several.
 - Rows in the Live section show the assigned crews, each with a status chip (Dispatched / En route / On scene) and how long ago it changed. The existing **Mark extinguished** button is removed, because only crews close a fire. The coordinator keeps **Recall crew** and **Reopen** (for re-ignition).
-- A **Crews** panel lists every crew with its status, station and current incident.
+- Incident detail gets a **Crews** section while the fire is live: each crew with its status, a recall button (✕), and **Add crew**, which opens the same picker.
+- Later: a **Crews** panel listing every crew with its status, station and current incident.
 - Incident detail gets a live **Activity** feed: comments and decisions (later, crew status changes and reports) in one timeline, newest first, with a comment box above it.
 - **Support requests** from crews appear in the header alerts panel and as a badge on the incident. The coordinator responds by dispatching another crew or by dismissing the request.
 
@@ -65,7 +66,15 @@ Crews work out of **stations** (firehouses). A station has a fixed location and 
 | Heavy | Tanker, 3–4 crew. The default first response. |
 | Aerial | Water bomber or helicopter. For large or hard-to-reach fires. |
 
-Example: Kinglake station has **Kinglake Light 1**, **Kinglake Heavy 1** and **Kinglake Heavy 2**. Distance in the crew picker is a straight line from the crew's station, and it replaces the single `STAGING_COORDS`.
+Seeded crews (in `schema.sql`, so every database has them after a deploy):
+
+| Station | Crews |
+|---|---|
+| Kinglake | Kinglake Light 1, Kinglake Heavy 1, Kinglake Heavy 2 |
+| Healesville | Healesville Light 1, Healesville Heavy 1 |
+| Moorabbin Airport | Moorabbin Aerial 1, Moorabbin Aerial 2 |
+
+Distance in the crew picker is a straight line from the crew's station, and it replaces the single `STAGING_COORDS`.
 
 Assignment lifecycle:
 
@@ -88,7 +97,7 @@ An assignment is cleared in one of three ways:
 
 When a crew marks a fire extinguished or a false alarm, every crew on that incident is cleared together. The incident then moves to Resolved, or to the Archive for a false alarm. A crew is **available** again as soon as its assignment is cleared.
 
-Incidents already `live` in the database have no crew attached, so no crew can close them. The coordinator cancels the dispatch and sends a crew again.
+Incidents already `live` with no crew show "No crew assigned". The coordinator adds one with **Add crew** on incident detail, or cancels the dispatch.
 
 ## 5. Incident actions
 
@@ -96,9 +105,10 @@ Most crew actions reuse endpoints that already exist. Every action is also writt
 
 | Action | Who | Backed by | New? |
 |---|---|---|---|
-| Dispatch crew(s) | Coordinator | `POST /incidents/:id/assignments`. Sets the incident to `live`. Rejected if the crew already has an open assignment. | New |
+| Crews list | Both | `GET /crews`: every crew with its station and open assignment (null = available). Polled with the incidents. | New |
+| Dispatch crew(s) | Coordinator | `POST /incidents/:id/assignments` `{crewIds}`. Sets the incident to `live` in the same transaction. 409 if a crew already has an open assignment; nothing is kept. | New |
 | En route / On scene | Crew | `PATCH /assignments/:id` `{status}` | New |
-| Recall crew | Coordinator | `PATCH /assignments/:id` `{status: cleared}` | New |
+| Recall crew | Coordinator | `PATCH /assignments/:id` `{status: cleared}`. Recalling the last crew puts the incident back to `awaiting`. | New |
 | Mark extinguished | Crew only | Clears every assignment on the incident, `PUT /incidents/:id/dispatch` → `extinguished` | Reuse |
 | False alarm | Crew only | `PATCH /images/:id/decision` `{classificationLabelOverride: non_fire}` on the latest image, then clears every assignment | Reuse |
 | Reopen (re-ignition) | Coordinator | Existing reopen → `live`. A crew has to be dispatched again. | Reuse |
@@ -181,7 +191,9 @@ CREATE TABLE IF NOT EXISTS support_requests (
 );
 ```
 
-Assignment status changes are also written to `decisions`, so the audit trail stays in one place. A seed script like `seed-demo.ts` creates about 3 stations with 2–3 crews each. There's no UI for managing crews.
+Assignment status changes are also written to `decisions`, so the audit trail stays in one place. The 3 stations and 7 crews are seeded at the end of `schema.sql` with fixed ids (`ON CONFLICT DO NOTHING`), so staging and prod get them on the next deploy. There's no UI for managing crews.
+
+One rule lives in the backend's dispatch helper, which every dispatch change goes through: when an incident stops being `live` (cancelled, extinguished, archived), every crew still on it is cleared and logged. No crew can stay stuck on a finished fire.
 
 ## 9. Live updates: polling
 
@@ -222,7 +234,7 @@ The work is split into four PRs. Each one works on its own.
 |---|---|---|
 | 1 | Split the rate limit (600 reads / 60 writes per minute). Add the image gallery and each image's rating to incident detail. | S |
 | 2 | Comments table and endpoints, 5 s polling, and the Activity feed (comments + decisions) on incident detail | M |
-| 3 | `stations`, `crews` and `assignments` tables, a seed script, the crew picker on Dispatch, and crew chips on Live rows | M |
+| 3 | `stations`, `crews` and `assignments` tables with seeded crews, the crew picker (Dispatch order and incident detail), crew chips with recall on Live rows, and a Crews section on incident detail | M |
 | 4 | Crew tab (`/crew`): status buttons, extinguish, false alarm, severity, photo upload, support requests and alerts | L |
 
 Out of scope:

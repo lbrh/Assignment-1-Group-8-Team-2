@@ -18,11 +18,13 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null;
+      // a modal dialog (the crew picker) owns the keyboard: arrows must not switch screens under it
       const typing =
         target &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
-          target.isContentEditable);
+          target.isContentEditable ||
+          !!target.closest?.("dialog"));
 
       if (e.key === "Escape") {
         setKeysOpen(false);

@@ -38,12 +38,15 @@ One row per submitted image. An incident is a group of rows sharing `incident_id
 
 Indexes: `incident_id`, `(latitude, longitude)`, `priority_rank`.
 
-Three coordinator tables sit alongside `images`:
+Six coordinator tables sit alongside `images`:
 
 | Table | Columns | Purpose |
 |---|---|---|
 | `incident_dispatch` | `incident_id` PK, `state` (`awaiting`/`live`/`extinguished`), `updated_by`, `updated_at` | Per-incident dispatch state. No row = no coordinator decision yet |
 | `decisions` | `id`, `incident_id`, `image_id` (null for dispatch), `field`, `from_value`, `to_value`, `decided_by`, `decided_at` | Append-only history of every coordinator change, including undos. Indexed on `(incident_id, decided_at)` |
+| `stations` | `station_id` PK, `name`, `latitude`, `longitude` | Where crews are based. Seeded in `schema.sql` (Kinglake, Healesville, Moorabbin Airport) |
+| `crews` | `crew_id` PK, `station_id`, `label` (unique), `crew_type` (`light`/`heavy`/`aerial`) | Response crews. 7 seeded in `schema.sql` with fixed ids |
+| `assignments` | `assignment_id`, `incident_id`, `crew_id`, `status` (`dispatched`/`en_route`/`on_scene`/`cleared`), `updated_at` | A crew sent to an incident. A partial unique index allows one open (not `cleared`) assignment per crew. Every change is also logged in `decisions` as field `crew:<label>` |
 | `comments` | `id`, `incident_id`, `author`, `body` (1–1000 chars), `created_at` | Comments on an incident from coordinators (and crews, later). Append-only: no edit or delete. Indexed on `(incident_id, created_at)` |
 
 Not yet in the schema, but required: the separate gate confidence figure.

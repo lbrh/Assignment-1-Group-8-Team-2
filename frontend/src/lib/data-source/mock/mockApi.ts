@@ -1,5 +1,5 @@
 import { normalizeIncident } from "@/lib/normalize";
-import type { ApiIncidentRecord, DecisionLogEntry, Incident, IncidentComment, SeverityBand, SourceType } from "@/lib/types";
+import type { ApiIncidentRecord, Crew, DecisionLogEntry, Incident, IncidentComment, SeverityBand, SourceType } from "@/lib/types";
 import { COORDINATOR_NAME } from "../real/api";
 import { seedDecisionLog, seedGroup, seedOverlay, seedRecords } from "./seed";
 
@@ -161,15 +161,55 @@ export async function overrideSeverity(
   return delay({ band: level, provenance: "coordinator_override" });
 }
 
-export async function dispatchCrew(_incident: Incident): Promise<Partial<Incident>> {
+// Same stations and crews the backend seeds (schema.sql), in memory until the page reloads.
+const station = (name: string, lat: number, lng: number) => ({ name, coords: { lat, lng } });
+const KINGLAKE = station("Kinglake", -37.5236, 145.3434);
+const HEALESVILLE = station("Healesville", -37.6541, 145.5153);
+const MOORABBIN = station("Moorabbin Airport", -37.9758, 145.1022);
+const mockCrews: Crew[] = [
+  { id: "c1", label: "Kinglake Light 1", type: "light", station: KINGLAKE, assignment: null },
+  { id: "c2", label: "Kinglake Heavy 1", type: "heavy", station: KINGLAKE, assignment: null },
+  { id: "c3", label: "Kinglake Heavy 2", type: "heavy", station: KINGLAKE, assignment: null },
+  { id: "c4", label: "Healesville Light 1", type: "light", station: HEALESVILLE, assignment: null },
+  { id: "c5", label: "Healesville Heavy 1", type: "heavy", station: HEALESVILLE, assignment: null },
+  { id: "c6", label: "Moorabbin Aerial 1", type: "aerial", station: MOORABBIN, assignment: null },
+  { id: "c7", label: "Moorabbin Aerial 2", type: "aerial", station: MOORABBIN, assignment: null },
+];
+let mockAssignmentId = 0;
+
+/** Frees every crew on an incident: what the backend does when an incident stops being live. */
+function freeCrews(incidentId: string) {
+  for (const crew of mockCrews) if (crew.assignment?.incidentId === incidentId) crew.assignment = null;
+}
+
+export async function getCrews(): Promise<Crew[]> {
+  return delay(mockCrews.map((c) => ({ ...c })));
+}
+
+export async function dispatchCrews(incident: Incident, crewIds: string[]): Promise<Partial<Incident>> {
+  const crews = mockCrews.filter((c) => crewIds.includes(c.id));
+  const busy = crews.find((c) => c.assignment);
+  if (busy) throw new Error(`${busy.label} is already assigned to another incident`);
+  const updatedAtIso = new Date().toISOString();
+  for (const crew of crews) {
+    crew.assignment = { id: `a-${++mockAssignmentId}`, incidentId: incident.id, status: "dispatched", updatedAtIso };
+  }
   return delay({ dispatch: "live", flag: "processed" });
 }
 
-export async function cancelDispatch(_incident: Incident): Promise<Partial<Incident>> {
+export async function recallCrew(assignmentId: string): Promise<void> {
+  const crew = mockCrews.find((c) => c.assignment?.id === assignmentId);
+  if (crew) crew.assignment = null;
+  return delay(undefined);
+}
+
+export async function cancelDispatch(incident: Incident): Promise<Partial<Incident>> {
+  freeCrews(incident.id);
   return delay({ dispatch: "awaiting" });
 }
 
-export async function markExtinguished(_incident: Incident): Promise<Partial<Incident>> {
+export async function markExtinguished(incident: Incident): Promise<Partial<Incident>> {
+  freeCrews(incident.id);
   return delay({
     dispatch: "extinguished",
     extinguishedNote: "Crew reported the fire out",

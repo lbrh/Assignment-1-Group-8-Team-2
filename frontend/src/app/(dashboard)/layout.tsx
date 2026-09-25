@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { Header } from "@/components/chrome/Header";
 import { ShortcutPanel } from "@/components/chrome/ShortcutPanel";
+import { CrewPicker } from "@/components/dispatch/CrewPicker";
 import { SkipLink } from "@/components/chrome/SkipLink";
 import { ToastHost } from "@/components/primitives/ToastHost";
 import { RouteSkeleton } from "@/components/primitives/RouteSkeleton";
@@ -36,6 +37,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {initialized ? children : <RouteSkeleton />}
       </main>
       <ShortcutPanel />
+      <CrewPicker />
       <ToastHost />
     </div>
   );

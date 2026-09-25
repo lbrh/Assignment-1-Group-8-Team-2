@@ -3,8 +3,11 @@ import { OPERATING_REGION } from "@/lib/utils/geo";
 import { bandFromSum } from "@/lib/constants/severity";
 import type {
   ApiIncidentRecord,
+  AssignmentStatus,
   BackendDispatchState,
   ClassificationLabel,
+  Crew,
+  CrewType,
   DecisionLogEntry,
   Incident,
   IncidentComment,
@@ -148,7 +151,11 @@ export async function restoreFromArchive(incident: Incident): Promise<Partial<In
   return decide(incident, { classificationLabelOverride: "uncertain", assessmentStatus: "unable_to_assess" });
 }
 
-export const dispatchCrew = (incident: Incident) => setDispatch(incident, "live");
+/** Sends crews to the incident; the backend makes it live in the same step. */
+export async function dispatchCrews(incident: Incident, crewIds: string[]): Promise<Partial<Incident>> {
+  await request(`/incidents/${encodeURIComponent(incident.id)}/assignments`, jsonInit("POST", { crewIds }));
+  return { dispatch: "live", flag: "processed", backend: { ...incident.backend, dispatchState: "live" } };
+}
 export const cancelDispatch = (incident: Incident) => setDispatch(incident, "awaiting");
 export const markExtinguished = (incident: Incident) => setDispatch(incident, "extinguished");
 export const reopenIncident = (incident: Incident) => setDispatch(incident, "live");
@@ -233,6 +240,35 @@ export async function getComments(incidentId: string): Promise<IncidentComment[]
 export async function addComment(incidentId: string, body: string): Promise<IncidentComment> {
   const comment = await request<ApiComment>(`/incidents/${encodeURIComponent(incidentId)}/comments`, jsonInit("POST", { body }));
   return toComment(comment);
+}
+
+interface ApiCrew {
+  crewId: string;
+  label: string;
+  crewType: CrewType;
+  station: { name: string; latitude: number; longitude: number };
+  assignment: { assignmentId: number; incidentId: string; status: AssignmentStatus; updatedAt: string } | null;
+}
+
+export async function getCrews(): Promise<Crew[]> {
+  const crews = await request<ApiCrew[]>("/crews");
+  return crews.map((c) => ({
+    id: c.crewId,
+    label: c.label,
+    type: c.crewType,
+    station: { name: c.station.name, coords: { lat: c.station.latitude, lng: c.station.longitude } },
+    assignment: c.assignment && {
+      id: String(c.assignment.assignmentId),
+      incidentId: c.assignment.incidentId,
+      status: c.assignment.status,
+      updatedAtIso: c.assignment.updatedAt,
+    },
+  }));
+}
+
+/** Recalls a crew (clears its assignment). The backend puts the incident back in the order if it was the last crew. */
+export async function recallCrew(assignmentId: string): Promise<void> {
+  await request(`/assignments/${encodeURIComponent(assignmentId)}`, jsonInit("PATCH", { status: "cleared" }));
 }
 
 export async function setGrouping(

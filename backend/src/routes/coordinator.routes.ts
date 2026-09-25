@@ -3,7 +3,7 @@ import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { requireCaller } from '../middleware/api-key.middleware.ts';
 import { ValidationError } from '../pipeline/validate.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
-import type { ClassificationLabel, CoordinatorPatch, DispatchState } from '../metadata/metadata.types.ts';
+import type { AssignmentStatus, ClassificationLabel, CoordinatorPatch, DispatchState } from '../metadata/metadata.types.ts';
 
 // Coordinator actions (Sprint 2 §5): review confirm/change/discard, severity override, dispatch,
 // extinguish/reopen, and the decision log behind every one of them. Undo is just another call
@@ -14,6 +14,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LABELS = new Set<ClassificationLabel>(['fire', 'non_fire', 'extinguished', 'uncertain']);
 const REVIEW_STATUSES = new Set(['assessed', 'unable_to_assess']);
 const DISPATCH_STATES = new Set<DispatchState>(['awaiting', 'live', 'extinguished', 'archived']);
+const ASSIGNMENT_STATUSES = new Set<AssignmentStatus>(['dispatched', 'en_route', 'on_scene', 'cleared']);
+const ASSIGNMENT_ID = /^\d{1,18}$/;
+const MAX_CREWS_PER_DISPATCH = 10;
 
 // ponytail: "who" is whatever the frontend sends until user auth exists — it's recorded, not verified.
 function parseBy(body: Record<string, unknown>): string {
@@ -67,9 +70,26 @@ export function parseComment(body: unknown): { body: string; by: string } {
     return { body: text, by: parseBy(b) };
 }
 
-function handle(fn: (req: Request<{ id: string }>, res: Response) => Promise<void>) {
+export function parseCrewIds(body: unknown): { crewIds: string[]; by: string } {
+    if (typeof body !== 'object' || body === null) throw new ValidationError('request body must be a JSON object');
+    const b = body as Record<string, unknown>;
+    const ids = b.crewIds;
+    if (
+        !Array.isArray(ids) ||
+        ids.length === 0 ||
+        ids.length > MAX_CREWS_PER_DISPATCH ||
+        !ids.every((id) => typeof id === 'string' && UUID.test(id)) ||
+        new Set(ids).size !== ids.length
+    ) {
+        throw new ValidationError(`crewIds must be 1-${MAX_CREWS_PER_DISPATCH} distinct crew ids`);
+    }
+    return { crewIds: ids as string[], by: parseBy(b) };
+}
+
+// `:id` is checked against `idPattern` (incident and image ids are UUIDs, assignment ids are numbers).
+function handle(fn: (req: Request<{ id: string }>, res: Response) => Promise<void>, idPattern = UUID) {
     return async (req: Request<{ id: string }>, res: Response) => {
-        if (!UUID.test(req.params.id)) {
+        if (req.params.id !== undefined && !idPattern.test(req.params.id)) {
             res.status(404).json({ error: 'not found' });
             return;
         }
@@ -78,6 +98,10 @@ function handle(fn: (req: Request<{ id: string }>, res: Response) => Promise<voi
         } catch (err) {
             if (err instanceof ValidationError) {
                 res.status(400).json({ error: err.message });
+                return;
+            }
+            if (err instanceof metadataRepository.ConflictError) {
+                res.status(409).json({ error: err.message });
                 return;
             }
             logger.error('coordinator action failed', errorMeta(err));
@@ -153,4 +177,46 @@ coordinatorRouter.post(
         }
         res.status(201).json(comment);
     }),
+);
+
+// Every crew with its station and open assignment (null = available).
+coordinatorRouter.get(
+    '/crews',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        res.json(await metadataRepository.findCrews());
+    }),
+);
+
+// Send one or more crews to an incident; the incident goes live. 409 if a crew is already out.
+coordinatorRouter.post(
+    '/incidents/:id/assignments',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        const { crewIds, by } = parseCrewIds(req.body);
+        const assignments = await metadataRepository.assignCrews(req.params.id, crewIds, by);
+        if (!assignments) {
+            res.status(404).json({ error: 'incident not found' });
+            return;
+        }
+        res.status(201).json(assignments);
+    }),
+);
+
+// Move a crew along (en_route, on_scene) or recall it (cleared). 409 for an out-of-order step.
+coordinatorRouter.patch(
+    '/assignments/:id',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        const body = (req.body ?? {}) as Record<string, unknown>;
+        if (!ASSIGNMENT_STATUSES.has(body.status as AssignmentStatus)) {
+            throw new ValidationError(`status must be one of ${[...ASSIGNMENT_STATUSES].join(', ')}`);
+        }
+        const updated = await metadataRepository.setAssignmentStatus(Number(req.params.id), body.status as AssignmentStatus, parseBy(body));
+        if (!updated) {
+            res.status(404).json({ error: 'assignment not found' });
+            return;
+        }
+        res.json(updated);
+    }, ASSIGNMENT_ID),
 );

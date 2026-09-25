@@ -83,6 +83,27 @@ export interface Comment {
     createdAt: string;
 }
 
+export type CrewType = 'light' | 'heavy' | 'aerial';
+// dispatched -> en_route -> on_scene, and cleared from any of them (recalled, extinguished, false alarm).
+export type AssignmentStatus = 'dispatched' | 'en_route' | 'on_scene' | 'cleared';
+
+export interface Assignment {
+    assignmentId: number;
+    incidentId: string;
+    crewId: string;
+    status: AssignmentStatus;
+    updatedAt: string;
+}
+
+// A crew with its station and its open assignment (null = available).
+export interface CrewWithAssignment {
+    crewId: string;
+    label: string;
+    crewType: CrewType;
+    station: { stationId: string; name: string; latitude: number; longitude: number };
+    assignment: Assignment | null;
+}
+
 export interface IngestionInput {
     sourceType: SourceType;
     latitude?: number;

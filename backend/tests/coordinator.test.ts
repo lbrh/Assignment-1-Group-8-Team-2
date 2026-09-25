@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseComment, parseCoordinatorPatch } from '../src/routes/coordinator.routes.ts';
+import { parseComment, parseCoordinatorPatch, parseCrewIds } from '../src/routes/coordinator.routes.ts';
+import { canMoveAssignment } from '../src/metadata/metadata.repository.ts';
 import { ValidationError } from '../src/pipeline/validate.ts';
 
 test('accepts a review confirm and trims who', () => {
@@ -39,4 +40,28 @@ test('a comment is trimmed and needs text and an author', () => {
     for (const body of [{ body: '   ', by: 'EC' }, { body: 'x'.repeat(1001), by: 'EC' }, { body: 42, by: 'EC' }, { body: 'hi' }, null]) {
         assert.throws(() => parseComment(body), ValidationError, JSON.stringify(body));
     }
+});
+
+test('a dispatch names 1-10 distinct crews and who sent them', () => {
+    const crew = 'c0000000-0000-4000-8000-000000000001';
+    assert.deepEqual(parseCrewIds({ crewIds: [crew], by: 'EC' }), { crewIds: [crew], by: 'EC' });
+    for (const body of [
+        { crewIds: [], by: 'EC' },
+        { crewIds: [crew, crew], by: 'EC' },
+        { crewIds: ['kinglake'], by: 'EC' },
+        { crewIds: crew, by: 'EC' },
+        { crewIds: [crew] },
+    ]) {
+        assert.throws(() => parseCrewIds(body), ValidationError, JSON.stringify(body));
+    }
+});
+
+test('a crew moves forward one step at a time and can be cleared until it is', () => {
+    assert.equal(canMoveAssignment('dispatched', 'en_route'), true);
+    assert.equal(canMoveAssignment('en_route', 'on_scene'), true);
+    assert.equal(canMoveAssignment('on_scene', 'cleared'), true);
+    assert.equal(canMoveAssignment('dispatched', 'cleared'), true);
+    assert.equal(canMoveAssignment('dispatched', 'on_scene'), false, 'no skipping en route');
+    assert.equal(canMoveAssignment('on_scene', 'en_route'), false, 'no going backwards');
+    assert.equal(canMoveAssignment('cleared', 'dispatched'), false, 'a cleared assignment is finished');
 });

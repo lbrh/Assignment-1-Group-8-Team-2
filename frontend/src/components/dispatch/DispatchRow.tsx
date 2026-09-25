@@ -9,11 +9,12 @@ import { Button } from "@/components/primitives/Button";
 import { relativeTime } from "@/lib/utils/time";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { SOURCE_META } from "@/components/primitives/SourceChip";
+import { AssignedCrews } from "@/components/dispatch/AssignedCrews";
 
 export function DispatchRow({ incident, rank }: { incident: Incident; rank: number | null }) {
   const router = useRouter();
   const tick = useIncidentStore((s) => s.clockTick);
-  const dispatchCrew = useIncidentStore((s) => s.dispatchCrew);
+  const openCrewPicker = useIncidentStore((s) => s.openCrewPicker);
   const markExtinguished = useIncidentStore((s) => s.markExtinguished);
   const isLive = incident.dispatch === "live";
   const isNext = rank === 1;
@@ -77,9 +78,11 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
         </span>
       </div>
       <span className="dr-reason" style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
-        {isLive
-          ? "Crew assigned. Stays live until the crew reports the fire out."
-          : incident.recommendedAction ?? "Ranked by severity, then distance from staging."}
+        {isLive ? (
+          <AssignedCrews incidentId={incident.id} />
+        ) : (
+          incident.recommendedAction ?? "Ranked by severity, then distance from staging."
+        )}
       </span>
       <div className="dr-metrics">
         <span
@@ -101,7 +104,7 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
             Mark extinguished
           </Button>
         ) : (
-          <Button variant={isNext ? "primary" : "secondary"} small ack onClick={() => dispatchCrew(incident.id)}>
+          <Button variant={isNext ? "primary" : "secondary"} small onClick={() => openCrewPicker(incident.id)}>
             Dispatch crew
           </Button>
         )}

@@ -553,6 +553,84 @@ textarea.input {
   bottom: 3px;
 }
 
+/* ---------- crews: picker dialog and assigned-crew chips ---------- */
+
+.crew-picker {
+  margin: auto; /* the global reset zeroes the browser's own centring */
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--fg);
+  box-shadow: var(--shadow-pop);
+}
+
+.crew-picker::backdrop {
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+}
+
+.crew-picker__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.crew-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.crew-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* wraps inside a narrow column (the dispatch row's reason cell) instead of overflowing it */
+.crew-chip {
+  flex: 0 1 auto;
+  max-width: 100%;
+  height: auto;
+  min-height: 22px;
+  padding-block: 2px;
+  padding-right: 4px;
+  white-space: normal;
+  color: var(--ok-fg);
+  background: var(--ok-soft);
+  border-color: var(--ok-border);
+}
+
+.crew-chip__age {
+  font-weight: 400;
+}
+
+.crew-chip__recall {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.crew-chip__recall:hover {
+  background: var(--panel);
+}
+
 /* ---------- honest image placeholder ---------- */
 
 .image-slot {

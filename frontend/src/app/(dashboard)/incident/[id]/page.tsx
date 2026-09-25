@@ -12,6 +12,7 @@ import { HowScoredExplainer } from "@/components/detail/HowScoredExplainer";
 import { NearbyStrip } from "@/components/detail/NearbyStrip";
 import { IncidentGallery } from "@/components/detail/IncidentGallery";
 import { ActivityFeed } from "@/components/detail/ActivityFeed";
+import { AssignedCrews } from "@/components/dispatch/AssignedCrews";
 import { MetaList } from "@/components/primitives/MetaField";
 import { SectionHeading } from "@/components/primitives/Card";
 import type { DecisionLogEntry, IncidentComment } from "@/lib/types";
@@ -151,6 +152,15 @@ export default function IncidentDetailPage() {
 
           <div className="detail-col" style={{ gap: "var(--space-5)" }}>
             <DetailActionsBar incident={incident} />
+
+            {incident.dispatch === "live" ? (
+              <section style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <SectionHeading as="h2" note="Recall a crew with ✕. Recalling the last one puts the fire back in the dispatch order.">
+                  Crews
+                </SectionHeading>
+                <AssignedCrews incidentId={incident.id} showAdd />
+              </section>
+            ) : null}
 
             {incident.recommendedAction ? (
               <section style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>

@@ -8,6 +8,7 @@ import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
 import { ARCHIVED_REASON } from "@/lib/normalize";
 import { preloadImages } from "@/lib/utils/preload";
 import type {
+  Crew,
   DecisionLogEntry,
   DispatchState,
   Incident,
@@ -42,6 +43,9 @@ interface IncidentStoreState {
   order: string[]; // insertion order, for stable iteration
   decisionLogs: Record<string, DecisionLogEntry[]>;
   comments: Record<string, IncidentComment[]>;
+  crews: Crew[];
+  /** Incident the crew picker is open for; null = closed. */
+  crewPickerFor: string | null;
   group: IncidentGroup | null;
   toasts: Toast[];
 
@@ -85,7 +89,10 @@ interface IncidentStoreState {
   changeReview: (id: string, level: SeverityBand) => Promise<void>;
   discardReview: (id: string) => Promise<void>;
   overrideSeverity: (id: string, level: SeverityBand) => Promise<void>;
-  dispatchCrew: (id: string) => Promise<void>;
+  openCrewPicker: (id: string | null) => void;
+  loadCrews: () => Promise<void>;
+  dispatchCrews: (id: string, crewIds: string[]) => Promise<void>;
+  recallCrew: (incidentId: string, assignmentId: string) => Promise<void>;
   cancelDispatch: (id: string) => Promise<void>;
   markExtinguished: (id: string) => Promise<void>;
   reopenIncident: (id: string) => Promise<void>;
@@ -207,6 +214,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       const current = snapshot(id);
       return optimistic(current, `Undo failed · ${prev.ref}`, prev, async () => {
         await dataSource.undo(prev, current);
+        get().loadCrews(); // undoing a dispatch change can free crews
         return {};
       }, note);
     };
@@ -217,6 +225,8 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     order: [],
     decisionLogs: {},
     comments: {},
+    crews: [],
+    crewPickerFor: null,
     group: null,
     toasts: [],
 
@@ -257,6 +267,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         incidents[incident.id] = incident;
         order.push(incident.id);
       }
+      get().loadCrews();
       if (!useMock) {
         // TODO(api): grouping has no backend endpoint yet.
         set({ incidents, order, initialized: true, loading: false });
@@ -428,17 +439,66 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       );
     },
 
-    dispatchCrew: (id) => {
+    openCrewPicker: (crewPickerFor) => set({ crewPickerFor }),
+
+    loadCrews: async () => {
+      try {
+        set({ crews: await dataSource.getCrews() });
+      } catch {
+        // keep what's shown; the next poll tries again
+      }
+    },
+
+    dispatchCrews: (id, crewIds) => {
       const prev = snapshot(id);
+      const names = get()
+        .crews.filter((c) => crewIds.includes(c.id))
+        .map((c) => c.label)
+        .join(", ");
       return optimistic(
         prev,
         `Couldn't dispatch · ${prev.ref}`,
         { dispatch: "live", flag: "processed" },
-        () => dataSource.dispatchCrew(prev),
-        `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
+        async () => {
+          try {
+            return await dataSource.dispatchCrews(prev, crewIds);
+          } finally {
+            get().loadCrews(); // on success the crews are out; on a clash, show who's really free
+          }
+        },
+        `Dispatched ${names} to ${prev.place}.`,
         {
           title: `Crew dispatched · ${prev.ref}`,
-          body: `Crew dispatched to ${prev.place}. Tanker 12 en route.`,
+          body: `${names} dispatched to ${prev.place}.`,
+          severityBand: prev.band,
+          cta: "dismiss",
+        }
+      );
+    },
+
+    recallCrew: (incidentId, assignmentId) => {
+      const prev = snapshot(incidentId);
+      const crew = get().crews.find((c) => c.assignment?.id === assignmentId);
+      // the backend puts an incident back in the order when its last crew is recalled
+      const last = get().crews.filter((c) => c.assignment?.incidentId === incidentId).length === 1;
+      const back: Partial<Incident> = last ? { dispatch: "awaiting" } : {};
+      set((s) => ({ crews: s.crews.map((c) => (c === crew ? { ...c, assignment: null } : c)) }));
+      return optimistic(
+        prev,
+        `Couldn't recall ${crew?.label ?? "crew"} · ${prev.ref}`,
+        back,
+        async () => {
+          try {
+            await dataSource.recallCrew(assignmentId);
+          } finally {
+            get().loadCrews();
+          }
+          return last ? { backend: { ...prev.backend, dispatchState: "awaiting" } } : {};
+        },
+        `Recalled ${crew?.label ?? "crew"}.${last ? " No crew left, back on the dispatch order." : ""}`,
+        {
+          title: `Crew recalled · ${prev.ref}`,
+          body: `${crew?.label ?? "Crew"} stood down.${last ? " No crew left, so the fire is back in the dispatch order." : ""}`,
           severityBand: prev.band,
           cta: "dismiss",
         }
@@ -451,7 +511,11 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         prev,
         `Couldn't cancel dispatch · ${prev.ref}`,
         { dispatch: "awaiting" },
-        () => dataSource.cancelDispatch(prev),
+        async () => {
+          const result = await dataSource.cancelDispatch(prev);
+          get().loadCrews(); // the backend frees every crew on the incident
+          return result;
+        },
         "Dispatch cancelled. Crew stood down, back on the ranked queue.",
         {
           title: `Dispatch cancelled · ${prev.ref}`,
@@ -473,7 +537,11 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           extinguishedBy: COORDINATOR_NAME,
           extinguishedAtIso: new Date().toISOString(),
         },
-        () => dataSource.markExtinguished(prev),
+        async () => {
+          const result = await dataSource.markExtinguished(prev);
+          get().loadCrews(); // the backend frees every crew on the incident
+          return result;
+        },
         "Marked extinguished. Crew reported the fire out.",
         {
           title: `Marked extinguished · ${prev.ref}`,
@@ -553,7 +621,11 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           prev,
           `Couldn't restore · ${prev.ref}`,
           { dispatch: "extinguished", dismissedReason: null, dismissedBy: null, dismissedAtIso: null },
-          () => dataSource.markExtinguished(prev),
+          async () => {
+          const result = await dataSource.markExtinguished(prev);
+          get().loadCrews(); // the backend frees every crew on the incident
+          return result;
+        },
           "Restored from the archive to Resolved",
           {
             title: `Restored to Resolved · ${prev.ref}`,
@@ -589,6 +661,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     refresh: async () => {
       // Mock incidents live only in the store, so re-reading the seed would undo every action.
       if (useMock || !get().initialized) return;
+      get().loadCrews();
       let list: Incident[];
       try {
         list = await dataSource.listIncidents();

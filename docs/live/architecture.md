@@ -73,6 +73,9 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 | PUT | `/incidents/:incidentId/dispatch` | `{state: awaiting \| live \| extinguished, by}`: dispatch, cancel, extinguish, reopen. Logged. **`frontend` caller only.** |
 | GET | `/incidents/:incidentId/decisions` | Decision log, newest first: field, from, to, who, when. **`frontend` caller only.** |
 | GET | `/incidents/:incidentId/comments` | Comments, newest first: author, body, when. **`frontend` caller only.** |
+| GET | `/crews` | Every crew with its station and open assignment (`null` = available), by label. **`frontend` caller only.** |
+| POST | `/incidents/:incidentId/assignments` | `{ crewIds, by }` (1–10 crews) sends crews and sets the incident `live`, all or nothing. 201 with the assignments; 409 if a crew is already out; 400 for an unknown crew. **`frontend` caller only.** |
+| PATCH | `/assignments/:assignmentId` | `{ status, by }`: `en_route`, `on_scene` (one step forward at a time) or `cleared` (recall). 409 for an out-of-order step. Clearing the last crew on a live incident sets it back to `awaiting`. **`frontend` caller only.** |
 | POST | `/incidents/:incidentId/comments` | `{ body, by }` adds a comment (1–1000 chars, trimmed). 201 with the comment; 404 for an unknown incident. Append-only. **`frontend` caller only.** |
 
 Cross-cutting:

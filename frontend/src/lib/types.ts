@@ -128,6 +128,26 @@ export interface DecisionLogEntry {
   whenIso: string;
 }
 
+export type CrewType = "light" | "heavy" | "aerial";
+/** dispatched -> en_route -> on_scene; cleared = recalled or the fire is over (not shown on a crew). */
+export type AssignmentStatus = "dispatched" | "en_route" | "on_scene" | "cleared";
+
+export interface CrewAssignment {
+  id: string;
+  incidentId: string;
+  status: AssignmentStatus;
+  updatedAtIso: string;
+}
+
+/** A response crew, its station, and what it's doing now (assignment null = available). */
+export interface Crew {
+  id: string;
+  label: string;
+  type: CrewType;
+  station: { name: string; coords: { lat: number; lng: number } };
+  assignment: CrewAssignment | null;
+}
+
 /** A comment on an incident. Permanent: comments are never edited or deleted. */
 export interface IncidentComment {
   id: string;
