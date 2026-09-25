@@ -7,7 +7,7 @@ export interface ExifData {
 }
 
 // Fallback source for location/timestamp when the client doesn't supply them
-// (docs/storage/Storage_and_metadata_V2.md section 1: web form prompts for manual
+// (docs/archive/sprint-1/storage/Storage_and_metadata_V2.md section 1: web form prompts for manual
 // entry only when EXIF is missing; direct API callers may pre-populate instead).
 export async function extractExif(buffer: Buffer): Promise<ExifData> {
     const gps = await exifr.gps(buffer).catch(() => undefined);

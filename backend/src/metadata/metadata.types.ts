@@ -1,11 +1,11 @@
-// Field set and flow per docs/storage/Storage_and_metadata_V2.md section 2-3, extended by
-// docs/storage/Storage_and_Metadata_Finalisation_Addendum.md (confidence_score, override/audit
-// trail) and docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md (per-indicator labels).
+// Field set per docs/live/metadata-schema.md; indicator labels per docs/live/severity-rubric.md.
 
 export type SourceType = 'drone' | 'cctv' | 'citizen' | 'satellite';
 export type UploadStatus = 'pending' | 'stored' | 'failed';
 export type AssessmentStatus = 'assessed' | 'unable_to_assess' | 'pending_review';
 export type ClassificationLabel = 'fire' | 'non_fire' | 'extinguished' | 'uncertain';
+// archived: an extinguished fire the coordinator has filed away (moves from Resolved to Archive).
+export type DispatchState = 'awaiting' | 'live' | 'extinguished' | 'archived';
 
 export type SmokeDensity = 'none_or_haze' | 'moderate' | 'dense_dark' | 'very_dense_blocking_vision';
 export type FlameVisibility =
@@ -13,11 +13,10 @@ export type FlameVisibility =
     | 'some_flame'
     | 'visible_high_flames_and_embers'
     | 'large_flame_wall_embers_everywhere';
-export type VegetationImpact = 'none_at_risk' | 'scorching' | 'noticeable_impact' | 'extensive_burnt_area';
-export type StructurePeopleProximity =
-    | 'no_structure_at_risk'
-    | 'infrastructure_in_fire_line'
-    | 'extensive_infrastructure_damage_people_in_proximity';
+// Amount of vegetation (fuel load) in frame, whether burning or not.
+export type VegetationImpact = 'no_vegetation' | 'sparse_vegetation' | 'moderate_vegetation' | 'dense_vegetation';
+// Amount of infrastructure in/near the scene, burning or not: fires near towns get higher priority.
+export type InfrastructureImpact = 'no_infrastructure' | 'sparse_infrastructure' | 'moderate_infrastructure' | 'dense_infrastructure';
 
 export interface ImageMetadata {
     incidentId: string;
@@ -37,12 +36,43 @@ export interface ImageMetadata {
     smokeDensity: SmokeDensity | null;
     flameVisibility: FlameVisibility | null;
     vegetationImpact: VegetationImpact | null;
-    structurePeopleProximity: StructurePeopleProximity | null;
+    infrastructureImpact: InfrastructureImpact | null;
     assessmentStatus: AssessmentStatus;
     classificationLabel: ClassificationLabel | null;
+    // Coordinator's call, same pattern as severityScoreOverride: the AI's label is never overwritten.
+    classificationLabelOverride: ClassificationLabel | null;
     priorityRank: number | null;
     uploadStatus: UploadStatus;
     ingestionError: string | null;
+    contentHash: string | null;
+    // Locality at the image's coordinates ("Kinglake"), looked up after ingest; null until then.
+    placeName: string | null;
+}
+
+// Read shape for the incident queries: an image plus its incident's dispatch state
+// (null = no coordinator dispatch decision yet).
+export interface IncidentImage extends ImageMetadata {
+    dispatchState: DispatchState | null;
+    dispatchUpdatedBy: string | null; // who set the current dispatch state, and when
+    dispatchUpdatedAt: string | null;
+}
+
+// The fields a coordinator may change on an image. null clears an override (used by undo).
+export interface CoordinatorPatch {
+    severityScoreOverride?: 1 | 2 | 3 | 4 | null;
+    classificationLabelOverride?: ClassificationLabel | null;
+    assessmentStatus?: 'assessed' | 'unable_to_assess';
+}
+
+export interface Decision {
+    id: number;
+    incidentId: string;
+    imageId: string | null;
+    field: string;
+    fromValue: string | null;
+    toValue: string | null;
+    decidedBy: string;
+    decidedAt: string;
 }
 
 export interface IngestionInput {

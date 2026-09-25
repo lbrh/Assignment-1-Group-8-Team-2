@@ -25,6 +25,7 @@ ui-debug.log
 frontend/dist/
 backend/lib/
 backend/dist/
+.build/
 
 # Testing
 coverage/
@@ -41,6 +42,7 @@ Thumbs.db
 *.swo
 
 # Claude Code session data (machine-local, not shared)
+.claude/
 .claude/sessions/
 .claude/checkpoints.log
 

@@ -1,6 +1,6 @@
--- Agreed metadata schema per docs/storage/Storage_and_metadata_V2.md section 2,
--- extended by Storage_and_Metadata_Finalisation_Addendum.md and
--- docs/ai-ml/Dataset_Classes_Label_Proposal_for_Aryaveer.md. One row per image/video object.
+-- Metadata schema, documented in docs/live/metadata-schema.md. One row per image/video object.
+-- Final rubric: smoke, flame, amount of vegetation (fuel load) and amount of infrastructure nearby
+-- (priority: fires near towns outrank fires in the middle of nowhere), people proximity dropped.
 
 CREATE TABLE IF NOT EXISTS images (
     image_id UUID PRIMARY KEY,
@@ -20,17 +20,65 @@ CREATE TABLE IF NOT EXISTS images (
 
     smoke_density TEXT CHECK (smoke_density IN ('none_or_haze', 'moderate', 'dense_dark', 'very_dense_blocking_vision')),
     flame_visibility TEXT CHECK (flame_visibility IN ('no_visible_flame', 'some_flame', 'visible_high_flames_and_embers', 'large_flame_wall_embers_everywhere')),
-    vegetation_impact TEXT CHECK (vegetation_impact IN ('none_at_risk', 'scorching', 'noticeable_impact', 'extensive_burnt_area')),
-    structure_people_proximity TEXT CHECK (structure_people_proximity IN ('no_structure_at_risk', 'infrastructure_in_fire_line', 'extensive_infrastructure_damage_people_in_proximity')),
+    vegetation_impact TEXT CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation')),
+    infrastructure_impact TEXT CHECK (infrastructure_impact IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure')),
 
     assessment_status TEXT NOT NULL CHECK (assessment_status IN ('assessed', 'unable_to_assess', 'pending_review')),
     classification_label TEXT CHECK (classification_label IN ('fire', 'non_fire', 'extinguished', 'uncertain')),
     priority_rank INTEGER,
     upload_status TEXT NOT NULL CHECK (upload_status IN ('pending', 'stored', 'failed')),
-    ingestion_error TEXT
+    ingestion_error TEXT,
+    content_hash TEXT UNIQUE
 );
 
 -- Map viewport range queries and per-incident prefix fetches (V2 doc section 4/7).
 CREATE INDEX IF NOT EXISTS images_incident_id_idx ON images (incident_id);
 CREATE INDEX IF NOT EXISTS images_lat_lon_idx ON images (latitude, longitude);
 CREATE INDEX IF NOT EXISTS images_priority_rank_idx ON images (priority_rank);
+
+-- Migrate databases created before the final rubric: people proximity replaced by
+-- infrastructure_impact, vegetation_impact redefined as amount of vegetation. Re-runnable.
+-- Old vegetation values measured damage, not amount, so they can't be mapped and are cleared.
+ALTER TABLE images DROP COLUMN IF EXISTS structure_people_proximity;
+ALTER TABLE images ADD COLUMN IF NOT EXISTS infrastructure_impact TEXT;
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_infrastructure_impact_check;
+UPDATE images SET infrastructure_impact = NULL WHERE infrastructure_impact NOT IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure');
+ALTER TABLE images ADD CONSTRAINT images_infrastructure_impact_check CHECK (infrastructure_impact IN ('no_infrastructure', 'sparse_infrastructure', 'moderate_infrastructure', 'dense_infrastructure'));
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_vegetation_impact_check;
+UPDATE images SET vegetation_impact = NULL WHERE vegetation_impact NOT IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation');
+ALTER TABLE images ADD CONSTRAINT images_vegetation_impact_check CHECK (vegetation_impact IN ('no_vegetation', 'sparse_vegetation', 'moderate_vegetation', 'dense_vegetation'));
+
+-- Coordinator decisions (Sprint 2 §5, US13/FR14). The AI's own columns are never overwritten:
+-- a coordinator's call lives in the *_override columns (same pattern as severity_score_override),
+-- and every change is written to `decisions` with its before/after value, who and when.
+ALTER TABLE images ADD COLUMN IF NOT EXISTS classification_label_override TEXT;
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_classification_label_override_check;
+ALTER TABLE images ADD CONSTRAINT images_classification_label_override_check CHECK (classification_label_override IN ('fire', 'non_fire', 'extinguished', 'uncertain'));
+
+-- Human place name for the image's coordinates (reverse geocoded after ingest). Re-runnable.
+ALTER TABLE images ADD COLUMN IF NOT EXISTS place_name TEXT;
+
+-- Dispatch state is per incident, not per image. No row = not yet acted on.
+CREATE TABLE IF NOT EXISTS incident_dispatch (
+    incident_id UUID PRIMARY KEY,
+    state TEXT NOT NULL CHECK (state IN ('awaiting', 'live', 'extinguished', 'archived')),
+    updated_by TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 'archived' added after the table shipped: an extinguished fire filed into the Archive. Re-runnable.
+ALTER TABLE incident_dispatch DROP CONSTRAINT IF EXISTS incident_dispatch_state_check;
+ALTER TABLE incident_dispatch ADD CONSTRAINT incident_dispatch_state_check CHECK (state IN ('awaiting', 'live', 'extinguished', 'archived'));
+
+-- Audit trail: append-only, never updated or deleted (Sprint 2 §1.5 #5/#6).
+CREATE TABLE IF NOT EXISTS decisions (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id UUID NOT NULL,
+    image_id UUID,
+    field TEXT NOT NULL,
+    from_value TEXT,
+    to_value TEXT,
+    decided_by TEXT NOT NULL,
+    decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS decisions_incident_idx ON decisions (incident_id, decided_at DESC);

@@ -1,15 +1,19 @@
-FROM node:24-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+# Node 25 images no longer bundle corepack (and its yarn shim clashes with the image's yarn), so install pnpm directly
+RUN npm install -g pnpm@12
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 WORKDIR /app
+# Node 25 images no longer bundle corepack (and its yarn shim clashes with the image's yarn), so install pnpm directly
+RUN npm install -g pnpm@12
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN pnpm build
 
-FROM node:24-alpine AS runner
+FROM node:25-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/public ./public
