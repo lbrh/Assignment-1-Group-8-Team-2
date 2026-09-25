@@ -16,8 +16,8 @@ export function NearbyStrip({ currentId }: { currentId: string }) {
 
   return (
     <section
+      className="nearby-strip"
       style={{
-        padding: "var(--space-5) var(--space-6)",
         borderTop: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",

@@ -4,10 +4,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import { SEVERITY } from "@/lib/constants/severity";
 import type { SeverityBand } from "@/lib/types";
 
+const PANEL_WIDTH = 240;
+
 /** The "?" hint next to each severity choice. Toggles the plain-language rubric for that band.
  * Shared between Manual Review and Incident Detail. Escape or a click outside closes it. */
 export function RubricExplainer({ band }: { band: SeverityBand }) {
   const [open, setOpen] = useState(false);
+  // horizontal offset from the "?" that keeps the 240px panel on screen (on a phone it would
+  // otherwise spill off the right edge for the options at the end of a row)
+  const [shift, setShift] = useState(-8);
   const meta = SEVERITY[band];
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -36,7 +41,12 @@ export function RubricExplainer({ band }: { band: SeverityBand }) {
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`Explain ${meta.label}`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          const left = e.currentTarget.getBoundingClientRect().left;
+          const width = Math.min(PANEL_WIDTH, window.innerWidth - 32);
+          setShift(Math.max(16, Math.min(left - 8, window.innerWidth - 16 - width)) - left);
+          setOpen((v) => !v);
+        }}
         style={{
           width: 22,
           height: 22,
@@ -59,8 +69,8 @@ export function RubricExplainer({ band }: { band: SeverityBand }) {
             position: "absolute",
             zIndex: 10,
             top: 30,
-            left: -8,
-            width: 240,
+            left: shift,
+            width: `min(${PANEL_WIDTH}px, calc(100vw - 32px))`,
             padding: "var(--space-3) var(--space-4)",
             boxShadow: "var(--shadow-pop)",
             display: "flex",

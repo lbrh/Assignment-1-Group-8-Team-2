@@ -12,7 +12,7 @@ export function HowScoredExplainer({ incident }: { incident: Incident }) {
     <section className="card card--inset" style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       <SectionHeading as="h2">How this severity was scored</SectionHeading>
 
-      <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+      <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "var(--space-3)" }}>
         <StepTile step={1} title="Fire or not a fire" result={isFire ? "Fire" : "Not a fire"} ok={isFire} />
         <StepTile step={2} title="Severity score" result={scoreState} ok={scoreState === "Scored"} />
       </ol>

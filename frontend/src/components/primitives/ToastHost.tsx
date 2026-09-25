@@ -3,7 +3,7 @@
 import { SeverityDot } from "@/components/primitives/SeverityDot";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 
-/** Fixed top right, 5 s auto-clear with a visible countdown, dismiss early with the close button.
+/** Fixed top right (above the tab bar on a phone, see .toast-stack), 5 s auto-clear with a visible countdown, dismiss early with the close button.
  * Non-blocking: the page underneath stays fully interactive. */
 export function ToastHost() {
   const toasts = useIncidentStore((s) => s.toasts);
@@ -12,18 +12,7 @@ export function ToastHost() {
   if (toasts.length === 0) return null;
 
   return (
-    <div
-      aria-live="polite"
-      style={{
-        position: "fixed",
-        right: "var(--space-5)",
-        top: 72,
-        zIndex: 50,
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--space-3)",
-      }}
-    >
+    <div aria-live="polite" className="toast-stack">
       {toasts.map((toast) => (
         <div
           key={toast.id}

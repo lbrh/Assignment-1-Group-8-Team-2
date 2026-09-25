@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { rankedAwaiting, liveDispatched, reviewQueue } from "@/lib/store/selectors";
-import { DISPATCH_GRID, DispatchRow } from "@/components/dispatch/DispatchRow";
+import { DispatchRow } from "@/components/dispatch/DispatchRow";
 import { Button } from "@/components/primitives/Button";
 import { CONFIDENCE_THRESHOLD } from "@/lib/constants/severity";
 
@@ -29,7 +29,7 @@ export default function DispatchOrderPage() {
   const counts = { all: awaiting.length + live.length, awaiting: awaiting.length, live: live.length };
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "var(--space-6) var(--space-5) var(--space-7)" }}>
+    <div className="page">
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "var(--space-4)", flexWrap: "wrap" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           <h1 className="page-title">Dispatch order</h1>
@@ -54,15 +54,8 @@ export default function DispatchOrderPage() {
       <div className="card" style={{ marginTop: "var(--space-5)", overflow: "hidden" }}>
         <div
           aria-hidden
-          style={{
-            display: "grid",
-            gridTemplateColumns: DISPATCH_GRID,
-            gap: "var(--space-4)",
-            padding: "10px var(--space-5)",
-            background: "var(--surface)",
-            borderBottom: "1px solid var(--border)",
-          }}
-          className="caption"
+          style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
+          className="caption dispatch-grid dispatch-head"
         >
           <span>Rank</span>
           <span>Severity</span>
@@ -100,6 +93,7 @@ export default function DispatchOrderPage() {
         className="card card--pending"
         style={{
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           gap: "var(--space-4)",
           marginTop: "var(--space-5)",
@@ -124,7 +118,7 @@ export default function DispatchOrderPage() {
         >
           ?
         </span>
-        <p style={{ font: "400 var(--text-sm)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-2)", flex: 1 }}>
+        <p style={{ font: "400 var(--text-sm)/var(--lh-body) var(--font-plex-sans)", color: "var(--fg-2)", flex: "1 1 240px" }}>
           Detections at or below the {CONFIDENCE_THRESHOLD} confidence threshold stay out of this order until a
           reviewer confirms, changes or discards them. Not-a-fire images go to the Archive, and
           extinguished fires move to Resolved.
@@ -146,6 +140,7 @@ function SectionBar({ tone, title, count, note }: { tone: "accent" | "ok"; title
     <div
       style={{
         display: "flex",
+        flexWrap: "wrap",
         alignItems: "center",
         gap: "var(--space-3)",
         padding: "10px var(--space-5)",

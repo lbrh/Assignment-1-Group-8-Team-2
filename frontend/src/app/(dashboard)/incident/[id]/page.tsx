@@ -86,7 +86,7 @@ export default function IncidentDetailPage() {
   ].join(" ");
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "var(--space-5) var(--space-5) var(--space-7)" }}>
+    <div className="page" style={{ maxWidth: 1200, paddingTop: "var(--space-5)" }}>
       <button
         type="button"
         className="btn btn--link"
@@ -99,16 +99,14 @@ export default function IncidentDetailPage() {
       <article className="card" style={{ overflow: "hidden" }}>
         <SeverityHeader incident={incident} />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(260px, 320px) minmax(0, 1fr)",
-            gap: "var(--space-6)",
-            padding: "var(--space-6)",
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-            <IncidentImage key={incident.file} imageId={incident.file} alt={`Field image for ${incident.place}`} />
+        {/* Two columns on desktop. Below 1024px the columns dissolve (layout.css) so the actions lead,
+            image and metadata follow, and the exportable record goes last. */}
+        <div className="detail-grid">
+          <div className="detail-col" style={{ gap: "var(--space-4)" }}>
+            <div className="d-image">
+              <IncidentImage key={incident.file} imageId={incident.file} alt={`Field image for ${incident.place}`} />
+            </div>
+            <div className="d-meta">
             <MetaList
               rows={[
                 { label: "Location", value: incident.place },
@@ -119,7 +117,8 @@ export default function IncidentDetailPage() {
                 { label: "Group", value: incident.groupId ?? "None", mono: !!incident.groupId },
               ]}
             />
-            <details className="card card--inset" style={{ padding: "var(--space-3) var(--space-4)" }}>
+            </div>
+            <details className="card card--inset d-record" style={{ padding: "var(--space-3) var(--space-4)" }}>
               <summary className="label" style={{ cursor: "pointer" }}>
                 Exportable record
               </summary>
@@ -137,7 +136,7 @@ export default function IncidentDetailPage() {
             </details>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", minWidth: 0 }}>
+          <div className="detail-col" style={{ gap: "var(--space-5)" }}>
             <DetailActionsBar incident={incident} />
 
             {incident.recommendedAction ? (

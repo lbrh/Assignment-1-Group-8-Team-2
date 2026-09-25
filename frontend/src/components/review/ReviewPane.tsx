@@ -34,8 +34,9 @@ export function ReviewPane({incident}: { incident: Incident }) {
     const headline = HEADLINE[incident.reviewReason ?? "below_threshold"];
 
     return (
-        <div style={{flex: 1, overflow: "auto", display: "flex", flexDirection: "column"}}>
-            <HatchBanner style={{padding: "var(--space-6) var(--space-6) var(--space-5)"}}>
+        // a size container: its columns rearrange by the pane's own width (layout.css)
+        <div className="review-pane">
+            <HatchBanner className="review-pane__banner">
                 <div style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -46,6 +47,7 @@ export function ReviewPane({incident}: { incident: Incident }) {
                     <div style={{display: "flex", alignItems: "center", gap: "var(--space-5)", flexWrap: "wrap"}}>
             <span
                 aria-hidden
+                className="review-pane__mark"
                 style={{
                     width: 48,
                     height: 48,
@@ -54,7 +56,6 @@ export function ReviewPane({incident}: { incident: Incident }) {
                     border: "2px dashed var(--accent)",
                     background: "var(--panel)",
                     boxShadow: "var(--shadow-card)",
-                    display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     font: "700 20px/1 var(--font-plex-sans)",
@@ -83,22 +84,17 @@ export function ReviewPane({incident}: { incident: Incident }) {
                 </div>
             </HatchBanner>
 
-            <div
-                style={{
-                    padding: "var(--space-5) var(--space-6) var(--space-7)",
-                    display: "grid",
-                    gridTemplateColumns: "minmax(280px, 380px) minmax(0, 1fr)",
-                    gap: "var(--space-5)",
-                    alignItems: "start",
-                }}
-            >
-                <div style={{display: "flex", flexDirection: "column", gap: "var(--space-3)"}}>
-                    <IncidentImage key={incident.file} imageId={incident.file}
-                                   alt={`Field image for ${incident.place}`}/>
-                    <span className="caption" style={{fontSize: 12}}>
-            Unmodified, as received from the field.
-          </span>
+            <div className="review-grid">
+                <div className="review-grid__media">
+                    <div style={{display: "flex", flexDirection: "column", gap: "var(--space-3)"}}>
+                        <IncidentImage key={incident.file} imageId={incident.file}
+                                       alt={`Field image for ${incident.place}`}/>
+                        <span className="caption" style={{fontSize: 12}}>
+                            Unmodified, as received from the field.
+                        </span>
+                    </div>
 
+                    <div className="review-grid__meta">
                     <MetaList
                         rows={[
                             {
@@ -118,6 +114,7 @@ export function ReviewPane({incident}: { incident: Incident }) {
                             {label: "Group", value: incident.groupId ?? "None", mono: !!incident.groupId},
                         ]}
                     />
+                    </div>
                 </div>
 
                 <div style={{display: "flex", flexDirection: "column", gap: "var(--space-4)"}}>
@@ -177,7 +174,7 @@ export function ReviewPane({incident}: { incident: Incident }) {
                         </p>
                     </section>
 
-                    <section className="card" style={{
+                    <section className="card decision-card" style={{
                         padding: "var(--space-5)",
                         display: "flex",
                         flexDirection: "column",
@@ -262,11 +259,8 @@ function DecisionBlock({
 }) {
     return (
         <div
+            className="decision-block"
             style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(200px, 280px) 1fr",
-                gap: "var(--space-4)",
-                alignItems: "center",
                 paddingTop: "var(--space-4)",
                 borderTop: "1px solid var(--border)",
             }}

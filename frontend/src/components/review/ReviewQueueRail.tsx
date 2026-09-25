@@ -23,18 +23,8 @@ export function ReviewQueueRail() {
   const queue = reviewQueue(incidents, order);
 
   return (
-    <aside
-      aria-label="Review queue"
-      style={{
-        width: 320,
-        flex: "none",
-        borderRight: "1px solid var(--border)",
-        background: "var(--panel)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <HatchBanner style={{ padding: "var(--space-5)" }}>
+    <aside aria-label="Review queue" className="review-queue">
+      <HatchBanner className="review-queue__head">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
           <h2 style={{ font: "700 var(--text-lg)/1.2 var(--font-plex-sans)", letterSpacing: "var(--tracking-tight)", color: "var(--fg)" }}>
             Review queue
@@ -46,30 +36,21 @@ export function ReviewQueueRail() {
             {queue.length}
           </span>
         </div>
-        <p className="caption" style={{ marginTop: 4 }}>
+        <p className="caption review-queue__caption" style={{ marginTop: 4 }}>
           Held out of the ranking until you decide.
         </p>
       </HatchBanner>
 
-      <ul style={{ flex: 1, overflow: "auto", listStyle: "none", margin: 0, padding: 0 }}>
+      <ul className="review-queue__list">
         {queue.map((incident) => {
           const selected = incident.id === selectedId;
           return (
             <li key={incident.id}>
               <button
                 type="button"
-                className="row-btn"
+                className="row-btn review-queue__item"
                 aria-current={selected ? "true" : undefined}
                 onClick={() => selectReview(incident.id)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                  padding: "var(--space-4) var(--space-5)",
-                  background: selected ? "var(--accent-soft)" : undefined,
-                  boxShadow: selected ? "inset 3px 0 0 var(--accent)" : "none",
-                  borderBottom: "1px solid var(--border)",
-                }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span className="data" style={{ font: "500 var(--text-2xs)/1 var(--font-plex-mono)", color: "var(--muted)" }}>

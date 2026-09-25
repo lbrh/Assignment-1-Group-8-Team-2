@@ -13,24 +13,15 @@ export function ElementScoreRows({
   coordinatorAssigned?: boolean;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    // a size container: the rubric drops under the pips when the rows get narrow (layout.css)
+    <div className="score-rows">
       {KEYS.map((key) => {
         const value = elements[key];
         const meta = value ? SEVERITY[value as SeverityBand] : null;
         const rubric =
           value === 0 ? "Not counted, no fire present" : value ? ELEMENT_RUBRIC[key][value - 1] : "Not scored";
         return (
-          <div
-            key={key}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(120px, 160px) auto 1fr",
-              gap: "var(--space-4)",
-              padding: "10px 0",
-              borderTop: "1px solid var(--border)",
-              alignItems: "center",
-            }}
-          >
+          <div key={key} className="score-row" style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
             <span className="label" style={{ color: "var(--fg)" }}>
               {ELEMENT_LABELS[key]}
             </span>
@@ -69,7 +60,7 @@ export function ElementScoreRows({
                 {value ?? "–"}
               </span>
             </div>
-            <span style={{ font: "400 var(--text-sm)/1.4 var(--font-plex-sans)", color: "var(--fg-4)" }}>
+            <span className="score-row__rubric" style={{ font: "400 var(--text-sm)/1.4 var(--font-plex-sans)", color: "var(--fg-4)" }}>
               {rubric}
             </span>
           </div>
@@ -78,9 +69,10 @@ export function ElementScoreRows({
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap",
           justifyContent: "space-between",
           alignItems: "baseline",
-          gap: "var(--space-4)",
+          gap: "var(--space-2) var(--space-4)",
           padding: "var(--space-3) 0 0",
           borderTop: "1px solid var(--border-2)",
         }}

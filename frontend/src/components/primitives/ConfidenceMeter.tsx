@@ -27,13 +27,7 @@ export function ConfidenceMeter({ confidence, size = "sm", note }: Props) {
     <div
       role="group"
       aria-label={`${confidenceLabel(confidence)}, ${confidence.toFixed(2)}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        paddingLeft: "var(--space-5)",
-        borderLeft: "1px solid var(--border)",
-      }}
+      className="conf-meter" // beside its heading, or under it on a phone (layout.css)
     >
       <span
         className="data"

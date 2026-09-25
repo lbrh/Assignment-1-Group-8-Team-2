@@ -3,6 +3,7 @@
 @import "../styles/components.css";
 @import "../styles/animations.css";
 @import "../styles/map.css";
+@import "../styles/layout.css";
 
 @theme inline {
   --font-sans: var(--font-plex-sans);

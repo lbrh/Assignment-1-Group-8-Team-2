@@ -5,12 +5,15 @@ import type { CSSProperties, ReactNode } from "react";
 export function HatchBanner({
   children,
   style,
+  className,
 }: {
   children: ReactNode;
   style?: CSSProperties;
+  className?: string;
 }) {
   return (
     <div
+      className={className}
       style={{
         background: "var(--grad-pending)",
         borderBottom: "1px dashed var(--accent-border)",

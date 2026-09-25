@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 // Leaflet base styles first so the app's map overrides (styles/map.css) win the cascade.
 import "leaflet/dist/leaflet.css";
@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   description:
     "AI-assisted bushfire severity classification and dispatch coordination.",
 };
+
+// viewport-fit=cover lets the phone tab bar pad itself clear of the home indicator (env(safe-area-inset-*)).
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

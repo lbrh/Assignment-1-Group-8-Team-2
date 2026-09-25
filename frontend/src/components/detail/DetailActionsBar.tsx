@@ -26,7 +26,7 @@ export function DetailActionsBar({ incident }: { incident: Incident }) {
         : { label: "Dispatch crew", run: () => dispatchCrew(incident.id), disabled: incident.band === 0 };
 
   return (
-    <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+    <div className="detail-actions" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
       {/* one slot for every label, so the button that was clicked shows its ✓ and then the next step */}
       {primary ? (
         <Button variant="primary" ack disabled={primary.disabled} onClick={primary.run}>
