@@ -18,6 +18,7 @@ Three kinds of document live here:
 | [Deployment and operations](live/deployment-and-operations.md) | Code Engine, CI/CD, secrets, known hazards, registry | Liam / Htet |
 | [Development setup](live/dev-setup.md) | Local setup, IBM Cloud / watsonx access | Htet / Liam |
 | [UI design](live/ui.md) | Current prototype and redlines, changes needed for the current rubric | Benjamin (UX) |
+| [Live dispatch and crews](live/dispatch-crews.md) | Stations, crews and assignments, crew screen, comments, image gallery, polling, rate limit split | Liam |
 | [Open questions](live/open-questions.md) | Undecided items, known gaps, assumptions | Everyone |
 
 ## Archive
