@@ -7,6 +7,7 @@ import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
 import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
 import { ARCHIVED_REASON } from "@/lib/normalize";
 import { preloadImages } from "@/lib/utils/preload";
+import { rankedAwaiting, reviewQueue, archiveList, resolvedList } from "@/lib/store/selectors";
 import type {
   DecisionLogEntry,
   DispatchState,
@@ -23,6 +24,9 @@ export interface Toast {
   cta: "undo" | "dismiss" | "none";
   onUndo?: () => void;
   createdAt: number;
+  /** Where the affected incident lives now, so the toast can jump straight there. */
+  viewHref?: string;
+  viewLabel?: string;
 }
 
 /** Map page filter by dispatch state: active = awaiting a crew, dispatched = crew on scene. */
@@ -55,6 +59,14 @@ interface IncidentStoreState {
   alertsPanelOpen: boolean;
   reviewSelectedId: string | null;
   newIncidentId: string | null;
+  /** Incident to pulse on the map, set by "Locate on map" on its detail page. Not cleared when
+   * the map unmounts (unlike `mapHoverId`), since it's set from another page just before
+   * navigating there — it needs to survive into the map's next mount. */
+  locatedIncidentId: string | null;
+  /** Incident an action just relocated to a new list (dispatch order, review, resolved, archive).
+   * The destination page pulses that row once it actually scrolls into view, then clears this —
+   * never auto-scrolled to, and only pulses once. */
+  relocatedId: string | null;
   /** Last top-level tab route visited. Lets pages reached by click-through (incident detail)
    * know which tab to show as active and where "back" should go, instead of assuming Map. */
   lastTabPath: string;
@@ -70,12 +82,14 @@ interface IncidentStoreState {
   setKeysOpen: (open: boolean) => void;
   setMapView: (view: MapView) => void;
   setMapHoverId: (id: string | null) => void;
+  setLocatedIncidentId: (id: string | null) => void;
   setMapFilter: (f: MapFilter) => void;
   setDispatchFilter: (f: DispatchFilter) => void;
   setAlertsPanelOpen: (open: boolean) => void;
   setLastTabPath: (path: string) => void;
   selectReview: (id: string | null) => void;
   dismissToast: (id: string) => void;
+  clearRelocated: () => void;
 
   confirmReview: (id: string) => Promise<void>;
   changeReview: (id: string, level: SeverityBand) => Promise<void>;
@@ -141,6 +155,55 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     return { ...get().incidents[id] };
   }
 
+  interface Destination {
+    path: string;
+    pageLabel: string; // for the toast's "View in X" button
+    sectionLabel: string; // for the "Now #N of M in X" phrase — Dispatch order splits Awaiting/Live
+    position: number | null; // 1-based rank within that list; null where the list isn't ranked
+    total: number | null;
+  }
+
+  // Where an incident lives right now, in the same ranked order its own page shows — so a toast
+  // can state precisely where an action sent it, not just which page.
+  function locateIncident(id: string): Destination | null {
+    const { incidents, order } = get();
+    const incident = incidents[id];
+    if (!incident) return null;
+
+    if (incident.flag === "flagged_review") {
+      const list = reviewQueue(incidents, order);
+      const idx = list.findIndex((i) => i.id === id);
+      return { path: "/review", pageLabel: "Manual review", sectionLabel: "Manual review", position: idx < 0 ? null : idx + 1, total: list.length };
+    }
+    if (incident.flag === "not_a_fire" || incident.dispatch === "archived") {
+      const list = archiveList(incidents, order);
+      const idx = list.findIndex((i) => i.id === id);
+      return { path: "/archive", pageLabel: "Archive", sectionLabel: "Archive", position: idx < 0 ? null : idx + 1, total: list.length };
+    }
+    if (incident.dispatch === "extinguished") {
+      const list = resolvedList(incidents, order);
+      const idx = list.findIndex((i) => i.id === id);
+      return { path: "/resolved", pageLabel: "Resolved", sectionLabel: "Resolved", position: idx < 0 ? null : idx + 1, total: list.length };
+    }
+    if (incident.dispatch === "live") {
+      return { path: "/dispatch", pageLabel: "Dispatch order", sectionLabel: "Dispatch order — Live", position: null, total: null };
+    }
+    if (incident.dispatch === "awaiting" && incident.band > 0) {
+      const list = rankedAwaiting(incidents, order);
+      const idx = list.findIndex((i) => i.id === id);
+      return { path: "/dispatch", pageLabel: "Dispatch order", sectionLabel: "Dispatch order — Awaiting", position: idx < 0 ? null : idx + 1, total: list.length };
+    }
+    return null;
+  }
+
+  function destinationPhrase(dest: Destination | null): string {
+    if (!dest) return "";
+    if (dest.position != null && dest.total != null) {
+      return `Now #${dest.position} of ${dest.total} in ${dest.sectionLabel}.`;
+    }
+    return `Now in ${dest.sectionLabel}.`;
+  }
+
   // Runs a coordinator action; a failed backend call becomes a toast instead of an unhandled rejection.
   async function attempt(title: string, fn: () => Promise<void>): Promise<void> {
     try {
@@ -170,7 +233,20 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     const id = prev.id;
     patchIncident(id, guess);
     const logId = pushLog(id, log);
-    const toastId = toast ? pushToast(toast) : null;
+
+    let toastId: string | null = null;
+    if (toast) {
+      const dest = locateIncident(id);
+      const phrase = destinationPhrase(dest);
+      toastId = pushToast({
+        ...toast,
+        body: phrase ? `${toast.body} ${phrase}`.trim() : toast.body,
+        viewHref: dest?.path,
+        viewLabel: dest ? `View in ${dest.pageLabel}` : undefined,
+      });
+      set({ relocatedId: id });
+    }
+
     try {
       patchIncident(id, await call());
     } catch (err) {
@@ -178,6 +254,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       set((s) => ({
         toasts: s.toasts.filter((t) => t.id !== toastId),
         decisionLogs: { ...s.decisionLogs, [id]: (s.decisionLogs[id] ?? []).filter((e) => e.id !== logId) },
+        relocatedId: s.relocatedId === id ? null : s.relocatedId,
       }));
       pushToast({
         title: failTitle,
@@ -216,6 +293,8 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     alertsPanelOpen: false,
     reviewSelectedId: null,
     newIncidentId: null,
+    locatedIncidentId: null,
+    relocatedId: null,
     lastTabPath: "/",
 
     initialized: false,
@@ -322,12 +401,14 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     setKeysOpen: (open) => set({ keysOpen: open }),
     setMapView: (mapView) => set({ mapView }),
     setMapHoverId: (mapHoverId) => set({ mapHoverId }),
+    setLocatedIncidentId: (locatedIncidentId) => set({ locatedIncidentId }),
     setMapFilter: (mapFilter) => set({ mapFilter }),
     setDispatchFilter: (dispatchFilter) => set({ dispatchFilter }),
     setAlertsPanelOpen: (alertsPanelOpen) => set({ alertsPanelOpen }),
     setLastTabPath: (lastTabPath) => set({ lastTabPath }),
     selectReview: (id) => set({ reviewSelectedId: id }),
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+    clearRelocated: () => set({ relocatedId: null }),
 
     confirmReview: (id) => {
       const prev = snapshot(id);
@@ -360,7 +441,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           (prev.sum ? `. AI had provisionally read ${bandLabel(bandFromSum(prev.sum))}` : ". No AI tag had been applied"),
         {
           title: `Severity assigned manually · ${prev.ref}`,
-          body: "Now on the dispatch order, labelled as coordinator-assigned.",
+          body: "Labelled as coordinator-assigned.",
           severityBand: level,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reverted to the AI assessment (undo)"),
@@ -388,7 +469,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         "Discarded as not a fire. No fire present in the image.",
         {
           title: `Discarded as not a fire · ${prev.ref}`,
-          body: "Off the map and the dispatch order, retrievable in the Archive.",
+          body: "Off the map and the dispatch order.",
           severityBand: "not_a_fire",
           cta: "undo",
           onUndo: undoTo(id, prev, "Restored from the archive to manual review (undo)"),
@@ -406,7 +487,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         `Severity changed from ${bandLabel(prev.band)} to ${bandLabel(level)}`,
         {
           title: `Severity overridden · ${prev.ref}`,
-          body: "Applied and logged as a coordinator decision. The ranking has been recalculated.",
+          body: "Applied and logged as a coordinator decision.",
           severityBand: level,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reverted to the AI assessment (undo)"),
@@ -441,7 +522,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         "Dispatch cancelled. Crew stood down, back on the ranked queue.",
         {
           title: `Dispatch cancelled · ${prev.ref}`,
-          body: "Crew stood down. Back on the ranked dispatch queue.",
+          body: "Crew stood down.",
           severityBand: prev.band,
           cta: "dismiss",
         }
@@ -463,7 +544,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         "Marked extinguished. Crew reported the fire out.",
         {
           title: `Marked extinguished · ${prev.ref}`,
-          body: "Crew reported the fire out. Moved to Resolved.",
+          body: "Crew reported the fire out.",
           severityBand: prev.band,
           cta: "undo",
           onUndo: undoTo(id, prev, "Reopened. Back on the dispatch order under Live (undo)"),
@@ -481,7 +562,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         "Reopened. Back on the dispatch order under Live",
         {
           title: `Reopened · ${prev.ref}`,
-          body: "Back on the dispatch order under Live / Dispatched.",
+          body: "",
           severityBand: prev.band,
           cta: "undo",
           onUndo: undoTo(id, prev, "Marked extinguished again (undo)"),
@@ -523,7 +604,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         "Archived. Extinguished fire filed away",
         {
           title: `Archived · ${prev.ref}`,
-          body: "Moved from Resolved to the Archive. Restore it from there if needed.",
+          body: "",
           severityBand: prev.band,
           cta: "undo",
           onUndo: undoTo(id, prev, "Restored to Resolved (undo)"),
@@ -543,7 +624,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           "Restored from the archive to Resolved",
           {
             title: `Restored to Resolved · ${prev.ref}`,
-            body: "Back on the Resolved list as an extinguished fire.",
+            body: "Restored as an extinguished fire.",
             severityBand: prev.band,
             cta: "dismiss",
           }
@@ -565,7 +646,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
         "Restored from the archive to manual review",
         {
           title: `Restored for re-check · ${prev.ref}`,
-          body: "Back in the manual review queue with its provisional tag intact.",
+          body: "Restored with its provisional tag intact.",
           severityBand: 0,
           cta: "dismiss",
         }
