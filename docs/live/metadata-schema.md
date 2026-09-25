@@ -17,7 +17,7 @@ One row per submitted image. An incident is a group of rows sharing `incident_id
 | `incident_id` | UUID (v7, time-ordered) | Group of images of one event (auto-grouped, 2 km / 6 h) |
 | `storage_path` | text | COS object key; null until stored |
 | `timestamp` | timestamptz | Capture time (EXIF, or entered) |
-| `source_type` | `drone` / `cctv` / `citizen` / `satellite` | Input channel |
+| `source_type` | `drone` / `cctv` / `citizen` / `satellite` / `crew` | Input channel. `crew` = a photo from a response crew on the Crew tab |
 | `latitude`, `longitude` | double | WGS84, inside the operating region |
 | `severity_score` | int 1–4 | AI severity (never overwritten by a human) |
 | `severity_score_override` | int 1–4 | Coordinator override; screens show this when set |
@@ -38,7 +38,7 @@ One row per submitted image. An incident is a group of rows sharing `incident_id
 
 Indexes: `incident_id`, `(latitude, longitude)`, `priority_rank`.
 
-Six coordinator tables sit alongside `images`:
+Seven coordinator tables sit alongside `images`:
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -47,6 +47,7 @@ Six coordinator tables sit alongside `images`:
 | `stations` | `station_id` PK, `name`, `latitude`, `longitude` | Where crews are based. Seeded in `schema.sql` (Kinglake, Healesville, Moorabbin Airport) |
 | `crews` | `crew_id` PK, `station_id`, `label` (unique), `crew_type` (`light`/`heavy`/`aerial`) | Response crews. 7 seeded in `schema.sql` with fixed ids |
 | `assignments` | `assignment_id`, `incident_id`, `crew_id`, `status` (`dispatched`/`en_route`/`on_scene`/`cleared`), `updated_at` | A crew sent to an incident. A partial unique index allows one open (not `cleared`) assignment per crew. Every change is also logged in `decisions` as field `crew:<label>` |
+| `support_requests` | `id`, `incident_id`, `crew_id`, `crew_type` (null = any), `note` (≤ 500), `status` (`open`/`fulfilled`/`dismissed`), `created_at` | A crew on scene asking for more help. Dispatching a crew to the incident fulfils it; the incident leaving `live` dismisses it |
 | `comments` | `id`, `incident_id`, `author`, `body` (1–1000 chars), `created_at` | Comments on an incident from coordinators (and crews, later). Append-only: no edit or delete. Indexed on `(incident_id, created_at)` |
 
 Not yet in the schema, but required: the separate gate confidence figure.
@@ -55,7 +56,7 @@ Not yet in the schema, but required: the separate gate confidence figure.
 
 - `schema.sql` is the only migration. It creates the table if missing and then runs re-runnable `ALTER`s that bring an older database up to date.
 - Both CI (on every PR) and the deploy workflow run it against `DATABASE_URL`.
-- CI applies `schema.sql` to the staging database; prod gets it during the deploy, just before the new code goes live. Keep changes additive so the old code keeps working for those few minutes. See D-30 and [deployment §4](deployment-and-operations.md#4-database-changes).
+- **Caution: CI and prod share one database.** A schema change is applied to prod as soon as a PR opens, before the code that expects it is deployed. Keep changes additive so the running code keeps working. See D-32 and [deployment §4](deployment-and-operations.md#4-database-changes-known-hazard).
 
 ## 3. Image storage
 

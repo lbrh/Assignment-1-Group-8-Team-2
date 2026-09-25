@@ -63,7 +63,7 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 |---|---|---|
 | GET | `/` | Liveness `{status: "ok"}` |
 | GET | `/health` | Readiness, checks the database |
-| POST | `/ingest` | Multipart: `image` (≤ 15 MB), `source_type` (`drone`/`cctv`/`citizen`/`satellite`), `latitude`, `longitude`, `timestamp`, optional `incident_id`. 201 with the new (or existing duplicate) record. |
+| POST | `/ingest` | Multipart: `image` (≤ 15 MB), `source_type` (`drone`/`cctv`/`citizen`/`satellite`/`crew`), `latitude`, `longitude`, `timestamp`, optional `incident_id`. 201 with the new (or existing duplicate) record. |
 | GET | `/incidents?minLat&maxLat&minLon&maxLon` | Records inside a map viewport (latest image per incident), each with the incident's `dispatchState` |
 | GET | `/incidents/:incidentId` | Every image record in an incident, newest first, with `dispatchState` |
 | GET | `/order` | All records by `priority_rank`, nulls last |
@@ -76,6 +76,9 @@ All routes except `/` and `/health` need an `x-api-key` header whose value is li
 | GET | `/crews` | Every crew with its station and open assignment (`null` = available), by label. **`frontend` caller only.** |
 | POST | `/incidents/:incidentId/assignments` | `{ crewIds, by }` (1–10 crews) sends crews and sets the incident `live`, all or nothing. 201 with the assignments; 409 if a crew is already out; 400 for an unknown crew. **`frontend` caller only.** |
 | PATCH | `/assignments/:assignmentId` | `{ status, by }`: `en_route`, `on_scene` (one step forward at a time) or `cleared` (recall). 409 for an out-of-order step. Clearing the last crew on a live incident sets it back to `awaiting`. **`frontend` caller only.** |
+| POST | `/incidents/:incidentId/support-requests` | `{ crewId, crewType?, note?, by }`: a crew assigned to the incident asks for more help. 201; 409 if the crew isn't on it. **`frontend` caller only.** |
+| GET | `/support-requests` | Open support requests, newest first, with the asking crew's label. **`frontend` caller only.** |
+| PATCH | `/support-requests/:id` | `{ status, by }`, status `fulfilled` or `dismissed`. **`frontend` caller only.** |
 | POST | `/incidents/:incidentId/comments` | `{ body, by }` adds a comment (1–1000 chars, trimmed). 201 with the comment; 404 for an unknown incident. Append-only. **`frontend` caller only.** |
 
 Cross-cutting:

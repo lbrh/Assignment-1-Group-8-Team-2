@@ -1,4 +1,4 @@
-/** Single source of truth for the six top-level tab routes, used by the header (tab list +
+/** Single source of truth for the top-level tab routes, used by the header (tab list +
  * active-tab highlight), the last-visited-tab tracker, and any click-through page (such as
  * incident detail) that needs to know which tab it was reached from. */
 export const TABS = [
@@ -8,6 +8,8 @@ export const TABS = [
   { href: "/resolved", label: "Resolved", short: "Resolved", backLabel: "Back to resolved" },
   { href: "/archive", label: "Archive", short: "Archive", backLabel: "Back to archive" },
   { href: "/submit", label: "Submit image", short: "Submit", backLabel: "Back to submit image" },
+  // what a response crew sees, for the demo; in a real deployment crews would log in to this alone
+  { href: "/crew", label: "Crew", short: "Crew", backLabel: "Back to crew" },
 ] as const;
 
 export type TabHref = (typeof TABS)[number]["href"];

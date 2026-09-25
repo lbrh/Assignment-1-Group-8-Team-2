@@ -15,7 +15,6 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
   const router = useRouter();
   const tick = useIncidentStore((s) => s.clockTick);
   const openCrewPicker = useIncidentStore((s) => s.openCrewPicker);
-  const markExtinguished = useIncidentStore((s) => s.markExtinguished);
   const isLive = incident.dispatch === "live";
   const isNext = rank === 1;
 
@@ -99,9 +98,10 @@ export function DispatchRow({ incident, rank }: { incident: Incident; rank: numb
         </span>
       </div>
       <div className="dr-action" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ justifySelf: "end" }}>
+        {/* only crews close a fire (Crew tab); the coordinator can send more help */}
         {isLive ? (
-          <Button variant="secondary" small ack onClick={() => markExtinguished(incident.id)}>
-            Mark extinguished
+          <Button variant="secondary" small onClick={() => openCrewPicker(incident.id)}>
+            Add crew
           </Button>
         ) : (
           <Button variant={isNext ? "primary" : "secondary"} small onClick={() => openCrewPicker(incident.id)}>

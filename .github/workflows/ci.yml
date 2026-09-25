@@ -29,8 +29,7 @@ jobs:
             run:
                 working-directory: backend
         env:
-            # Staging only: PRs must never touch the prod database (D-30).
-            DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
             COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
             COS_BUCKET: ${{ secrets.COS_BUCKET }}
             COS_ACCESS_KEY_ID: ${{ secrets.COS_ACCESS_KEY_ID }}

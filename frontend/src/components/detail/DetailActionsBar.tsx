@@ -9,16 +9,15 @@ export function DetailActionsBar({ incident }: { incident: Incident }) {
   const router = useRouter();
   const openCrewPicker = useIncidentStore((s) => s.openCrewPicker);
   const cancelDispatch = useIncidentStore((s) => s.cancelDispatch);
-  const markExtinguished = useIncidentStore((s) => s.markExtinguished);
   const sendToManualReview = useIncidentStore((s) => s.sendToManualReview);
   const archiveIncident = useIncidentStore((s) => s.archiveIncident);
 
   const isFlagged = incident.flag === "flagged_review";
   const isLive = incident.dispatch === "live";
   const isExtinguished = incident.dispatch === "extinguished";
-  // one slot walks the lifecycle: dispatch -> mark extinguished -> archive
+  // one slot walks the lifecycle: dispatch -> (the crew marks it extinguished) -> archive
   const primary = isLive
-    ? { label: "Mark extinguished", run: () => markExtinguished(incident.id), ack: true }
+    ? null
     : isExtinguished
       ? { label: "Archive", run: () => archiveIncident(incident.id), ack: true }
       : incident.dispatch === "archived"

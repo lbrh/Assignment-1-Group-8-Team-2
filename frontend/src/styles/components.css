@@ -608,6 +608,19 @@ textarea.input {
   border-color: var(--ok-border);
 }
 
+.support-chip {
+  flex: 0 1 auto;
+  max-width: 100%;
+  height: auto;
+  min-height: 22px;
+  padding-block: 2px;
+  white-space: normal;
+  color: var(--accent-fg);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
 .crew-chip__age {
   font-weight: 400;
 }

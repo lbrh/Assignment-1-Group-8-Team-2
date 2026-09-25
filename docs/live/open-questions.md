@@ -12,7 +12,7 @@
 |---|---|---|---|
 | Q1 | Sign off the 2026-09-24 rubric (people proximity dropped, vegetation and infrastructure as amounts, vegetation gated on fire) | Aryaveer, client | D-17 to D-19 |
 | Q2 | Adopt the fire-gate target (≥ 98% fire recall, asymmetric 0.95 non-fire threshold)? | Aryaveer, client | D-25 |
-| Q5 | Extinguished: model label or coordinator action? What if both disagree? | Aryaveer, Benjamin | Carried from Sprint 1 |
+| Q4 | Give CI its own database again? | Dev | Tried with a staging database (D-30), dropped (D-32). Until then schema changes stay additive |
 | Q6 | Satellite images: same visual rubric or a separate scoring path? | Aryaveer | Schema is source-agnostic either way |
 | Q7 | Real operating region and geotag accuracy tolerance | Client | Victoria bounding box is a placeholder |
 | Q8 | Delete the prod test records and unused registry images | Liam | See deployment doc §5–6 |

@@ -5,7 +5,10 @@ import type {
     Assignment,
     AssignmentStatus,
     Comment,
+    CrewType,
     CrewWithAssignment,
+    SupportRequest,
+    SupportRequestStatus,
     CoordinatorPatch,
     Decision,
     DispatchState,
@@ -322,6 +325,7 @@ async function applyDispatchState(client: PoolClient, incidentId: string, state:
     for (const row of cleared.rows) {
         await logDecision(client, { incidentId, imageId: null, field: `crew:${row.label}`, from: row.previous, to: 'cleared', by });
     }
+    await client.query(`UPDATE support_requests SET status = 'dismissed' WHERE incident_id = $1 AND status = 'open'`, [incidentId]);
 }
 
 export async function findDecisions(incidentId: string): Promise<Decision[]> {
@@ -444,6 +448,8 @@ export async function assignCrews(incidentId: string, crewIds: string[], by: str
             await logDecision(client, { incidentId, imageId: null, field: `crew:${labels.get(crewId)}`, from: null, to: 'dispatched', by });
         }
         await applyDispatchState(client, incidentId, 'live', by);
+        // another crew is on its way: that answers any open request for help
+        await client.query(`UPDATE support_requests SET status = 'fulfilled' WHERE incident_id = $1 AND status = 'open'`, [incidentId]);
         return assignments;
     });
 }
@@ -476,5 +482,65 @@ export async function setAssignmentStatus(assignmentId: number, status: Assignme
             }
         }
         return fromAssignmentRow(updated.rows[0]);
+    });
+}
+
+const SUPPORT_SELECT = `SELECT r.*, c.label AS crew_label FROM support_requests r JOIN crews c USING (crew_id)`;
+
+function fromSupportRow(row: Record<string, unknown>): SupportRequest {
+    return {
+        id: Number(row.id),
+        incidentId: row.incident_id as string,
+        crewId: row.crew_id as string,
+        crewLabel: row.crew_label as string,
+        crewType: (row.crew_type as CrewType | null) ?? null,
+        note: (row.note as string | null) ?? null,
+        status: row.status as SupportRequestStatus,
+        createdAt: toIso(row.created_at),
+    };
+}
+
+// A crew asks for more help at its incident. Only a crew assigned there may ask; returns
+// undefined for an unknown incident, throws ConflictError for a crew that isn't on it.
+export async function createSupportRequest(
+    incidentId: string,
+    crewId: string,
+    crewType: CrewType | null,
+    note: string | null,
+    by: string,
+): Promise<SupportRequest | undefined> {
+    return inTransaction(async (client) => {
+        if (!(await incidentExists(client, incidentId))) return undefined;
+        const onScene = await client.query(
+            `SELECT 1 FROM assignments WHERE incident_id = $1 AND crew_id = $2 AND status <> 'cleared'`,
+            [incidentId, crewId],
+        );
+        if (onScene.rowCount === 0) throw new ConflictError('only a crew assigned to this incident can request support');
+        const { rows } = await client.query(
+            `WITH r AS (INSERT INTO support_requests (incident_id, crew_id, crew_type, note) VALUES ($1, $2, $3, $4) RETURNING *)
+             SELECT r.*, c.label AS crew_label FROM r JOIN crews c USING (crew_id)`,
+            [incidentId, crewId, crewType, note],
+        );
+        await logDecision(client, { incidentId, imageId: null, field: 'supportRequest', from: null, to: crewType ?? 'any crew', by });
+        return fromSupportRow(rows[0]);
+    });
+}
+
+export async function findOpenSupportRequests(): Promise<SupportRequest[]> {
+    const { rows } = await pool.query(`${SUPPORT_SELECT} WHERE r.status = 'open' ORDER BY r.created_at DESC, r.id DESC`);
+    return rows.map(fromSupportRow);
+}
+
+// The coordinator dismisses a request (or marks it fulfilled by hand). Returns undefined for an unknown id.
+export async function setSupportRequestStatus(id: number, status: Exclude<SupportRequestStatus, 'open'>, by: string): Promise<SupportRequest | undefined> {
+    return inTransaction(async (client) => {
+        const { rows } = await client.query(`${SUPPORT_SELECT} WHERE r.id = $1 FOR UPDATE OF r`, [id]);
+        if (!rows[0]) return undefined;
+        const current = fromSupportRow(rows[0]);
+        if (current.status === status) return current;
+        if (current.status !== 'open') throw new ConflictError(`this request is already ${current.status}`);
+        await client.query('UPDATE support_requests SET status = $2 WHERE id = $1', [id, status]);
+        await logDecision(client, { incidentId: current.incidentId, imageId: null, field: 'supportRequest', from: 'open', to: status, by });
+        return { ...current, status };
     });
 }

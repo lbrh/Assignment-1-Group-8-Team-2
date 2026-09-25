@@ -3,7 +3,7 @@ import * as metadataRepository from '../metadata/metadata.repository.ts';
 import { requireCaller } from '../middleware/api-key.middleware.ts';
 import { ValidationError } from '../pipeline/validate.ts';
 import { logger, errorMeta } from '../utils/logger.ts';
-import type { AssignmentStatus, ClassificationLabel, CoordinatorPatch, DispatchState } from '../metadata/metadata.types.ts';
+import type { AssignmentStatus, ClassificationLabel, CoordinatorPatch, CrewType, DispatchState } from '../metadata/metadata.types.ts';
 
 // Coordinator actions (Sprint 2 §5): review confirm/change/discard, severity override, dispatch,
 // extinguish/reopen, and the decision log behind every one of them. Undo is just another call
@@ -15,8 +15,11 @@ const LABELS = new Set<ClassificationLabel>(['fire', 'non_fire', 'extinguished',
 const REVIEW_STATUSES = new Set(['assessed', 'unable_to_assess']);
 const DISPATCH_STATES = new Set<DispatchState>(['awaiting', 'live', 'extinguished', 'archived']);
 const ASSIGNMENT_STATUSES = new Set<AssignmentStatus>(['dispatched', 'en_route', 'on_scene', 'cleared']);
-const ASSIGNMENT_ID = /^\d{1,18}$/;
+// assignment and support-request ids: BIGSERIAL
+const SERIAL_ID = /^\d{1,18}$/;
 const MAX_CREWS_PER_DISPATCH = 10;
+const CREW_TYPES = new Set<CrewType>(['light', 'heavy', 'aerial']);
+const MAX_SUPPORT_NOTE = 500;
 
 // ponytail: "who" is whatever the frontend sends until user auth exists — it's recorded, not verified.
 function parseBy(body: Record<string, unknown>): string {
@@ -84,6 +87,20 @@ export function parseCrewIds(body: unknown): { crewIds: string[]; by: string } {
         throw new ValidationError(`crewIds must be 1-${MAX_CREWS_PER_DISPATCH} distinct crew ids`);
     }
     return { crewIds: ids as string[], by: parseBy(b) };
+}
+
+export function parseSupportRequest(body: unknown): { crewId: string; crewType: CrewType | null; note: string | null; by: string } {
+    if (typeof body !== 'object' || body === null) throw new ValidationError('request body must be a JSON object');
+    const b = body as Record<string, unknown>;
+    if (typeof b.crewId !== 'string' || !UUID.test(b.crewId)) throw new ValidationError('crewId is required: the crew asking');
+    const crewType = b.crewType ?? null;
+    if (crewType !== null && !CREW_TYPES.has(crewType as CrewType)) {
+        throw new ValidationError(`crewType must be one of ${[...CREW_TYPES].join(', ')} or null (any)`);
+    }
+    const note = typeof b.note === 'string' && b.note.trim() !== '' ? b.note.trim() : null;
+    if (b.note != null && typeof b.note !== 'string') throw new ValidationError('note must be text');
+    if (note && note.length > MAX_SUPPORT_NOTE) throw new ValidationError(`note is too long (max ${MAX_SUPPORT_NOTE} chars)`);
+    return { crewId: b.crewId, crewType: crewType as CrewType | null, note, by: parseBy(b) };
 }
 
 // `:id` is checked against `idPattern` (incident and image ids are UUIDs, assignment ids are numbers).
@@ -218,5 +235,46 @@ coordinatorRouter.patch(
             return;
         }
         res.json(updated);
-    }, ASSIGNMENT_ID),
+    }, SERIAL_ID),
+);
+
+// A crew on the incident asks for more help. 409 if the crew isn't assigned there.
+coordinatorRouter.post(
+    '/incidents/:id/support-requests',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        const { crewId, crewType, note, by } = parseSupportRequest(req.body);
+        const request = await metadataRepository.createSupportRequest(req.params.id, crewId, crewType, note, by);
+        if (!request) {
+            res.status(404).json({ error: 'incident not found' });
+            return;
+        }
+        res.status(201).json(request);
+    }),
+);
+
+// Open support requests, newest first: the coordinator's alerts.
+coordinatorRouter.get(
+    '/support-requests',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        res.json(await metadataRepository.findOpenSupportRequests());
+    }),
+);
+
+coordinatorRouter.patch(
+    '/support-requests/:id',
+    requireCaller('frontend'),
+    handle(async (req, res) => {
+        const body = (req.body ?? {}) as Record<string, unknown>;
+        if (body.status !== 'fulfilled' && body.status !== 'dismissed') {
+            throw new ValidationError('status must be fulfilled or dismissed');
+        }
+        const updated = await metadataRepository.setSupportRequestStatus(Number(req.params.id), body.status, parseBy(body));
+        if (!updated) {
+            res.status(404).json({ error: 'support request not found' });
+            return;
+        }
+        res.json(updated);
+    }, SERIAL_ID),
 );

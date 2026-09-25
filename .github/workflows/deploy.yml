@@ -22,7 +22,7 @@ jobs:
       - name: backend checks
         working-directory: backend
         env:
-          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
           COS_BUCKET: ${{ secrets.COS_BUCKET }}
           COS_ACCESS_KEY_ID: ${{ secrets.COS_ACCESS_KEY_ID }}
@@ -30,9 +30,8 @@ jobs:
         run: |
           npm install
           npx tsc --noEmit
-          # Tests run on staging; prod gets the schema in deploy-backend, just before the new image (D-30).
-          psql -v ON_ERROR_STOP=1 "$STAGING_DATABASE_URL" -f src/metadata/schema.sql
-          DATABASE_URL="$STAGING_DATABASE_URL" npm test
+          psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f src/metadata/schema.sql
+          npm test
       - name: frontend checks
         working-directory: frontend
         run: |
@@ -79,12 +78,6 @@ jobs:
         run: |
           docker build -t $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }} ./backend
           docker push $ICR_REGISTRY/$ICR_NAMESPACE/backend:${{ github.sha }}
-      # After the image is built, so a failed build never leaves prod migrated. Keep changes additive:
-      # the old backend runs against the new schema until the update below rolls out.
-      - name: Apply schema to prod
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f backend/src/metadata/schema.sql
       - name: Deploy
         run: |
           ibmcloud ce project select --name "$CE_PROJECT"

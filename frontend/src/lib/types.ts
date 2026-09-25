@@ -13,7 +13,8 @@
  */
 
 // Mirrors backend/src/metadata/metadata.types.ts (the JSON the API actually returns). Keep the two in sync.
-export type SourceType = "drone" | "cctv" | "citizen" | "satellite";
+/** crew = a photo a response crew uploads from the fire (Crew tab). */
+export type SourceType = "drone" | "cctv" | "citizen" | "satellite" | "crew";
 
 export type AssessmentStatus = "assessed" | "unable_to_assess" | "pending_review";
 
@@ -146,6 +147,17 @@ export interface Crew {
   type: CrewType;
   station: { name: string; coords: { lat: number; lng: number } };
   assignment: CrewAssignment | null;
+}
+
+/** A crew on scene asking for more help. crewType null = any crew. */
+export interface SupportRequest {
+  id: string;
+  incidentId: string;
+  crewId: string;
+  crewLabel: string;
+  crewType: CrewType | null;
+  note: string | null;
+  createdAtIso: string;
 }
 
 /** A comment on an incident. Permanent: comments are never edited or deleted. */

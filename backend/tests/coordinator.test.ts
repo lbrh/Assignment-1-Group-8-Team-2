@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseComment, parseCoordinatorPatch, parseCrewIds } from '../src/routes/coordinator.routes.ts';
+import { parseComment, parseCoordinatorPatch, parseCrewIds, parseSupportRequest } from '../src/routes/coordinator.routes.ts';
 import { canMoveAssignment } from '../src/metadata/metadata.repository.ts';
 import { ValidationError } from '../src/pipeline/validate.ts';
 
@@ -64,4 +64,24 @@ test('a crew moves forward one step at a time and can be cleared until it is', (
     assert.equal(canMoveAssignment('dispatched', 'on_scene'), false, 'no skipping en route');
     assert.equal(canMoveAssignment('on_scene', 'en_route'), false, 'no going backwards');
     assert.equal(canMoveAssignment('cleared', 'dispatched'), false, 'a cleared assignment is finished');
+});
+
+test('a support request names the crew, an optional crew type and an optional note', () => {
+    const crew = 'c0000000-0000-4000-8000-000000000002';
+    assert.deepEqual(parseSupportRequest({ crewId: crew, crewType: 'heavy', note: '  eastern flank  ', by: 'Kinglake Heavy 1' }), {
+        crewId: crew,
+        crewType: 'heavy',
+        note: 'eastern flank',
+        by: 'Kinglake Heavy 1',
+    });
+    assert.deepEqual(parseSupportRequest({ crewId: crew, note: ' ', by: 'K' }), { crewId: crew, crewType: null, note: null, by: 'K' });
+    for (const body of [
+        { crewType: 'heavy', by: 'K' },
+        { crewId: crew, crewType: 'tanker', by: 'K' },
+        { crewId: crew, note: 'x'.repeat(501), by: 'K' },
+        { crewId: crew, note: 5, by: 'K' },
+        { crewId: crew },
+    ]) {
+        assert.throws(() => parseSupportRequest(body), ValidationError, JSON.stringify(body));
+    }
 });

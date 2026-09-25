@@ -1,6 +1,6 @@
 # Live Dispatch and Response Crews
 
-**Status:** Live. Feature spec, agreed 2026-09-25, not yet built.
+**Status:** Live. Built on `feature/dispatch-teams` (all four phases), 2026-09-25.
 **Owner:** Liam Robinson Hounsell
 **Last updated:** 2026-09-25
 
@@ -41,11 +41,11 @@ Goals:
 - Incident detail gets a **Crews** section while the fire is live: each crew with its status, a recall button (✕), and **Add crew**, which opens the same picker.
 - Later: a **Crews** panel listing every crew with its status, station and current incident.
 - Incident detail gets a live **Activity** feed: comments and decisions (later, crew status changes and reports) in one timeline, newest first, with a comment box above it.
-- **Support requests** from crews appear in the header alerts panel and as a badge on the incident. The coordinator responds by dispatching another crew or by dismissing the request.
+- **Support requests** from crews appear as a toast, as a card in the map's **Alerts** panel (Dispatch crew / Dismiss) and as a chip beside the crews on the incident. Dispatching another crew to the incident fulfils the request; a fire that stops being live dismisses what's still open.
 
 ### Response crew (new **Crew** tab in the header, `/crew`)
 
-- For the demo, the Crew tab shows what a crew would see. A crew switcher at the top picks which crew you are viewing as. In a real product each crew would have its own login, but login is out of scope.
+- For the demo, the Crew tab shows what a crew would see. A crew switcher at the top picks which crew you are viewing as (remembered per browser). In a real product each crew would have its own login, but login is out of scope. While a crew is picked, every action from this browser is recorded as that crew (`setActor`).
 - The screen shows the crew's **current assignment**: place, severity, latest image and a directions link.
 - Big status buttons, in order: **En route → On scene**.
 - On-scene actions:
@@ -53,8 +53,8 @@ Goals:
     - **False alarm**
     - **Update severity** (1–4)
     - **Request support**, with a crew type and a short note
-    - **Add photo**, using the phone camera (`<input type="file" accept="image/*" capture>`)
-- The same live activity feed and comment box as the coordinator.
+- Any time while assigned: **Add photo** (phone camera, `<input type="file" accept="image/*" capture>`), the other crews on the fire, and the same live Activity feed and comment box as the coordinator.
+- Photos are filed on the incident at its coordinates, time-stamped now, with `source_type` `crew`. They go through the AI pipeline like any other image, so the newest one rates the fire.
 
 ## 4. Stations and crews
 
@@ -110,10 +110,11 @@ Most crew actions reuse endpoints that already exist. Every action is also writt
 | En route / On scene | Crew | `PATCH /assignments/:id` `{status}` | New |
 | Recall crew | Coordinator | `PATCH /assignments/:id` `{status: cleared}`. Recalling the last crew puts the incident back to `awaiting`. | New |
 | Mark extinguished | Crew only | Clears every assignment on the incident, `PUT /incidents/:id/dispatch` → `extinguished` | Reuse |
-| False alarm | Crew only | `PATCH /images/:id/decision` `{classificationLabelOverride: non_fire}` on the latest image, then clears every assignment | Reuse |
+| False alarm | Crew only | `PATCH /images/:id/decision` `{classificationLabelOverride: non_fire}` on the latest image, then `PUT /incidents/:id/dispatch` → `archived`, which clears every assignment. Undo restores both. | Reuse |
 | Reopen (re-ignition) | Coordinator | Existing reopen → `live`. A crew has to be dispatched again. | Reuse |
 | Update severity | Crew or coordinator | `PATCH /images/:id/decision` `{severityScoreOverride}` on the latest image | Reuse |
-| Request support | Crew | `POST /incidents/:id/support-requests` `{crewType, note}` | New |
+| Request support | Crew | `POST /incidents/:id/support-requests` `{crewId, crewType, note}`. 409 unless the crew is assigned to that incident. | New |
+| Support alerts | Coordinator | `GET /support-requests` (open, newest first, polled); `PATCH /support-requests/:id` `{status: dismissed}` | New |
 | Comment | Both | `POST /incidents/:id/comments` `{body}` | New |
 | Upload photo | Crew | `/ingest` with `incident_id`, `source_type` = new value `crew` | Reuse + one enum value |
 
@@ -191,7 +192,7 @@ CREATE TABLE IF NOT EXISTS support_requests (
 );
 ```
 
-Assignment status changes are also written to `decisions`, so the audit trail stays in one place. The 3 stations and 7 crews are seeded at the end of `schema.sql` with fixed ids (`ON CONFLICT DO NOTHING`), so staging and prod get them on the next deploy. There's no UI for managing crews.
+Assignment status changes are also written to `decisions`, so the audit trail stays in one place. The 3 stations and 7 crews are seeded at the end of `schema.sql` with fixed ids (`ON CONFLICT DO NOTHING`), so every database gets them the next time `schema.sql` runs (CI or deploy). There's no UI for managing crews.
 
 One rule lives in the backend's dispatch helper, which every dispatch change goes through: when an incident stops being `live` (cancelled, extinguished, archived), every crew still on it is cleared and logged. No crew can stay stuck on a finished fire.
 
@@ -235,7 +236,7 @@ The work is split into four PRs. Each one works on its own.
 | 1 | Split the rate limit (600 reads / 60 writes per minute). Add the image gallery and each image's rating to incident detail. | S |
 | 2 | Comments table and endpoints, 5 s polling, and the Activity feed (comments + decisions) on incident detail | M |
 | 3 | `stations`, `crews` and `assignments` tables with seeded crews, the crew picker (Dispatch order and incident detail), crew chips with recall on Live rows, and a Crews section on incident detail | M |
-| 4 | Crew tab (`/crew`): status buttons, extinguish, false alarm, severity, photo upload, support requests and alerts | L |
+| 4 | Crew tab (`/crew`): status buttons, extinguish, false alarm, severity, photo upload, support requests and alerts; the coordinator's Mark extinguished removed | L |
 
 Out of scope:
 

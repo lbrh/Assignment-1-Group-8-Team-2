@@ -1,6 +1,16 @@
 import { normalizeIncident } from "@/lib/normalize";
-import type { ApiIncidentRecord, Crew, DecisionLogEntry, Incident, IncidentComment, SeverityBand, SourceType } from "@/lib/types";
-import { COORDINATOR_NAME } from "../real/api";
+import type {
+  ApiIncidentRecord,
+  Crew,
+  CrewType,
+  DecisionLogEntry,
+  Incident,
+  IncidentComment,
+  SeverityBand,
+  SourceType,
+  SupportRequest,
+} from "@/lib/types";
+import { currentActor } from "../real/api";
 import { seedDecisionLog, seedGroup, seedOverlay, seedRecords } from "./seed";
 
 const LATENCY_MS = 350;
@@ -52,6 +62,8 @@ export interface SubmitImagePayload {
   timestamp?: string;
   sourceType: SourceType;
   notes?: string;
+  /** Adds the photo to this incident instead of grouping it by location (crew uploads). */
+  incidentId?: string;
   /** Demo-only hook so the four "Demo:" buttons on Submit can force a specific outcome. */
   demoOutcome?: "valid" | "low_confidence" | "not_fire";
 }
@@ -176,10 +188,13 @@ const mockCrews: Crew[] = [
   { id: "c7", label: "Moorabbin Aerial 2", type: "aerial", station: MOORABBIN, assignment: null },
 ];
 let mockAssignmentId = 0;
+let mockSupport: SupportRequest[] = [];
+let mockSupportId = 0;
 
 /** Frees every crew on an incident: what the backend does when an incident stops being live. */
 function freeCrews(incidentId: string) {
   for (const crew of mockCrews) if (crew.assignment?.incidentId === incidentId) crew.assignment = null;
+  mockSupport = mockSupport.filter((r) => r.incidentId !== incidentId);
 }
 
 export async function getCrews(): Promise<Crew[]> {
@@ -194,7 +209,43 @@ export async function dispatchCrews(incident: Incident, crewIds: string[]): Prom
   for (const crew of crews) {
     crew.assignment = { id: `a-${++mockAssignmentId}`, incidentId: incident.id, status: "dispatched", updatedAtIso };
   }
+  mockSupport = mockSupport.filter((r) => r.incidentId !== incident.id);
   return delay({ dispatch: "live", flag: "processed" });
+}
+
+export async function setCrewStatus(assignmentId: string, status: "en_route" | "on_scene"): Promise<void> {
+  const crew = mockCrews.find((c) => c.assignment?.id === assignmentId);
+  if (crew?.assignment) crew.assignment = { ...crew.assignment, status, updatedAtIso: new Date().toISOString() };
+  return delay(undefined);
+}
+
+export async function falseAlarm(incident: Incident): Promise<Partial<Incident>> {
+  freeCrews(incident.id);
+  mockSupport = mockSupport.filter((r) => r.incidentId !== incident.id);
+  return delay({ flag: "not_a_fire", dispatch: "archived" });
+}
+
+export async function getSupportRequests(): Promise<SupportRequest[]> {
+  return delay([...mockSupport]);
+}
+
+export async function requestSupport(incidentId: string, crewId: string, crewType: CrewType | null, note: string): Promise<void> {
+  const crew = mockCrews.find((c) => c.id === crewId);
+  mockSupport.unshift({
+    id: `s-${++mockSupportId}`,
+    incidentId,
+    crewId,
+    crewLabel: crew?.label ?? crewId,
+    crewType,
+    note: note.trim() || null,
+    createdAtIso: new Date().toISOString(),
+  });
+  return delay(undefined);
+}
+
+export async function dismissSupportRequest(id: string): Promise<void> {
+  mockSupport = mockSupport.filter((r) => r.id !== id);
+  return delay(undefined);
 }
 
 export async function recallCrew(assignmentId: string): Promise<void> {
@@ -263,7 +314,7 @@ export async function getComments(incidentId: string): Promise<IncidentComment[]
 }
 
 export async function addComment(incidentId: string, body: string): Promise<IncidentComment> {
-  const comment = { id: `c-${++mockCommentId}`, incidentId, body, who: COORDINATOR_NAME, whenIso: new Date().toISOString() };
+  const comment = { id: `c-${++mockCommentId}`, incidentId, body, who: currentActor(), whenIso: new Date().toISOString() };
   mockComments.unshift(comment);
   return delay(comment);
 }

@@ -71,19 +71,21 @@ export function ActivityFeed({
               key={`${item.kind}-${item.entry.id}`}
               style={{
                 display: "flex",
+                flexWrap: "wrap", // on a phone, who and when drop below the entry instead of overflowing
                 justifyContent: "space-between",
-                gap: "var(--space-4)",
+                columnGap: "var(--space-4)",
+                rowGap: 2,
                 padding: "10px 0",
                 borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none",
               }}
             >
               {item.kind === "comment" ? (
-                <span style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg)", whiteSpace: "pre-wrap", minWidth: 0, overflowWrap: "anywhere" }}>
+                <span style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg)", whiteSpace: "pre-wrap", flex: "1 1 220px", minWidth: 0, overflowWrap: "anywhere" }}>
                   <span className="label" style={{ marginRight: "var(--space-2)" }}>Comment</span>
                   {item.entry.body}
                 </span>
               ) : (
-                <span style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
+                <span style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)", flex: "1 1 220px", minWidth: 0 }}>
                   {item.entry.summary}
                 </span>
               )}
@@ -91,6 +93,7 @@ export function ActivityFeed({
                 className="data"
                 style={{
                   flex: "none",
+                  marginLeft: "auto",
                   textAlign: "right",
                   font: "400 var(--text-2xs)/1.6 var(--font-plex-mono)",
                   color: "var(--muted)",

@@ -44,6 +44,7 @@ async function cleanup(incidentId: string) {
     await pool.query('DELETE FROM decisions WHERE incident_id = $1', [incidentId]);
     await pool.query('DELETE FROM comments WHERE incident_id = $1', [incidentId]);
     await pool.query('DELETE FROM assignments WHERE incident_id = $1', [incidentId]);
+    await pool.query('DELETE FROM support_requests WHERE incident_id = $1', [incidentId]);
     await pool.query('DELETE FROM incident_dispatch WHERE incident_id = $1', [incidentId]);
     await pool.query('DELETE FROM images WHERE incident_id = $1', [incidentId]);
 }
@@ -169,6 +170,7 @@ async function seedCrews(count: number) {
     return {
         crewIds,
         remove: async () => {
+            await pool.query('DELETE FROM support_requests WHERE crew_id = ANY($1::uuid[])', [crewIds]);
             await pool.query('DELETE FROM assignments WHERE crew_id = ANY($1::uuid[])', [crewIds]);
             await pool.query('DELETE FROM crews WHERE station_id = $1', [stationId]);
             await pool.query('DELETE FROM stations WHERE station_id = $1', [stationId]);
@@ -228,5 +230,40 @@ test('crews are dispatched, recalled and freed when the incident is extinguished
         await remove();
         await cleanup(first.incidentId);
         await cleanup(second.incidentId);
+    }
+});
+
+test('support requests: only an assigned crew asks, a new crew fulfils it, a finished fire dismisses it', async () => {
+    const { close, url } = await startServer('frontend');
+    const { incidentId } = await seedFlaggedImage();
+    const { crewIds: [onScene, backup, outsider], remove } = await seedCrews(3);
+    const open = async () =>
+        (await fetch(`${url}/support-requests`).then((r) => r.json())).filter((r: { incidentId: string }) => r.incidentId === incidentId);
+    const ask = (crewId: string) =>
+        fetch(`${url}/incidents/${incidentId}/support-requests`, json('POST', { crewId, crewType: 'heavy', note: 'eastern flank', by: 'Crew' }));
+    try {
+        await fetch(`${url}/incidents/${incidentId}/assignments`, json('POST', { crewIds: [onScene], by: 'EC' }));
+        assert.equal((await ask(outsider)).status, 409, 'a crew not on the incident cannot ask');
+
+        assert.equal((await ask(onScene)).status, 201);
+        const [request] = await open();
+        assert.deepEqual([request.crewType, request.note, request.status], ['heavy', 'eastern flank', 'open']);
+
+        // dispatching another crew answers it
+        await fetch(`${url}/incidents/${incidentId}/assignments`, json('POST', { crewIds: [backup], by: 'EC' }));
+        assert.equal((await open()).length, 0);
+
+        // a dismissed request leaves the alerts; a finished fire dismisses what's still open
+        await ask(onScene);
+        const [second] = await open();
+        assert.equal((await fetch(`${url}/support-requests/${second.id}`, json('PATCH', { status: 'dismissed', by: 'EC' }))).status, 200);
+        assert.equal((await open()).length, 0);
+        await ask(onScene);
+        await fetch(`${url}/incidents/${incidentId}/dispatch`, json('PUT', { state: 'extinguished', by: 'Crew' }));
+        assert.equal((await open()).length, 0);
+    } finally {
+        close();
+        await cleanup(incidentId);
+        await remove();
     }
 });

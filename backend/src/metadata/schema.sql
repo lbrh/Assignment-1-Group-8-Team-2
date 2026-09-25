@@ -139,3 +139,20 @@ INSERT INTO crews (crew_id, station_id, label, crew_type) VALUES
     ('c0000000-0000-4000-8000-000000000006', '5a000000-0000-4000-8000-000000000003', 'Moorabbin Aerial 1', 'aerial'),
     ('c0000000-0000-4000-8000-000000000007', '5a000000-0000-4000-8000-000000000003', 'Moorabbin Aerial 2', 'aerial')
 ON CONFLICT (crew_id) DO NOTHING;
+
+-- 'crew' source added with the Crew tab: photos a response crew uploads from the fire. Re-runnable.
+ALTER TABLE images DROP CONSTRAINT IF EXISTS images_source_type_check;
+ALTER TABLE images ADD CONSTRAINT images_source_type_check CHECK (source_type IN ('drone', 'cctv', 'citizen', 'satellite', 'crew'));
+
+-- A crew on scene asking for more help. Fulfilled when another crew is dispatched to the incident,
+-- dismissed by the coordinator or when the fire stops being live.
+CREATE TABLE IF NOT EXISTS support_requests (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id UUID NOT NULL,
+    crew_id UUID NOT NULL REFERENCES crews,
+    crew_type TEXT CHECK (crew_type IN ('light', 'heavy', 'aerial')),
+    note TEXT CHECK (length(note) <= 500),
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'fulfilled', 'dismissed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS support_requests_open_idx ON support_requests (incident_id) WHERE status = 'open';
