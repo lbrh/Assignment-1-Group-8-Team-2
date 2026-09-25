@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import type { Incident } from "@/lib/types";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { distanceKm } from "@/lib/utils/geo";
@@ -79,7 +80,17 @@ function PickerForm({ incident, onDone }: { incident: Incident; onDone: () => vo
 
       {available.length === 0 ? (
         <p style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
-          {crews.length === 0 ? "Loading crews…" : "Every crew is out. Recall one from another incident first."}
+          {crews.length === 0 ? (
+            "Loading crews…"
+          ) : (
+            <>
+              Every crew is out. Recall one from another fire on the{" "}
+              <Link href="/crews" onClick={onDone}>
+                Crews page
+              </Link>
+              .
+            </>
+          )}
         </p>
       ) : (
         <fieldset style={{ border: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
@@ -108,7 +119,10 @@ function PickerForm({ incident, onDone }: { incident: Incident; onDone: () => vo
       )}
       {busy > 0 ? (
         <p className="caption">
-          {busy} {busy === 1 ? "crew is" : "crews are"} already out on other incidents.
+          {busy} {busy === 1 ? "crew is" : "crews are"} already out on other incidents.{" "}
+          <Link href="/crews" onClick={onDone}>
+            See all crews
+          </Link>
         </p>
       ) : null}
 

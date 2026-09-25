@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { getViewingCrew, setViewingCrew } from "@/lib/utils/viewingCrew";
 import { COORDINATOR_NAME, setActor } from "@/lib/data-source";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { usePoll } from "@/lib/hooks/usePoll";
@@ -15,24 +17,14 @@ import { IncidentImage } from "@/components/detail/IncidentImage";
 import { ActivityFeed } from "@/components/detail/ActivityFeed";
 import { AssignedCrews } from "@/components/dispatch/AssignedCrews";
 
-// Which crew this browser is viewing as. Per-browser convenience only: it stands in for a login.
-const CREW_KEY = "embera.crewId";
 const EMPTY_LOGS: DecisionLogEntry[] = [];
 const EMPTY_COMMENTS: IncidentComment[] = [];
-
-function readSavedCrew(): string | null {
-  try {
-    return localStorage.getItem(CREW_KEY);
-  } catch {
-    return null;
-  }
-}
 
 /** What a response crew sees on their phone: their assignment, the next status step, on-scene
  * actions, photos and the incident's shared activity. Every action is recorded as the crew. */
 export default function CrewPage() {
   const crews = useIncidentStore((s) => s.crews);
-  const [crewId, setCrewId] = useState<string | null>(readSavedCrew);
+  const [crewId, setCrewId] = useState<string | null>(getViewingCrew);
   const crew = crews.find((c) => c.id === crewId) ?? null;
   const incident = useIncidentStore((s) => (crew?.assignment ? s.incidents[crew.assignment.incidentId] : undefined));
 
@@ -45,17 +37,16 @@ export default function CrewPage() {
 
   function pickCrew(id: string) {
     setCrewId(id || null);
-    try {
-      localStorage.setItem(CREW_KEY, id);
-    } catch {
-      // private window: the choice just isn't remembered
-    }
+    setViewingCrew(id);
   }
 
   return (
     <div className="page" style={{ maxWidth: 640, display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-        <h1 className="page-title">Crew</h1>
+        <Link href="/crews" className="btn btn--link" style={{ alignSelf: "flex-start", fontSize: "var(--text-xs)" }}>
+          <span aria-hidden>‹</span> All crews
+        </Link>
+        <h1 className="page-title">Crew view</h1>
         <p className="page-lede">
           What a response crew sees on their phone. Each crew would log in; for the demo, pick which crew you&apos;re viewing as.
         </p>

@@ -8,8 +8,8 @@ export const TABS = [
   { href: "/resolved", label: "Resolved", short: "Resolved", backLabel: "Back to resolved" },
   { href: "/archive", label: "Archive", short: "Archive", backLabel: "Back to archive" },
   { href: "/submit", label: "Submit image", short: "Submit", backLabel: "Back to submit image" },
-  // what a response crew sees, for the demo; in a real deployment crews would log in to this alone
-  { href: "/crew", label: "Crew", short: "Crew", backLabel: "Back to crew" },
+  // every crew and where it is; each links to the crew's own view (/crew), which stays under this tab
+  { href: "/crews", label: "Crews", short: "Crews", backLabel: "Back to crews" },
 ] as const;
 
 export type TabHref = (typeof TABS)[number]["href"];

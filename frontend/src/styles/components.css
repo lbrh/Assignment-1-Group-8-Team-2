@@ -665,6 +665,28 @@ textarea.input {
   background: var(--panel);
 }
 
+/* ---------- crews roster ---------- */
+
+.crews-station {
+  padding: 10px var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.crews-row {
+  display: flex;
+  flex-wrap: wrap; /* phone: name, status + fire, actions stack */
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.crews-row:last-child {
+  border-bottom: none;
+}
+
 /* ---------- honest image placeholder ---------- */
 
 .image-slot {
