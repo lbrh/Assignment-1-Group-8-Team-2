@@ -52,7 +52,7 @@ Not yet in the schema, but required: the separate gate confidence figure.
 
 - `schema.sql` is the only migration. It creates the table if missing and then runs re-runnable `ALTER`s that bring an older database up to date.
 - Both CI (on every PR) and the deploy workflow run it against `DATABASE_URL`.
-- **Caution: CI and prod currently share one database.** A schema change is applied to prod as soon as a PR opens, before the code that expects it is deployed. This broke live uploads on 2026-09-24, when a PR dropped `structure_people_proximity` while prod still wrote to it. Give CI its own database (for example a Neon branch) before the next schema change. See D-24.
+- CI applies `schema.sql` to the staging database; prod gets it during the deploy, just before the new code goes live. Keep changes additive so the old code keeps working for those few minutes. See D-30 and [deployment §4](deployment-and-operations.md#4-database-changes).
 
 ## 3. Image storage
 

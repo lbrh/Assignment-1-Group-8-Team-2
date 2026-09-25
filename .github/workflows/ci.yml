@@ -29,7 +29,8 @@ jobs:
             run:
                 working-directory: backend
         env:
-            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            # Staging only: PRs must never touch the prod database (D-30).
+            DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
             COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
             COS_BUCKET: ${{ secrets.COS_BUCKET }}
             COS_ACCESS_KEY_ID: ${{ secrets.COS_ACCESS_KEY_ID }}
@@ -43,6 +44,6 @@ jobs:
             - run: npx tsc --noEmit
             - name: apply schema to test database
               if: ${{ env.DATABASE_URL != '' }}
-              run: npx --yes -p pg psql "$DATABASE_URL" -f src/metadata/schema.sql
+              run: psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f src/metadata/schema.sql
             - run: npm test
               if: ${{ env.DATABASE_URL != '' }}
