@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { relativeTime } from "@/lib/utils/time";
+import { crewAsk } from "@/lib/constants/crews";
 import { Button } from "@/components/primitives/Button";
 
 /** Open requests for more help from crews on scene. Dispatching another crew to the incident
@@ -29,7 +30,7 @@ export function SupportRequestAlerts() {
               </span>
             </div>
             <p style={{ font: "400 var(--text-sm)/1.5 var(--font-plex-sans)", color: "var(--fg-2)" }}>
-              {r.crewLabel} asks for {r.crewType ? `a ${r.crewType} crew` : "another crew"}.
+              {r.crewLabel} asks for {crewAsk(r.crewType)}.
               {r.note ? ` “${r.note}”` : ""}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginTop: 4 }}>

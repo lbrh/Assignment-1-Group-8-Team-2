@@ -5,6 +5,7 @@ import { currentActor, dataSource, getSeedDecisionLog, getSeedGroup, useMock } f
 import type { SubmitImagePayload } from "@/lib/data-source";
 import { SEVERITY, bandFromSum } from "@/lib/constants/severity";
 import { THEME_STORAGE_KEY } from "@/lib/constants/theme";
+import { crewAsk } from "@/lib/constants/crews";
 import { ARCHIVED_REASON } from "@/lib/normalize";
 import { preloadImages } from "@/lib/utils/preload";
 import type {
@@ -50,6 +51,8 @@ interface IncidentStoreState {
   supportRequests: SupportRequest[];
   /** Incident the crew picker is open for; null = closed. */
   crewPickerFor: string | null;
+  /** Bumped on every opening, so the picker starts with nothing ticked each time. */
+  crewPickerSession: number;
   group: IncidentGroup | null;
   toasts: Toast[];
 
@@ -273,6 +276,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
     crews: [],
     supportRequests: [],
     crewPickerFor: null,
+    crewPickerSession: 0,
     group: null,
     toasts: [],
 
@@ -485,7 +489,8 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
       );
     },
 
-    openCrewPicker: (crewPickerFor) => set({ crewPickerFor }),
+    openCrewPicker: (crewPickerFor) =>
+      set((s) => ({ crewPickerFor, crewPickerSession: crewPickerFor ? s.crewPickerSession + 1 : s.crewPickerSession })),
 
     loadCrews: async () => {
       try {
@@ -569,7 +574,7 @@ export const useIncidentStore = create<IncidentStoreState>((set, get) => {
           const incident = get().incidents[r.incidentId];
           pushToast({
             title: `Support requested · ${incident?.ref ?? "incident"}`,
-            body: `${r.crewLabel} asks for ${r.crewType ? `a ${r.crewType} crew` : "another crew"}${incident ? ` at ${incident.place}` : ""}.${r.note ? ` "${r.note}"` : ""}`,
+            body: `${r.crewLabel} asks for ${crewAsk(r.crewType)}${incident ? ` at ${incident.place}` : ""}.${r.note ? ` "${r.note}"` : ""}`,
             severityBand: incident?.band ?? 0,
             cta: "dismiss",
           });

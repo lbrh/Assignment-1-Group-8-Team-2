@@ -13,6 +13,7 @@ import { NearbyStrip } from "@/components/detail/NearbyStrip";
 import { IncidentGallery } from "@/components/detail/IncidentGallery";
 import { ActivityFeed } from "@/components/detail/ActivityFeed";
 import { AssignedCrews } from "@/components/dispatch/AssignedCrews";
+import { SupportRequestBanner } from "@/components/detail/SupportRequestBanner";
 import { MetaList } from "@/components/primitives/MetaField";
 import { SectionHeading } from "@/components/primitives/Card";
 import type { DecisionLogEntry, IncidentComment } from "@/lib/types";
@@ -112,6 +113,7 @@ export default function IncidentDetailPage() {
 
       <article className="card" style={{ overflow: "hidden" }}>
         <SeverityHeader incident={incident} />
+        <SupportRequestBanner incidentId={incident.id} />
 
         {/* Two columns on desktop. Below 1024px the columns dissolve (layout.css) so the actions lead,
             image and metadata follow, and the exportable record goes last. */}

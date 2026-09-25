@@ -8,3 +8,9 @@ export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = {
   on_scene: "On scene",
   cleared: "Cleared",
 };
+
+/** What a support request asks for, as words: "an aerial crew", "a heavy crew", "another crew". */
+export function crewAsk(type: CrewType | null): string {
+  if (!type) return "another crew";
+  return `${type === "aerial" ? "an" : "a"} ${type} crew`;
+}

@@ -2,7 +2,7 @@
 
 import { useIncidentStore } from "@/lib/store/useIncidentStore";
 import { relativeTime } from "@/lib/utils/time";
-import { ASSIGNMENT_LABEL } from "@/lib/constants/crews";
+import { ASSIGNMENT_LABEL, crewAsk } from "@/lib/constants/crews";
 import { Button } from "@/components/primitives/Button";
 
 /** The crews on an incident, each with its status, how long ago that changed, and a recall
@@ -55,7 +55,7 @@ export function AssignedCrews({
       )}
       {asks.map((r) => (
         <span key={r.id} className="chip chip--pill support-chip" title={r.note ?? undefined}>
-          {r.crewLabel} asks for {r.crewType ? `a ${r.crewType} crew` : "another crew"}
+          {r.crewLabel} asks for {crewAsk(r.crewType)}
         </span>
       ))}
       {showAdd ? (
